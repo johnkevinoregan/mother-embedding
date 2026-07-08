@@ -86,9 +86,13 @@ function gabor_lift(image::Matrix{Float32}; scales::Vector{Float32}=SCALES,
             for cx in step ÷ 2 + 1 : step : img_size
                 for cy in step ÷ 2 + 1 : step : img_size
                     r = response[cx, cy]
+                    # response is (row, col); cx indexes rows, cy indexes
+                    # columns — so .x (horizontal) comes from cy, .y
+                    # (vertical) comes from cx, matching normal image/plot
+                    # convention.
                     push!(samples, GaborSample(
-                        (cx - 1) / (img_size - 1),
                         (cy - 1) / (img_size - 1),
+                        (cx - 1) / (img_size - 1),
                         θ,
                         Float32(s_idx),
                         abs(r),
