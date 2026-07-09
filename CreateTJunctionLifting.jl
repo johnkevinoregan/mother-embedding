@@ -16,6 +16,7 @@ struct TJunctionSample
     α::Float32        # 2π-periodic direction from the stem point toward the crossbar point
     s::Float32         # scale index
     strength::Float32
+    phase::Float32    # phase of the stem Gabor sample
 end
 
 # The 8 grid-neighbor directions, as (dx, dy) in grid-step units, and the
@@ -115,7 +116,8 @@ function t_junction_lift(gabor_samples::AbstractVector;
                     (cy - 1) / (img_size - 1),
                     α,
                     Float32(s_idx),
-                    strength
+                    strength,
+                    stem.phase
                 ))
             end
         end

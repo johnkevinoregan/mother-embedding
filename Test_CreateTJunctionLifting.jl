@@ -103,6 +103,7 @@ let
     sorted = sort(tsamples, by = t -> -t.strength)
     top = sorted[1:min(n_show, length(sorted))]
     max_strength = isempty(top) ? 1f0 : top[1].strength
+    min_strength = isempty(top) ? 0f0 : top[end].strength
 
     p = heatmap(to_image(display_img), color=:grays, aspect_ratio=:equal,
                 axis=false, colorbar=false,
@@ -117,8 +118,12 @@ let
         λ = SCALES[round(Int, t.s)]
         step = max(1, round(Int, (1 - OVERLAP_FRAC) * λ))   # sample spacing at this scale
 
-        sat = max_strength > 0 ? clamp(t.strength / max_strength, 0.0, 1.0) : 0.0
-        color = RGB(HSV(0.0, sat, 1.0))
+        # Saturation stretched over the displayed strength range (weakest
+        # shown -> 0, strongest -> 1); hue = the stem Gabor's phase.
+        sat = max_strength > min_strength ?
+            clamp((t.strength - min_strength) / (max_strength - min_strength), 0.0, 1.0) : 1.0
+        hue = mod(t.phase, 2f0π) * 180 / π
+        color = RGB(HSV(hue, sat, 1.0))
 
         # Stem: from the sampled point to the adjacent sampled point where
         # the crossbar orientation was determined.
@@ -156,12 +161,15 @@ md"""
 ## Best orientation per location, by scale
 
 One panel per scale. At every sampled grid point, only the strongest-strength
-candidate (over all 8 directions at that point) is drawn, as an actual T
-glyph: the stem runs from the sampled point to the adjacent sampled point
+candidate (over all 8 directions at that point) is kept, and of those only
+the top `n_show_panel` (by strength, per panel) are drawn, as actual T
+glyphs: the stem runs from the sampled point to the adjacent sampled point
 where the crossbar orientation was determined, and the crossbar (length =
 the sample spacing at that scale) is centered there, perpendicular. Color
-saturation encodes strength (normalized per panel): white/pale = weak,
-saturated red = strong.
+saturation encodes strength (stretched per panel between the weakest and
+strongest shown); hue encodes the stem Gabor's phase.
+
+**Top candidates per panel**: $(@bind n_show_panel Slider(5:5:100, default=20, show_value=true))
 """
 
 # ╔═╡ 1b236d8f-0cc5-4ba4-a564-12d4218af0fe
@@ -181,8 +189,11 @@ let
 
     panels = Plots.Plot[]
     for (s_idx, λ) in enumerate(SCALES)
-        pts = [t for t in values(best_per_point) if t.s == Float32(s_idx)]
-        max_strength = maximum(t -> t.strength, pts; init=0f0)
+        pts = sort([t for t in values(best_per_point) if t.s == Float32(s_idx)],
+                   by = t -> -t.strength)
+        pts = pts[1:min(n_show_panel, length(pts))]
+        max_strength = isempty(pts) ? 1f0 : pts[1].strength
+        min_strength = isempty(pts) ? 0f0 : pts[end].strength
         step = max(1, round(Int, (1 - OVERLAP_FRAC) * λ))   # sample spacing at this scale
 
         p = heatmap(to_image(display_img), color=:grays, aspect_ratio=:equal,
@@ -194,8 +205,12 @@ let
             py = t.y * (img_size - 1) + 1
             plot_y = img_size - py + 1   # match to_image()'s vertical flip
 
-            sat = max_strength > 0 ? clamp(t.strength / max_strength, 0.0, 1.0) : 0.0
-            color = RGB(HSV(0.0, sat, 1.0))
+            # Saturation stretched over the displayed strength range (weakest
+            # shown -> 0, strongest -> 1); hue = the stem Gabor's phase.
+            sat = max_strength > min_strength ?
+                clamp((t.strength - min_strength) / (max_strength - min_strength), 0.0, 1.0) : 1.0
+            hue = mod(t.phase, 2f0π) * 180 / π
+            color = RGB(HSV(hue, sat, 1.0))
 
             # Stem: from the sampled point to the adjacent sampled point where
             # the crossbar orientation was determined.
