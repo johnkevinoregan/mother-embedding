@@ -115,22 +115,22 @@ let
         plot_y = img_size - py + 1   # match to_image()'s vertical flip
 
         λ = SCALES[round(Int, t.s)]
-        half_len = λ / 6   # total stem/crossbar length = λ/3
+        step = max(1, round(Int, (1 - OVERLAP_FRAC) * λ))   # sample spacing at this scale
 
         sat = max_strength > 0 ? clamp(t.strength / max_strength, 0.0, 1.0) : 0.0
         color = RGB(HSV(0.0, sat, 1.0))
 
-        # Stem: centered at (px, plot_y), along α.
-        sdx = half_len * cos(t.α)
-        sdy = -half_len * sin(t.α)
-        plot!(p, [px - sdx, px + sdx], [plot_y - sdy, plot_y + sdy],
-              color=color, linewidth=2, label=false)
+        # Stem: from the sampled point to the adjacent sampled point where
+        # the crossbar orientation was determined.
+        nx = px + round(Int, cos(t.α)) * step
+        ny = plot_y - round(Int, sin(t.α)) * step
+        plot!(p, [px, nx], [plot_y, ny], color=color, linewidth=2, label=false)
 
-        # Crossbar: centered at the stem's tip (in the α direction), perpendicular.
-        tip_x, tip_y = px + sdx, plot_y + sdy
-        cdx = half_len * cos(t.α + Float32(π / 2))
-        cdy = -half_len * sin(t.α + Float32(π / 2))
-        plot!(p, [tip_x - cdx, tip_x + cdx], [tip_y - cdy, tip_y + cdy],
+        # Crossbar: centered at that adjacent point, perpendicular to α,
+        # length = the sample spacing.
+        cdx = step / 2 * cos(t.α + Float32(π / 2))
+        cdy = -step / 2 * sin(t.α + Float32(π / 2))
+        plot!(p, [nx - cdx, nx + cdx], [ny - cdy, ny + cdy],
               color=color, linewidth=2, label=false)
     end
     p
@@ -157,9 +157,10 @@ md"""
 
 One panel per scale. At every sampled grid point, only the strongest-strength
 candidate (over all 8 directions at that point) is drawn, as an actual T
-glyph — a stem segment along `α` capped by a perpendicular crossbar at its
-tip — rather than an arrow. Both stem and crossbar have length `scale/3`.
-Color saturation encodes strength (normalized per panel): white/pale = weak,
+glyph: the stem runs from the sampled point to the adjacent sampled point
+where the crossbar orientation was determined, and the crossbar (length =
+the sample spacing at that scale) is centered there, perpendicular. Color
+saturation encodes strength (normalized per panel): white/pale = weak,
 saturated red = strong.
 """
 
@@ -182,7 +183,7 @@ let
     for (s_idx, λ) in enumerate(SCALES)
         pts = [t for t in values(best_per_point) if t.s == Float32(s_idx)]
         max_strength = maximum(t -> t.strength, pts; init=0f0)
-        half_len = λ / 6  # total stem/crossbar length = λ/3
+        step = max(1, round(Int, (1 - OVERLAP_FRAC) * λ))   # sample spacing at this scale
 
         p = heatmap(to_image(display_img), color=:grays, aspect_ratio=:equal,
                     axis=false, colorbar=false, title="scale $(s_idx) (λ=$(Int(λ)))",
@@ -196,17 +197,17 @@ let
             sat = max_strength > 0 ? clamp(t.strength / max_strength, 0.0, 1.0) : 0.0
             color = RGB(HSV(0.0, sat, 1.0))
 
-            # Stem: centered at (px, plot_y), along α.
-            sdx = half_len * cos(t.α)
-            sdy = -half_len * sin(t.α)
-            plot!(p, [px - sdx, px + sdx], [plot_y - sdy, plot_y + sdy],
-                  color=color, linewidth=1.5, label=false)
+            # Stem: from the sampled point to the adjacent sampled point where
+            # the crossbar orientation was determined.
+            nx = px + round(Int, cos(t.α)) * step
+            ny = plot_y - round(Int, sin(t.α)) * step
+            plot!(p, [px, nx], [plot_y, ny], color=color, linewidth=1.5, label=false)
 
-            # Crossbar: centered at the stem's tip (in the α direction), perpendicular.
-            tip_x, tip_y = px + sdx, plot_y + sdy
-            cdx = half_len * cos(t.α + Float32(π / 2))
-            cdy = -half_len * sin(t.α + Float32(π / 2))
-            plot!(p, [tip_x - cdx, tip_x + cdx], [tip_y - cdy, tip_y + cdy],
+            # Crossbar: centered at that adjacent point, perpendicular to α,
+            # length = the sample spacing.
+            cdx = step / 2 * cos(t.α + Float32(π / 2))
+            cdy = -step / 2 * sin(t.α + Float32(π / 2))
+            plot!(p, [nx - cdx, nx + cdx], [ny - cdy, ny + cdy],
                   color=color, linewidth=1.5, label=false)
         end
         push!(panels, p)

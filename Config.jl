@@ -12,8 +12,8 @@ export IMG_SIZE, NATIVE_SIZE, SCALES, ORIENTATIONS, OVERLAP_FRAC
 # --- Gabor lifting (CreateGaborLifting.jl) ---
 const IMG_SIZE = 56
 const NATIVE_SIZE = 28
-const SCALES = Float32[6, 12, 24]
-const ORIENTATIONS = Float32[0, π/4, π/2, 3π/4]
+const SCALES = Float32[3, 6, 12, 24]
+const ORIENTATIONS = Float32[k * π/8 for k in 0:7]
 const OVERLAP_FRAC = 0.25f0
 
 end # module
