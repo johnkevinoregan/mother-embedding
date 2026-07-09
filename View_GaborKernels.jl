@@ -184,9 +184,32 @@ let
                RGB(clamp(g + kp, 0, 1), clamp(g - 0.5f0 * (kp + kn), 0, 1), clamp(g + kn, 0, 1))
            end
            for i in 1:IMG_SIZE, j in 1:IMG_SIZE]
-    plot(rgb, aspect_ratio=:equal, axis=false, size=(380, 380),
-         title="λ=$(Int(λ)), α=$((a3_idx - 1) * 45)°, stem at (x=$(px3), y=$(py3))",
-         titlefontsize=9)
+    p_img = plot(rgb, aspect_ratio=:equal, axis=false,
+                 title="λ=$(Int(λ)), α=$((a3_idx - 1) * 45)°, stem at (x=$(px3), y=$(py3))",
+                 titlefontsize=9)
+
+    # Responses at this position (complex kernels, replicate-padded), and the
+    # combined feature response as used in the project:
+    # min(modulus_stem, modulus_cross) × (1 + cos(Δphase))/2.
+    Ksc = gabor_kernel(λ, stem_θ)
+    Kcc = gabor_kernel(λ, cross_θ)
+    function resp(K, r0, c0)
+        acc = zero(ComplexF32)
+        for i in -radius:radius, j in -radius:radius
+            acc += K[i + radius + 1, j + radius + 1] *
+                   synth_T[clamp(r0 + i, 1, IMG_SIZE), clamp(c0 + j, 1, IMG_SIZE)]
+        end
+        acc
+    end
+    rs = resp(Ksc, py3, px3)
+    rc = resp(Kcc, py3 + Δrow, px3 + Δcol)
+    strength = min(abs(rs), abs(rc)) / λ * (1 + cos(angle(rc) - angle(rs))) / 2
+    p_bar = bar(["stem", "crossbar", "combined"], [abs(rs) / λ, abs(rc) / λ, strength],
+                ylim=(-1, 1), legend=false, title="responses (modulus/λ)",
+                titlefontsize=9)
+    hline!(p_bar, [0], color=:black, label=false)
+
+    plot(p_img, p_bar, layout=(1, 2), size=(780, 380))
 end
 
 # ╔═╡ ccffddaa-b7c8-49da-85e6-c1c2c3c4c5c6
