@@ -30,7 +30,9 @@ function gabor_kernel(λ::Float32, θ::Float32; σ_factor=0.5f0, γ=1.0f0)
         carrier  = cis(Float32(2π) * x_θ / λ)
         kernel[i+radius+1, j+radius+1] = envelope * carrier
     end
-    # Normalize kernel energy to 1, so responses are comparable across scales.
+    # Normalize kernel energy to 1. (This alone does NOT make responses
+    # comparable across scales — larger kernels still integrate more image
+    # energy; gabor_lift divides the modulus by λ to compensate.)
     kernel ./= sqrt(sum(abs2, kernel))
     return kernel
 end
@@ -62,9 +64,11 @@ Convolve `image` with a bank of complex Gabor filters at every combination of
 by `overlap_frac` relative to each scale's wavelength), and return every
 sampled point as a `GaborSample` carrying its modulus and phase.
 
-This is the raw filter-bank response: no thresholding, no response
-normalization/weighting is applied — every grid point at every scale and
-orientation is returned.
+This is the raw filter-bank response: no thresholding is applied — every grid
+point at every scale and orientation is returned. The only normalization is
+that each modulus is divided by the kernel wavelength λ, so that moduli are
+comparable across scales (with energy-normalized kernels alone, larger
+kernels integrate more image energy and dominate any cross-scale ranking).
 
 Boundary handling: convolution uses replicate-padding (`Pad(:replicate)`), so
 kernels that extend past the image border are computed against replicated
@@ -95,7 +99,7 @@ function gabor_lift(image::Matrix{Float32}; scales::Vector{Float32}=SCALES,
                         (cx - 1) / (img_size - 1),
                         θ,
                         Float32(s_idx),
-                        abs(r),
+                        abs(r) / λ,
                         angle(r)
                     ))
                 end
