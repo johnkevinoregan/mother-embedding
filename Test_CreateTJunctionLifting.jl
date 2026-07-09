@@ -42,6 +42,9 @@ begin
     using .CreateTJunctionLifting
 end
 
+# ╔═╡ 4b74faaf-f5b3-42f0-9081-3066d07bc52e
+ORIENTATIONS
+
 # ╔═╡ 3a76c864-f6c5-49fe-b13b-3767615ff12d
 md"""
 # Test: CreateTJunctionLifting
@@ -234,6 +237,7 @@ end
 # ╠═74451829-a028-4da2-93c6-b0b2f681ce57
 # ╠═b66ef95a-3ed3-45c4-aa21-0d311a39e49d
 # ╠═f3782ead-6065-4105-85d3-d97d92b23b85
+# ╠═4b74faaf-f5b3-42f0-9081-3066d07bc52e
 # ╟─3a76c864-f6c5-49fe-b13b-3767615ff12d
 # ╟─e485edb9-473b-45a0-8439-834a0963b654
 # ╠═dc115007-d449-4f78-b621-99838244a5ab
