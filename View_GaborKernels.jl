@@ -134,12 +134,21 @@ end
 md"""
 ## Sliding the kernel pair over a synthetic T
 
-The kernel pair is overlaid (red = positive lobes, blue = negative) on the
-synthetic T at a position you control: (`x`, `y`) is the stem kernel's
-center; the crossbar kernel sits one grid step away in direction α. Below
-the figure, the actual complex responses at that position are shown — set
-the phase sliders to the *measured* phases to see the pattern the responses
-correspond to.
+Each kernel is shown in its own panel (red = positive weights, blue =
+negative), overlaid on the synthetic T at a position you control: (`x`, `y`)
+is the stem kernel's center; the crossbar kernel sits one grid step away in
+direction α. The two kernels are correlated with the image **independently**
+— each panel shows exactly the weights of one linear template. The combined
+feature is computed from the two scalar responses afterwards, nonlinearly
+(min of the moduli × phase compatibility); it is *not* the response of any
+summed pattern.
+
+The bar panel shows, for each kernel, the projection of its response onto
+the displayed template `P(φ)`, onto the same template a quarter-cycle later
+`P(φ+90°)`, and the modulus `|r| = √(P(φ)² + P(φ+90°)²)` — the maximum
+projection achievable over all φ. Set a phase slider to the *measured*
+phase (table below) and watch `P(φ)` rise to the modulus while `P(φ+90°)`
+drops to zero. All values carry the /λ normalization.
 
 **Scale index**: $(@bind s3_idx Slider(1:length(SCALES), default=3, show_value=true))
 
@@ -161,38 +170,40 @@ let
     step = max(1, round(Int, (1 - OVERLAP_FRAC) * λ))
     stem_θ = CreateTJunctionLifting.closest_orientation(mod(α, Float32(π)), ORIENTATIONS)
     cross_θ = CreateTJunctionLifting.closest_orientation(mod(α + Float32(π / 2), Float32(π)), ORIENTATIONS)
-    Ks = real.(gabor_kernel(λ, stem_θ) .* cis(-deg2rad(φ3s_deg)))
-    Kc = real.(gabor_kernel(λ, cross_θ) .* cis(-deg2rad(φ3c_deg)))
-    radius = (size(Ks, 1) - 1) ÷ 2
+    Ksc = gabor_kernel(λ, stem_θ)
+    Kcc = gabor_kernel(λ, cross_θ)
+    radius = (size(Ksc, 1) - 1) ÷ 2
     Δrow = round(Int, sin(α)) * step
     Δcol = round(Int, cos(α)) * step
 
-    composite = zeros(Float32, IMG_SIZE, IMG_SIZE)
-    for (Kr, r0, c0) in ((Ks, py3, px3), (Kc, py3 + Δrow, px3 + Δcol))
+    # One overlay per kernel: each panel shows exactly the weights of one
+    # linear template — the two kernels are correlated with the image
+    # independently, nothing is ever summed across them.
+    function overlay(K, φ_deg, r0, c0, ttl)
+        Kr = real.(K .* cis(-deg2rad(φ_deg)))
+        pattern = zeros(Float32, IMG_SIZE, IMG_SIZE)
         for i in -radius:radius, j in -radius:radius
             r, c = r0 + i, c0 + j
             (1 <= r <= IMG_SIZE && 1 <= c <= IMG_SIZE) || continue
-            composite[r, c] += Kr[i + radius + 1, j + radius + 1]
+            pattern[r, c] = Kr[i + radius + 1, j + radius + 1]
         end
+        pattern ./= max(maximum(abs, pattern), eps(Float32))
+        rgb = [begin
+                   g = 0.5f0 * synth_T[i, j]
+                   k = pattern[i, j]
+                   kp, kn = max(k, 0f0), max(-k, 0f0)
+                   RGB(clamp(g + kp, 0, 1), clamp(g - 0.5f0 * (kp + kn), 0, 1), clamp(g + kn, 0, 1))
+               end
+               for i in 1:IMG_SIZE, j in 1:IMG_SIZE]
+        plot(rgb, aspect_ratio=:equal, axis=false, title=ttl, titlefontsize=9)
     end
-    composite ./= max(maximum(abs, composite), eps(Float32))
+    p_stem = overlay(Ksc, φ3s_deg, py3, px3,
+                     "stem kernel — λ=$(Int(λ)), α=$((a3_idx - 1) * 45)°, (x=$(px3), y=$(py3))")
+    p_cross = overlay(Kcc, φ3c_deg, py3 + Δrow, px3 + Δcol, "crossbar kernel")
 
-    rgb = [begin
-               g = 0.5f0 * synth_T[i, j]
-               k = composite[i, j]
-               kp, kn = max(k, 0f0), max(-k, 0f0)
-               RGB(clamp(g + kp, 0, 1), clamp(g - 0.5f0 * (kp + kn), 0, 1), clamp(g + kn, 0, 1))
-           end
-           for i in 1:IMG_SIZE, j in 1:IMG_SIZE]
-    p_img = plot(rgb, aspect_ratio=:equal, axis=false,
-                 title="λ=$(Int(λ)), α=$((a3_idx - 1) * 45)°, stem at (x=$(px3), y=$(py3))",
-                 titlefontsize=9)
-
-    # Responses at this position (complex kernels, replicate-padded), and the
-    # combined feature response as used in the project:
+    # Responses at these positions (complex kernels, replicate-padded), and
+    # the combined feature response as used in the project:
     # min(modulus_stem, modulus_cross) × (1 + cos(Δphase))/2.
-    Ksc = gabor_kernel(λ, stem_θ)
-    Kcc = gabor_kernel(λ, cross_θ)
     function resp(K, r0, c0)
         acc = zero(ComplexF32)
         for i in -radius:radius, j in -radius:radius
@@ -204,12 +215,23 @@ let
     rs = resp(Ksc, py3, px3)
     rc = resp(Kcc, py3 + Δrow, px3 + Δcol)
     strength = min(abs(rs), abs(rc)) / λ * (1 + cos(angle(rc) - angle(rs))) / 2
-    p_bar = bar(["stem", "crossbar", "combined"], [abs(rs) / λ, abs(rc) / λ, strength],
-                ylim=(-1, 1), legend=false, title="responses (modulus/λ)",
-                titlefontsize=9)
+
+    # Projection of a response onto the template displayed at phase φ; the
+    # modulus is the root-sum-of-squares of the projections at φ and φ+90°,
+    # so P(φ) reaches the modulus exactly when φ is the measured phase.
+    proj(r, φ_deg) = real(r * cis(-deg2rad(φ_deg))) / λ
+    values = [proj(rs, φ3s_deg), proj(rs, φ3s_deg + 90), abs(rs) / λ,
+              proj(rc, φ3c_deg), proj(rc, φ3c_deg + 90), abs(rc) / λ,
+              strength]
+    labels = ["s P(φ)", "s P(φ+90°)", "s |r|", "c P(φ)", "c P(φ+90°)", "c |r|", "comb"]
+    bar_colors = [:steelblue, :steelblue, :steelblue,
+                  :darkorange, :darkorange, :darkorange, :firebrick]
+    p_bar = bar(labels, values, color=bar_colors, ylim=(-1, 1), legend=false,
+                title="responses (/λ): s=stem, c=crossbar", titlefontsize=9,
+                xrotation=30, tickfontsize=7)
     hline!(p_bar, [0], color=:black, label=false)
 
-    plot(p_img, p_bar, layout=(1, 2), size=(780, 380))
+    plot(p_stem, p_cross, p_bar, layout=(1, 3), size=(1140, 380))
 end
 
 # ╔═╡ ccffddaa-b7c8-49da-85e6-c1c2c3c4c5c6
