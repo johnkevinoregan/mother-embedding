@@ -112,13 +112,12 @@ let
                 title="Top $(length(top)) T-junction candidates",
                 xlim=(0.5, img_size + 0.5), ylim=(0.5, img_size + 0.5))
 
-    # A filled ellipse centered at (cx0, cy0), oriented and sized by the
-    # segment vector (dx, dy): 2/3 its length, aspect 2:1 — same glyph
-    # style as the Gabor test notebook.
-    function ellipse_at!(p, cx0, cy0, dx, dy, color)
+    # A filled ellipse centered at (cx0, cy0), oriented along (dx, dy) and
+    # sized 2λ/3 x λ/3 — the same glyph as the Gabor test notebook.
+    function ellipse_at!(p, cx0, cy0, dx, dy, λ, color)
         L = hypot(dx, dy)
         ux, uy = dx / L, dy / L
-        a, b = L / 3, L / 6
+        a, b = λ / 3, λ / 6
         ts = range(0, 2π, length=24)
         xs = [cx0 + a * cos(t) * ux - b * sin(t) * uy for t in ts]
         ys = [cy0 + a * cos(t) * uy + b * sin(t) * ux for t in ts]
@@ -144,13 +143,11 @@ let
         # was determined.
         nx = px + round(Int, cos(t.α)) * step
         ny = plot_y - round(Int, sin(t.α)) * step
-        ellipse_at!(p, px, plot_y, nx - px, ny - plot_y, color)
+        ellipse_at!(p, px, plot_y, cos(t.α), -sin(t.α), λ, color)
 
         # Crossbar: an ellipse centered on that adjacent sampled point,
         # perpendicular to α.
-        cdx = step / 2 * cos(t.α + Float32(π / 2))
-        cdy = -step / 2 * sin(t.α + Float32(π / 2))
-        ellipse_at!(p, nx, ny, 2cdx, 2cdy, color)
+        ellipse_at!(p, nx, ny, cos(t.α + Float32(π / 2)), -sin(t.α + Float32(π / 2)), λ, color)
     end
     p
 end
@@ -203,13 +200,12 @@ let
         end
     end
 
-    # A filled ellipse centered at (cx0, cy0), oriented and sized by the
-    # segment vector (dx, dy): 2/3 its length, aspect 2:1 — same glyph
-    # style as the Gabor test notebook.
-    function ellipse_at!(p, cx0, cy0, dx, dy, color)
+    # A filled ellipse centered at (cx0, cy0), oriented along (dx, dy) and
+    # sized 2λ/3 x λ/3 — the same glyph as the Gabor test notebook.
+    function ellipse_at!(p, cx0, cy0, dx, dy, λ, color)
         L = hypot(dx, dy)
         ux, uy = dx / L, dy / L
-        a, b = L / 3, L / 6
+        a, b = λ / 3, λ / 6
         ts = range(0, 2π, length=24)
         xs = [cx0 + a * cos(t) * ux - b * sin(t) * uy for t in ts]
         ys = [cy0 + a * cos(t) * uy + b * sin(t) * ux for t in ts]
@@ -247,13 +243,11 @@ let
             # orientation was determined.
             nx = px + round(Int, cos(t.α)) * step
             ny = plot_y - round(Int, sin(t.α)) * step
-            ellipse_at!(p, px, plot_y, nx - px, ny - plot_y, color)
+            ellipse_at!(p, px, plot_y, cos(t.α), -sin(t.α), λ, color)
 
             # Crossbar: an ellipse centered on that adjacent sampled point,
             # perpendicular to α.
-            cdx = step / 2 * cos(t.α + Float32(π / 2))
-            cdy = -step / 2 * sin(t.α + Float32(π / 2))
-            ellipse_at!(p, nx, ny, 2cdx, 2cdy, color)
+            ellipse_at!(p, nx, ny, cos(t.α + Float32(π / 2)), -sin(t.α + Float32(π / 2)), λ, color)
         end
         push!(panels, p)
     end
