@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v1.0.3
+# v0.20.21
 
 using Markdown
 using InteractiveUtils
@@ -65,7 +65,7 @@ though both share the same underlying π-periodic Gabor orientation.
 # as in View_GaborKernels.jl.
 selected_image = let
     img = zeros(Float32, IMG_SIZE, IMG_SIZE)
-    img[13:16, 12:44] .= 1   # crossbar
+    img[13:16, 12:44] .= 0   # crossbar
     img[13:48, 27:30] .= 1   # stem
     img
 end
@@ -86,6 +86,11 @@ md"""
 Only the top `n_show` candidates (by strength) are drawn, purely for
 legibility — `t_junction_lift` itself applies no threshold; every grid
 point/neighbor-direction pair is present in `tsamples`.
+
+Each candidate also gets a dashed circle of radius λ around its stem
+sample point — the kernel's true receptive-field extent (radius 2σ = λ),
+much larger than the glyph at the bigger scales: a glyph in a blank area
+can still carry a genuine response if the circle reaches image content.
 
 **Number of top candidates to show**: $(@bind n_show Slider(5:5:100, default=30, show_value=true))
 """
@@ -141,6 +146,13 @@ let
         # Crossbar: an ellipse centered on that adjacent sampled point,
         # perpendicular to α.
         ellipse_at!(p, nx, ny, cos(t.α + Float32(π / 2)), -sin(t.α + Float32(π / 2)), λ, color)
+
+        # Dashed circle of radius λ around the stem sample point: the
+        # kernel's true receptive-field extent (radius 2σ = λ), which is
+        # much larger than the glyph at the bigger scales.
+        circ = range(0, 2π, length=48)
+        plot!(p, px .+ λ .* cos.(circ), plot_y .+ λ .* sin.(circ),
+              color=color, linestyle=:dash, linewidth=1, label=false)
     end
     p
 end
@@ -173,7 +185,8 @@ determined, and the crossbar ellipse is centered on that adjacent point,
 perpendicular. Hue encodes the stem Gabor's phase; opacity is proportional
 to strength, normalized once across all panels (to the strongest
 best-per-location candidate at any scale), so panel brightness is
-comparable between scales.
+comparable between scales. The dashed circle of radius λ around each stem
+point shows the kernel's true receptive-field extent.
 
 **Top candidates per panel**: $(@bind n_show_panel Slider(5:5:100, default=20, show_value=true))
 """
@@ -241,6 +254,13 @@ let
             # Crossbar: an ellipse centered on that adjacent sampled point,
             # perpendicular to α.
             ellipse_at!(p, nx, ny, cos(t.α + Float32(π / 2)), -sin(t.α + Float32(π / 2)), λ, color)
+
+            # Dashed circle of radius λ around the stem sample point: the
+            # kernel's true receptive-field extent (radius 2σ = λ), which is
+            # much larger than the glyph at the bigger scales.
+            circ = range(0, 2π, length=48)
+            plot!(p, px .+ λ .* cos.(circ), plot_y .+ λ .* sin.(circ),
+                  color=color, linestyle=:dash, linewidth=1, label=false)
         end
         push!(panels, p)
     end
