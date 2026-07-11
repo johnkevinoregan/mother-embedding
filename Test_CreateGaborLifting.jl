@@ -120,9 +120,12 @@ let
                 title="θ=$(round(θ*180/π, digits=1))°, λ=$(λ)px  ($(length(filtered)) samples)",
                 xlim=(0.5, img_size + 0.5), ylim=(0.5, img_size + 0.5))
 
+    # Line along the bar the filter responds to (the carrier varies along
+    # (cos θ, sin θ) in (row, col); the bar runs perpendicular to that):
+    # θ=0 -> horizontal.
     line_half = λ / 5
-    dx = line_half * sin(θ)
-    dy = line_half * cos(θ)
+    dx = line_half * cos(θ)
+    dy = line_half * sin(θ)
     for s in filtered
         cx = s.x * (img_size - 1) + 1
         cy = s.y * (img_size - 1) + 1
@@ -175,9 +178,10 @@ let
                         axis=false, colorbar=false,
                         title="λ=$(Int(λ)),θ=$(round(Int, θ*180/π))°", titlefontsize=7,
                         xlim=(0.5, img_size + 0.5), ylim=(0.5, img_size + 0.5))
+            # Bar orientation, as in the single-filter overlay: θ=0 -> horizontal.
             line_half = λ / 5
-            dx = line_half * sin(θ)
-            dy = line_half * cos(θ)
+            dx = line_half * cos(θ)
+            dy = line_half * sin(θ)
             for s in filtered
                 cx = s.x * (img_size - 1) + 1
                 cy = s.y * (img_size - 1) + 1
