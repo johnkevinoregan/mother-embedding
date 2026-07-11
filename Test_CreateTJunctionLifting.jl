@@ -218,7 +218,7 @@ let
 
     # One normalization across all panels: opacity is comparable between
     # scales, as in the Gabor test notebook's filter-bank grid.
-    max_strength = maximum((t.strength for t in values(best_per_point)); init=1f0)
+    max_strength = maximum((t.strength for t in values(best_per_point)); init=0f0)
 
     panels = Plots.Plot[]
     for (s_idx, λ) in enumerate(SCALES)
