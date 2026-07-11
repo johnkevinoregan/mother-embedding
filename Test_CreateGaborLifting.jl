@@ -81,9 +81,11 @@ samples = gabor_lift(selected_image)
 md"""
 ## Single-filter overlay
 
-Each sample is drawn as a bar of length $\lambda$ and width $\lambda/2$ —
-the size of the stroke the filter is tuned to (the positive lobe of the
-kernel is $\lambda/2$ wide), oriented along the filter's $\theta$. Color
+Each sample is drawn as an ellipse oriented along the filter's $\theta$,
+sized at 2/3 of the tuned-stroke footprint (the filter is tuned to a bar of
+length $\approx\lambda$ and width $\lambda/2$, the kernel's positive-lobe
+width; the ellipse is $2\lambda/3 \times \lambda/3$ so overlapping
+neighbors stay distinguishable). Color
 encodes **phase** (cyclic colormap); opacity encodes **modulus**,
 proportional to it, normalized to the largest modulus among this filter's
 samples — so a zero response is fully transparent (invisible), and faint
@@ -121,20 +123,22 @@ let
                 title="θ=$(round(θ*180/π, digits=1))°, λ=$(λ)px  ($(length(filtered)) samples)",
                 xlim=(0.5, img_size + 0.5), ylim=(0.5, img_size + 0.5))
 
-    # Each sample as a filled bar of length λ and width λ/2 in image pixels —
-    # the stroke the filter is tuned to, oriented along it (θ=0 ->
-    # horizontal, the direction the carrier varies being perpendicular).
+    # Each sample as a filled ellipse oriented along the bar the filter is
+    # tuned to (θ=0 -> horizontal, the carrier varying perpendicular to it),
+    # sized at 2/3 of the tuned-stroke footprint (λ x λ/2) for legibility
+    # where neighboring glyphs overlap.
     ux, uy = cos(θ), sin(θ)      # along the bar
     vx, vy = -sin(θ), cos(θ)     # across the bar
-    hl, hw = λ / 2, λ / 4
+    hl, hw = λ / 3, λ / 6        # semi-axes: 2/3 of λ/2 and λ/4
+    ts = range(0, 2π, length=24)
     for s in filtered
         cx = s.x * (img_size - 1) + 1
         cy = s.y * (img_size - 1) + 1
         # Match the image's to_image() vertical flip for overlay alignment.
         plot_y = img_size - cy + 1
         color = phase_modulus_color(s.phase, s.modulus, max_mod)
-        xs = [cx + a * hl * ux + b * hw * vx for (a, b) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-        ys = [plot_y + a * hl * uy + b * hw * vy for (a, b) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        xs = [cx + hl * cos(t) * ux + hw * sin(t) * vx for t in ts]
+        ys = [plot_y + hl * cos(t) * uy + hw * sin(t) * vy for t in ts]
         plot!(p, Shape(xs, ys), fillcolor=color, linewidth=0, label=false)
     end
     p
@@ -186,17 +190,19 @@ let
                         axis=false, colorbar=false, margin=0Plots.mm,
                         title="λ=$(Int(λ)),θ=$(round(Int, θ*180/π))°", titlefontsize=7,
                         xlim=(0.5, img_size + 0.5), ylim=(0.5, img_size + 0.5))
-            # Bars of length λ, width λ/2, as in the single-filter overlay.
+            # Ellipses at 2/3 the tuned-stroke footprint, as in the
+            # single-filter overlay.
             ux, uy = cos(θ), sin(θ)
             vx, vy = -sin(θ), cos(θ)
-            hl, hw = λ / 2, λ / 4
+            hl, hw = λ / 3, λ / 6
+            ts = range(0, 2π, length=24)
             for s in filtered
                 cx = s.x * (img_size - 1) + 1
                 cy = s.y * (img_size - 1) + 1
                 plot_y = img_size - cy + 1
                 color = phase_modulus_color(s.phase, s.modulus, global_max)
-                xs = [cx + a * hl * ux + b * hw * vx for (a, b) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-                ys = [plot_y + a * hl * uy + b * hw * vy for (a, b) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+                xs = [cx + hl * cos(t) * ux + hw * sin(t) * vx for t in ts]
+                ys = [plot_y + hl * cos(t) * uy + hw * sin(t) * vy for t in ts]
                 plot!(p, Shape(xs, ys), fillcolor=color, linewidth=0, label=false)
             end
             push!(panels, p)
