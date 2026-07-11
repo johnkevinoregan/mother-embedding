@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v1.0.3
+# v0.20.21
 
 using Markdown
 using InteractiveUtils
@@ -106,24 +106,22 @@ let
     sorted = sort(tsamples, by = t -> -t.strength)
     top = sorted[1:min(n_show, length(sorted))]
     max_strength = isempty(top) ? 1f0 : top[1].strength
-    min_strength = isempty(top) ? 0f0 : top[end].strength
 
     p = heatmap(to_image(display_img), color=:grays, aspect_ratio=:equal,
                 axis=false, colorbar=false,
                 title="Top $(length(top)) T-junction candidates",
                 xlim=(0.5, img_size + 0.5), ylim=(0.5, img_size + 0.5))
 
-    # A segment drawn as a filled ellipse at 2/3 its length, aspect 2:1 —
-    # same glyph style as the Gabor test notebook.
-    function ellipse_seg!(p, x1, y1, x2, y2, color)
-        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
-        dx, dy = x2 - x1, y2 - y1
+    # A filled ellipse centered at (cx0, cy0), oriented and sized by the
+    # segment vector (dx, dy): 2/3 its length, aspect 2:1 — same glyph
+    # style as the Gabor test notebook.
+    function ellipse_at!(p, cx0, cy0, dx, dy, color)
         L = hypot(dx, dy)
         ux, uy = dx / L, dy / L
         a, b = L / 3, L / 6
         ts = range(0, 2π, length=24)
-        xs = [mx + a * cos(t) * ux - b * sin(t) * uy for t in ts]
-        ys = [my + a * cos(t) * uy + b * sin(t) * ux for t in ts]
+        xs = [cx0 + a * cos(t) * ux - b * sin(t) * uy for t in ts]
+        ys = [cy0 + a * cos(t) * uy + b * sin(t) * ux for t in ts]
         plot!(p, Shape(xs, ys), fillcolor=color, linewidth=0, label=false)
     end
 
@@ -135,24 +133,24 @@ let
         λ = SCALES[round(Int, t.s)]
         step = max(1, round(Int, (1 - OVERLAP_FRAC) * λ))   # sample spacing at this scale
 
-        # Saturation stretched over the displayed strength range (weakest
-        # shown -> 0, strongest -> 1); hue = the stem Gabor's phase.
-        sat = max_strength > min_strength ?
-            clamp((t.strength - min_strength) / (max_strength - min_strength), 0.0, 1.0) : 1.0
+        # Hue = the stem Gabor's phase; opacity proportional to strength
+        # (relative to the strongest shown), as in the Gabor test notebook.
+        alpha = max_strength > 0 ? clamp(t.strength / max_strength, 0.0, 1.0) : 0.0
         hue = mod(t.phase, 2f0π) * 180 / π
-        color = RGB(HSV(hue, sat, 1.0))
+        color = RGBA(RGB(HSV(hue, 1.0, 1.0)), alpha)
 
-        # Stem: from the sampled point to the adjacent sampled point where
-        # the crossbar orientation was determined.
+        # Stem: an ellipse centered on the sampled point, pointing along α
+        # toward the adjacent sampled point where the crossbar orientation
+        # was determined.
         nx = px + round(Int, cos(t.α)) * step
         ny = plot_y - round(Int, sin(t.α)) * step
-        ellipse_seg!(p, px, plot_y, nx, ny, color)
+        ellipse_at!(p, px, plot_y, nx - px, ny - plot_y, color)
 
-        # Crossbar: centered at that adjacent point, perpendicular to α,
-        # length = the sample spacing.
+        # Crossbar: an ellipse centered on that adjacent sampled point,
+        # perpendicular to α.
         cdx = step / 2 * cos(t.α + Float32(π / 2))
         cdy = -step / 2 * sin(t.α + Float32(π / 2))
-        ellipse_seg!(p, nx - cdx, ny - cdy, nx + cdx, ny + cdy, color)
+        ellipse_at!(p, nx, ny, 2cdx, 2cdy, color)
     end
     p
 end
@@ -178,12 +176,14 @@ md"""
 
 One panel per scale. At every sampled grid point, only the strongest-strength
 candidate (over all 8 directions at that point) is kept, and of those only
-the top `n_show_panel` (by strength, per panel) are drawn, as actual T
-glyphs: the stem runs from the sampled point to the adjacent sampled point
-where the crossbar orientation was determined, and the crossbar (length =
-the sample spacing at that scale) is centered there, perpendicular. Color
-saturation encodes strength (stretched per panel between the weakest and
-strongest shown); hue encodes the stem Gabor's phase.
+the top `n_show_panel` (by strength, per panel) are drawn, as T glyphs made
+of two ellipses: the stem ellipse is centered on the sampled point, pointing
+along α toward the adjacent sampled point where the crossbar orientation was
+determined, and the crossbar ellipse is centered on that adjacent point,
+perpendicular. Hue encodes the stem Gabor's phase; opacity is proportional
+to strength, normalized once across all panels (to the strongest
+best-per-location candidate at any scale), so panel brightness is
+comparable between scales.
 
 **Top candidates per panel**: $(@bind n_show_panel Slider(5:5:100, default=20, show_value=true))
 """
@@ -203,27 +203,28 @@ let
         end
     end
 
-    # A segment drawn as a filled ellipse at 2/3 its length, aspect 2:1 —
-    # same glyph style as the Gabor test notebook.
-    function ellipse_seg!(p, x1, y1, x2, y2, color)
-        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
-        dx, dy = x2 - x1, y2 - y1
+    # A filled ellipse centered at (cx0, cy0), oriented and sized by the
+    # segment vector (dx, dy): 2/3 its length, aspect 2:1 — same glyph
+    # style as the Gabor test notebook.
+    function ellipse_at!(p, cx0, cy0, dx, dy, color)
         L = hypot(dx, dy)
         ux, uy = dx / L, dy / L
         a, b = L / 3, L / 6
         ts = range(0, 2π, length=24)
-        xs = [mx + a * cos(t) * ux - b * sin(t) * uy for t in ts]
-        ys = [my + a * cos(t) * uy + b * sin(t) * ux for t in ts]
+        xs = [cx0 + a * cos(t) * ux - b * sin(t) * uy for t in ts]
+        ys = [cy0 + a * cos(t) * uy + b * sin(t) * ux for t in ts]
         plot!(p, Shape(xs, ys), fillcolor=color, linewidth=0, label=false)
     end
+
+    # One normalization across all panels: opacity is comparable between
+    # scales, as in the Gabor test notebook's filter-bank grid.
+    max_strength = maximum((t.strength for t in values(best_per_point)); init=1f0)
 
     panels = Plots.Plot[]
     for (s_idx, λ) in enumerate(SCALES)
         pts = sort([t for t in values(best_per_point) if t.s == Float32(s_idx)],
                    by = t -> -t.strength)
         pts = pts[1:min(n_show_panel, length(pts))]
-        max_strength = isempty(pts) ? 1f0 : pts[1].strength
-        min_strength = isempty(pts) ? 0f0 : pts[end].strength
         step = max(1, round(Int, (1 - OVERLAP_FRAC) * λ))   # sample spacing at this scale
 
         p = heatmap(to_image(display_img), color=:grays, aspect_ratio=:equal,
@@ -235,24 +236,24 @@ let
             py = t.y * (img_size - 1) + 1
             plot_y = img_size - py + 1   # match to_image()'s vertical flip
 
-            # Saturation stretched over the displayed strength range (weakest
-            # shown -> 0, strongest -> 1); hue = the stem Gabor's phase.
-            sat = max_strength > min_strength ?
-                clamp((t.strength - min_strength) / (max_strength - min_strength), 0.0, 1.0) : 1.0
+            # Hue = the stem Gabor's phase; opacity proportional to strength
+            # (relative to the strongest candidate over all scales).
+            alpha = max_strength > 0 ? clamp(t.strength / max_strength, 0.0, 1.0) : 0.0
             hue = mod(t.phase, 2f0π) * 180 / π
-            color = RGB(HSV(hue, sat, 1.0))
+            color = RGBA(RGB(HSV(hue, 1.0, 1.0)), alpha)
 
-            # Stem: from the sampled point to the adjacent sampled point where
-            # the crossbar orientation was determined.
+            # Stem: an ellipse centered on the sampled point, pointing along
+            # α toward the adjacent sampled point where the crossbar
+            # orientation was determined.
             nx = px + round(Int, cos(t.α)) * step
             ny = plot_y - round(Int, sin(t.α)) * step
-            ellipse_seg!(p, px, plot_y, nx, ny, color)
+            ellipse_at!(p, px, plot_y, nx - px, ny - plot_y, color)
 
-            # Crossbar: centered at that adjacent point, perpendicular to α,
-            # length = the sample spacing.
+            # Crossbar: an ellipse centered on that adjacent sampled point,
+            # perpendicular to α.
             cdx = step / 2 * cos(t.α + Float32(π / 2))
             cdy = -step / 2 * sin(t.α + Float32(π / 2))
-            ellipse_seg!(p, nx - cdx, ny - cdy, nx + cdx, ny + cdy, color)
+            ellipse_at!(p, nx, ny, 2cdx, 2cdy, color)
         end
         push!(panels, p)
     end
