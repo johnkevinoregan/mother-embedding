@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v1.0.3
+# v0.20.21
 
 using Markdown
 using InteractiveUtils
@@ -82,11 +82,12 @@ md"""
 ## Single-filter overlay
 
 Line color encodes **phase** (cyclic colormap); line opacity encodes
-**modulus**, normalized to the largest modulus among this filter's samples.
-Line length equals the filter's wavelength $\lambda$; line orientation
-matches the filter's $\theta$. Every sampled grid point is drawn — there is
-no threshold, so faint/near-transparent lines are low-modulus responses, not
-excluded ones.
+**modulus**, proportional to it, normalized to the largest modulus among
+this filter's samples — so a zero response is fully transparent (invisible),
+and faint lines are genuinely small (but non-zero) responses. Line length
+equals the filter's wavelength $\lambda$; line orientation matches the
+filter's $\theta$. No threshold is applied: every sampled grid point is
+drawn, visible in proportion to its response.
 
 **Orientation index**: $(@bind orient_idx Slider(1:length(ORIENTATIONS), default=2, show_value=true))
 
@@ -94,11 +95,13 @@ excluded ones.
 """
 
 # ╔═╡ c02ccbe6-bb78-407b-96a1-bc11485a2019
-# Map (phase, modulus) to an RGBA color: hue <- phase, alpha <- normalized modulus.
+# Map (phase, modulus) to an RGBA color: hue <- phase, alpha <- normalized
+# modulus. Opacity is directly proportional to the modulus, so a zero
+# response draws nothing at all.
 function phase_modulus_color(phase::Real, modulus::Real, max_modulus::Real)
     hue = 180 * (phase / π + 1)  # phase in (-π, π] -> hue in [0, 360)
     alpha = max_modulus > 0 ? clamp(modulus / max_modulus, 0.0, 1.0) : 0.0
-    return RGBA(convert(RGB, HSV(hue, 1.0, 1.0)), 0.15 + 0.85 * alpha)
+    return RGBA(convert(RGB, HSV(hue, 1.0, 1.0)), alpha)
 end
 
 # ╔═╡ bd917179-309b-4dee-9eb2-0c5e4161b2bb
@@ -181,7 +184,7 @@ let
                 plot_y = img_size - cy + 1
                 alpha = max_mod > 0 ? clamp(s.modulus / max_mod, 0.0, 1.0) : 0.0
                 plot!(p, [cx - dx, cx + dx], [plot_y - dy, plot_y + dy],
-                      color=RGBA(1.0, 0.6, 0.0, 0.15 + 0.85 * alpha),
+                      color=RGBA(1.0, 0.6, 0.0, alpha),
                       linewidth=1.2, label=false)
             end
             push!(panels, p)
