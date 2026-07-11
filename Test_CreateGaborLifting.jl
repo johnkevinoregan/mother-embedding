@@ -194,10 +194,13 @@ let
             push!(panels, p)
         end
     end
-    # Canvas proportioned to the panel grid (square panels + title strip),
-    # zero margins: the image fills each slot.
-    plot(panels..., layout=(length(SCALES), length(ORIENTATIONS)),
-         size=(180 * length(ORIENTATIONS), 200 * length(SCALES)))
+    # 4 panels per row: Pluto scales figures down to its ~700 px column
+    # width, so a narrow-and-tall grid (the page scrolls vertically) gives
+    # each panel twice the on-screen size of an 8-per-row layout. Panels are
+    # pushed scale-major, so each scale occupies two consecutive rows.
+    ncols = 4
+    nrows = ceil(Int, length(panels) / ncols)
+    plot(panels..., layout=(nrows, ncols), size=(250 * ncols, 270 * nrows))
 end
 
 # ╔═╡ Cell order:
