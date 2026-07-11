@@ -157,9 +157,12 @@ end
 md"""
 ## Full filter bank, at a glance
 
-Every (scale, orientation) combination for the same image, modulus only
-(brightness), no phase — a quick way to see how responses shift across the
-whole bank at once.
+Every (scale, orientation) combination for the same image, drawn exactly as
+in the single-filter overlay: hue = phase, opacity ∝ modulus. Unlike the
+single-filter figure, opacity is normalized to the **global** maximum
+modulus over the whole bank — moduli are on a common "fraction of ideal"
+scale, so panels are directly comparable: a pale panel really does respond
+less than a vivid one.
 """
 
 # ╔═╡ 14d46eef-2518-4ec8-b0a0-b6bdecb724a8
@@ -168,11 +171,14 @@ let
     display_img = size(selected_image) != (img_size, img_size) ?
         imresize_simple(selected_image, img_size) : selected_image
 
+    # One normalization for the entire bank: moduli are on a common
+    # "fraction of ideal" scale, so panels stay comparable to each other.
+    global_max = maximum(s.modulus for s in samples; init=0f0)
+
     panels = Plots.Plot[]
     for (s_idx, λ) in enumerate(SCALES)
         for θ in ORIENTATIONS
             filtered = filter(s -> s.θ == θ && s.s == Float32(s_idx), samples)
-            max_mod = maximum(s.modulus for s in filtered; init=0f0)
 
             p = heatmap(to_image(display_img), color=:grays, aspect_ratio=:equal,
                         axis=false, colorbar=false, margin=0Plots.mm,
@@ -186,9 +192,8 @@ let
                 cx = s.x * (img_size - 1) + 1
                 cy = s.y * (img_size - 1) + 1
                 plot_y = img_size - cy + 1
-                alpha = max_mod > 0 ? clamp(s.modulus / max_mod, 0.0, 1.0) : 0.0
                 plot!(p, [cx - dx, cx + dx], [plot_y - dy, plot_y + dy],
-                      color=RGBA(1.0, 0.6, 0.0, alpha),
+                      color=phase_modulus_color(s.phase, s.modulus, global_max),
                       linewidth=1.2, label=false)
             end
             push!(panels, p)
