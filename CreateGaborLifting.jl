@@ -5,7 +5,7 @@ using ImageFiltering
 include(joinpath(@__DIR__, "Config.jl"))
 using .Config
 
-export GaborSample, gabor_kernel, ideal_response, imresize_simple, gabor_lift
+export GaborSample, gabor_kernel, imresize_simple, gabor_lift
 
 # A single Gabor sample: position, filter orientation/scale, and the complex
 # response's modulus and phase (no thresholding or normalization applied).
@@ -30,22 +30,18 @@ function gabor_kernel(λ::Float32, θ::Float32; σ_factor=0.5f0, γ=1.0f0)
         carrier  = cis(Float32(2π) * x_θ / λ)
         kernel[i+radius+1, j+radius+1] = envelope * carrier
     end
-    # Normalize kernel energy to 1. (This alone does NOT make responses
-    # comparable across scales — larger kernels still integrate more image
-    # energy; gabor_lift divides the modulus by ideal_response to compensate.)
-    kernel ./= sqrt(sum(abs2, kernel))
+    # Ideal-response normalization — deliberately NOT the usual energy
+    # normalization (Σ|K|² = 1). Energy normalization calibrates responses
+    # against a unit-energy stimulus, which leaves them growing ~∝ λ on real
+    # [0,1]-valued images (larger kernels integrate more image energy).
+    # Instead we scale so the kernel's response to its ideal achievable
+    # stimulus — a white (value 1) bar covering exactly the positive lobe,
+    # on black — is 1. Every response modulus is then directly the fraction
+    # of the best possible response, comparable across scales, with no
+    # further correction needed anywhere downstream.
+    kernel ./= sum(max.(real.(kernel), 0f0))
     return kernel
 end
-
-"""
-    ideal_response(kernel)
-
-Response of `kernel` to its ideal achievable stimulus: a white (pixel value 1)
-bar covering exactly the kernel's positive lobe, on a black background — the
-best any image with pixels in [0, 1] can do. `gabor_lift` divides each modulus
-by this, so a perfectly matched full-contrast bar reads 1.0 at every scale.
-"""
-ideal_response(kernel::Matrix{ComplexF32}) = sum(max.(real.(kernel), 0f0))
 
 # Simple bilinear upscale.
 function imresize_simple(img::Matrix{Float32}, new_size::Int)
@@ -75,13 +71,11 @@ by `overlap_frac` relative to each scale's wavelength), and return every
 sampled point as a `GaborSample` carrying its modulus and phase.
 
 This is the raw filter-bank response: no thresholding is applied — every grid
-point at every scale and orientation is returned. The only normalization is
-that each modulus is divided by the kernel's `ideal_response` (the response
-to a white bar exactly filling its positive lobe), so a modulus is the
-fraction of the best achievable response: a perfectly matched full-contrast
-bar reads 1.0 at every scale, making moduli comparable across scales (with
-energy-normalized kernels alone, larger kernels integrate more image energy
-and dominate any cross-scale ranking).
+point at every scale and orientation is returned. No normalization is applied
+here either: the kernels themselves are ideal-response normalized (see
+`gabor_kernel`), so each modulus is already the fraction of the best
+achievable response — a perfectly matched full-contrast bar reads 1.0 at
+every scale, making moduli comparable across scales.
 
 Boundary handling: convolution uses replicate-padding (`Pad(:replicate)`), so
 kernels that extend past the image border are computed against replicated
@@ -99,7 +93,6 @@ function gabor_lift(image::Matrix{Float32}; scales::Vector{Float32}=SCALES,
         step = max(1, round(Int, (1 - overlap_frac) * λ))
         for θ in orientations
             kernel = gabor_kernel(λ, θ)
-            C = ideal_response(kernel)
             response = imfilter(img, centered(kernel), Pad(:replicate))
             for cx in step ÷ 2 + 1 : step : img_size
                 for cy in step ÷ 2 + 1 : step : img_size
@@ -113,7 +106,7 @@ function gabor_lift(image::Matrix{Float32}; scales::Vector{Float32}=SCALES,
                         (cx - 1) / (img_size - 1),
                         θ,
                         Float32(s_idx),
-                        abs(r) / C,
+                        abs(r),
                         angle(r)
                     ))
                 end

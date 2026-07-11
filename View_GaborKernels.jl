@@ -149,9 +149,9 @@ the displayed template `P(φ)`, onto the same template a quarter-cycle later
 `P(φ+90°)`, and the modulus `|r| = √(P(φ)² + P(φ+90°)²)` — the maximum
 projection achievable over all φ. Set a phase slider to the *measured*
 phase (table below) and watch `P(φ)` rise to the modulus while `P(φ+90°)`
-drops to zero. All values are divided by the kernel's *ideal response*
-(its response to a white bar exactly filling the positive lobe), as in
-`gabor_lift`, so 1.0 = the best a [0,1]-valued image can possibly do.
+drops to zero. The kernels are *ideal-response normalized* (a white bar
+exactly filling the positive lobe responds 1), so every value here is
+directly the fraction of the best a [0,1]-valued image can possibly do.
 
 **Scale index**: $(@bind s3_idx Slider(1:length(SCALES), default=3, show_value=true))
 
@@ -222,18 +222,16 @@ let
     end
     rs = resp(Ksc, py3, px3)
     rc = resp(Kcc, py3 + Δrow, px3 + Δcol)
-    # Each response is divided by its kernel's ideal_response, as in
-    # gabor_lift: 1.0 = the best any [0,1]-valued image could produce.
-    Cs = ideal_response(Ksc)
-    Cc = ideal_response(Kcc)
-    strength = min(abs(rs) / Cs, abs(rc) / Cc) * (1 + cos(angle(rc) - angle(rs))) / 2
+    # Kernels are ideal-response normalized, so these values are already
+    # fractions of the best any [0,1]-valued image could produce.
+    strength = min(abs(rs), abs(rc)) * (1 + cos(angle(rc) - angle(rs))) / 2
 
     # Projection of a response onto the template displayed at phase φ; the
     # modulus is the root-sum-of-squares of the projections at φ and φ+90°,
     # so P(φ) reaches the modulus exactly when φ is the measured phase.
-    proj(r, φ_deg, C) = real(r * cis(-deg2rad(φ_deg))) / C
-    values = [proj(rs, φ3s_deg, Cs), proj(rs, φ3s_deg + 90, Cs), abs(rs) / Cs,
-              proj(rc, φ3c_deg, Cc), proj(rc, φ3c_deg + 90, Cc), abs(rc) / Cc,
+    proj(r, φ_deg) = real(r * cis(-deg2rad(φ_deg)))
+    values = [proj(rs, φ3s_deg), proj(rs, φ3s_deg + 90), abs(rs),
+              proj(rc, φ3c_deg), proj(rc, φ3c_deg + 90), abs(rc),
               strength]
     labels = ["s P(φ)", "s P(φ+90°)", "s |r|", "c P(φ)", "c P(φ+90°)", "c |r|", "comb"]
     bar_colors = [:steelblue, :steelblue, :steelblue,
@@ -271,20 +269,17 @@ let
     end
     rs = resp(Ks, py3, px3)
     rc = resp(Kc, py3 + Δrow, px3 + Δcol)
-    Cs = ideal_response(Ks)
-    Cc = ideal_response(Kc)
     compat = (1 + cos(angle(rc) - angle(rs))) / 2
-    strength = min(abs(rs) / Cs, abs(rc) / Cc) * compat
+    strength = min(abs(rs), abs(rc)) * compat
 
     md"""
-    **Measured responses at this position** (each modulus divided by its
-    kernel's ideal response, as in `gabor_lift` — 1.0 = perfectly matched
-    full-contrast bar):
+    **Measured responses at this position** (kernels are ideal-response
+    normalized, so 1.0 = perfectly matched full-contrast bar):
 
     | | modulus (fraction of ideal) | phase |
     |---|---|---|
-    | stem | $(round(abs(rs) / Cs, digits=4)) | $(round(Int, angle(rs) * 180 / π))° |
-    | crossbar | $(round(abs(rc) / Cc, digits=4)) | $(round(Int, angle(rc) * 180 / π))° |
+    | stem | $(round(abs(rs), digits=4)) | $(round(Int, angle(rs) * 180 / π))° |
+    | crossbar | $(round(abs(rc), digits=4)) | $(round(Int, angle(rc) * 180 / π))° |
 
     Phase compatibility = $(round(compat, digits=3)), **strength = $(round(strength, digits=4))**
     """
