@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v1.0.3
+# v0.20.21
 
 using Markdown
 using InteractiveUtils
@@ -122,7 +122,8 @@ end
 # ╔═╡ 99ccaadd-8495-46a7-92b3-919293949596
 # Synthetic T: bright strokes on dark background, stroke thickness 4 px
 # (roughly matching an upscaled EMNIST stroke). Junction at about row 14,
-# column 28.
+# column 28. Pixel values are in [0, 1], the range every input image
+# (EMNIST included) uses — 1 = full brightness.
 synth_T = let
     img = zeros(Float32, IMG_SIZE, IMG_SIZE)
     img[13:16, 12:44] .= 1   # crossbar
@@ -148,7 +149,9 @@ the displayed template `P(φ)`, onto the same template a quarter-cycle later
 `P(φ+90°)`, and the modulus `|r| = √(P(φ)² + P(φ+90°)²)` — the maximum
 projection achievable over all φ. Set a phase slider to the *measured*
 phase (table below) and watch `P(φ)` rise to the modulus while `P(φ+90°)`
-drops to zero. All values carry the /λ normalization.
+drops to zero. All values are divided by the kernel's *ideal response*
+(its response to a white bar exactly filling the positive lobe), as in
+`gabor_lift`, so 1.0 = the best a [0,1]-valued image can possibly do.
 
 **Scale index**: $(@bind s3_idx Slider(1:length(SCALES), default=3, show_value=true))
 
@@ -188,11 +191,16 @@ let
             pattern[r, c] = Kr[i + radius + 1, j + radius + 1]
         end
         pattern ./= max(maximum(abs, pattern), eps(Float32))
+        # Blend the grayscale image toward pure red (positive kernel weights)
+        # or pure blue (negative), so the tint stays visible on white strokes
+        # as well as on black background.
         rgb = [begin
-                   g = 0.5f0 * synth_T[i, j]
+                   g = synth_T[i, j]
                    k = pattern[i, j]
-                   kp, kn = max(k, 0f0), max(-k, 0f0)
-                   RGB(clamp(g + kp, 0, 1), clamp(g - 0.5f0 * (kp + kn), 0, 1), clamp(g + kn, 0, 1))
+                   w = abs(k)
+                   RGB((1 - w) * g + (k > 0 ? w : 0f0),
+                       (1 - w) * g,
+                       (1 - w) * g + (k < 0 ? w : 0f0))
                end
                for i in 1:IMG_SIZE, j in 1:IMG_SIZE]
         plot(rgb, aspect_ratio=:equal, axis=false, title=ttl, titlefontsize=9)
@@ -214,20 +222,24 @@ let
     end
     rs = resp(Ksc, py3, px3)
     rc = resp(Kcc, py3 + Δrow, px3 + Δcol)
-    strength = min(abs(rs), abs(rc)) / λ * (1 + cos(angle(rc) - angle(rs))) / 2
+    # Each response is divided by its kernel's ideal_response, as in
+    # gabor_lift: 1.0 = the best any [0,1]-valued image could produce.
+    Cs = ideal_response(Ksc)
+    Cc = ideal_response(Kcc)
+    strength = min(abs(rs) / Cs, abs(rc) / Cc) * (1 + cos(angle(rc) - angle(rs))) / 2
 
     # Projection of a response onto the template displayed at phase φ; the
     # modulus is the root-sum-of-squares of the projections at φ and φ+90°,
     # so P(φ) reaches the modulus exactly when φ is the measured phase.
-    proj(r, φ_deg) = real(r * cis(-deg2rad(φ_deg))) / λ
-    values = [proj(rs, φ3s_deg), proj(rs, φ3s_deg + 90), abs(rs) / λ,
-              proj(rc, φ3c_deg), proj(rc, φ3c_deg + 90), abs(rc) / λ,
+    proj(r, φ_deg, C) = real(r * cis(-deg2rad(φ_deg))) / C
+    values = [proj(rs, φ3s_deg, Cs), proj(rs, φ3s_deg + 90, Cs), abs(rs) / Cs,
+              proj(rc, φ3c_deg, Cc), proj(rc, φ3c_deg + 90, Cc), abs(rc) / Cc,
               strength]
     labels = ["s P(φ)", "s P(φ+90°)", "s |r|", "c P(φ)", "c P(φ+90°)", "c |r|", "comb"]
     bar_colors = [:steelblue, :steelblue, :steelblue,
                   :darkorange, :darkorange, :darkorange, :firebrick]
     p_bar = bar(labels, values, color=bar_colors, ylim=(-1, 1), legend=false,
-                title="responses (/λ): s=stem, c=crossbar", titlefontsize=9,
+                title="responses (fraction of ideal): s=stem, c=crossbar", titlefontsize=9,
                 xrotation=30, tickfontsize=7)
     hline!(p_bar, [0], color=:black, label=false)
 
@@ -259,16 +271,20 @@ let
     end
     rs = resp(Ks, py3, px3)
     rc = resp(Kc, py3 + Δrow, px3 + Δcol)
+    Cs = ideal_response(Ks)
+    Cc = ideal_response(Kc)
     compat = (1 + cos(angle(rc) - angle(rs))) / 2
-    strength = min(abs(rs), abs(rc)) / λ * compat
+    strength = min(abs(rs) / Cs, abs(rc) / Cc) * compat
 
     md"""
-    **Measured responses at this position** (moduli include the /λ normalization):
+    **Measured responses at this position** (each modulus divided by its
+    kernel's ideal response, as in `gabor_lift` — 1.0 = perfectly matched
+    full-contrast bar):
 
-    | | modulus/λ | phase |
+    | | modulus (fraction of ideal) | phase |
     |---|---|---|
-    | stem | $(round(abs(rs) / λ, digits=4)) | $(round(Int, angle(rs) * 180 / π))° |
-    | crossbar | $(round(abs(rc) / λ, digits=4)) | $(round(Int, angle(rc) * 180 / π))° |
+    | stem | $(round(abs(rs) / Cs, digits=4)) | $(round(Int, angle(rs) * 180 / π))° |
+    | crossbar | $(round(abs(rc) / Cc, digits=4)) | $(round(Int, angle(rc) * 180 / π))° |
 
     Phase compatibility = $(round(compat, digits=3)), **strength = $(round(strength, digits=4))**
     """
