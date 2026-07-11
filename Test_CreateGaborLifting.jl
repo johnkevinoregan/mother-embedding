@@ -81,13 +81,14 @@ samples = gabor_lift(selected_image)
 md"""
 ## Single-filter overlay
 
-Line color encodes **phase** (cyclic colormap); line opacity encodes
-**modulus**, proportional to it, normalized to the largest modulus among
-this filter's samples — so a zero response is fully transparent (invisible),
-and faint lines are genuinely small (but non-zero) responses. Line length
-equals the filter's wavelength $\lambda$; line orientation matches the
-filter's $\theta$. No threshold is applied: every sampled grid point is
-drawn, visible in proportion to its response.
+Each sample is drawn as a bar of length $\lambda$ and width $\lambda/2$ —
+the size of the stroke the filter is tuned to (the positive lobe of the
+kernel is $\lambda/2$ wide), oriented along the filter's $\theta$. Color
+encodes **phase** (cyclic colormap); opacity encodes **modulus**,
+proportional to it, normalized to the largest modulus among this filter's
+samples — so a zero response is fully transparent (invisible), and faint
+bars are genuinely small (but non-zero) responses. No threshold is applied:
+every sampled grid point is drawn, visible in proportion to its response.
 
 **Orientation index**: $(@bind orient_idx Slider(1:length(ORIENTATIONS), default=2, show_value=true))
 
@@ -120,20 +121,21 @@ let
                 title="θ=$(round(θ*180/π, digits=1))°, λ=$(λ)px  ($(length(filtered)) samples)",
                 xlim=(0.5, img_size + 0.5), ylim=(0.5, img_size + 0.5))
 
-    # Line along the bar the filter responds to (the carrier varies along
-    # (cos θ, sin θ) in (row, col); the bar runs perpendicular to that):
-    # θ=0 -> horizontal.
-    line_half = λ / 5
-    dx = line_half * cos(θ)
-    dy = line_half * sin(θ)
+    # Each sample as a filled bar of length λ and width λ/2 in image pixels —
+    # the stroke the filter is tuned to, oriented along it (θ=0 ->
+    # horizontal, the direction the carrier varies being perpendicular).
+    ux, uy = cos(θ), sin(θ)      # along the bar
+    vx, vy = -sin(θ), cos(θ)     # across the bar
+    hl, hw = λ / 2, λ / 4
     for s in filtered
         cx = s.x * (img_size - 1) + 1
         cy = s.y * (img_size - 1) + 1
         # Match the image's to_image() vertical flip for overlay alignment.
         plot_y = img_size - cy + 1
         color = phase_modulus_color(s.phase, s.modulus, max_mod)
-        plot!(p, [cx - dx, cx + dx], [plot_y - dy, plot_y + dy],
-              color=color, linewidth=2.0, label=false)
+        xs = [cx + a * hl * ux + b * hw * vx for (a, b) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        ys = [plot_y + a * hl * uy + b * hw * vy for (a, b) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        plot!(p, Shape(xs, ys), fillcolor=color, linewidth=0, label=false)
     end
     p
 end
@@ -184,17 +186,18 @@ let
                         axis=false, colorbar=false, margin=0Plots.mm,
                         title="λ=$(Int(λ)),θ=$(round(Int, θ*180/π))°", titlefontsize=7,
                         xlim=(0.5, img_size + 0.5), ylim=(0.5, img_size + 0.5))
-            # Bar orientation, as in the single-filter overlay: θ=0 -> horizontal.
-            line_half = λ / 5
-            dx = line_half * cos(θ)
-            dy = line_half * sin(θ)
+            # Bars of length λ, width λ/2, as in the single-filter overlay.
+            ux, uy = cos(θ), sin(θ)
+            vx, vy = -sin(θ), cos(θ)
+            hl, hw = λ / 2, λ / 4
             for s in filtered
                 cx = s.x * (img_size - 1) + 1
                 cy = s.y * (img_size - 1) + 1
                 plot_y = img_size - cy + 1
-                plot!(p, [cx - dx, cx + dx], [plot_y - dy, plot_y + dy],
-                      color=phase_modulus_color(s.phase, s.modulus, global_max),
-                      linewidth=1.2, label=false)
+                color = phase_modulus_color(s.phase, s.modulus, global_max)
+                xs = [cx + a * hl * ux + b * hw * vx for (a, b) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+                ys = [plot_y + a * hl * uy + b * hw * vy for (a, b) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+                plot!(p, Shape(xs, ys), fillcolor=color, linewidth=0, label=false)
             end
             push!(panels, p)
         end
