@@ -175,7 +175,7 @@ let
             max_mod = maximum(s.modulus for s in filtered; init=0f0)
 
             p = heatmap(to_image(display_img), color=:grays, aspect_ratio=:equal,
-                        axis=false, colorbar=false,
+                        axis=false, colorbar=false, margin=0Plots.mm,
                         title="λ=$(Int(λ)),θ=$(round(Int, θ*180/π))°", titlefontsize=7,
                         xlim=(0.5, img_size + 0.5), ylim=(0.5, img_size + 0.5))
             # Bar orientation, as in the single-filter overlay: θ=0 -> horizontal.
@@ -194,7 +194,10 @@ let
             push!(panels, p)
         end
     end
-    plot(panels..., layout=(length(SCALES), length(ORIENTATIONS)), size=(1000, 750))
+    # Canvas proportioned to the panel grid (square panels + title strip),
+    # zero margins: the image fills each slot.
+    plot(panels..., layout=(length(SCALES), length(ORIENTATIONS)),
+         size=(180 * length(ORIENTATIONS), 200 * length(SCALES)))
 end
 
 # ╔═╡ Cell order:
