@@ -113,6 +113,20 @@ let
                 title="Top $(length(top)) T-junction candidates",
                 xlim=(0.5, img_size + 0.5), ylim=(0.5, img_size + 0.5))
 
+    # A segment drawn as a filled ellipse at 2/3 its length, aspect 2:1 —
+    # same glyph style as the Gabor test notebook.
+    function ellipse_seg!(p, x1, y1, x2, y2, color)
+        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+        dx, dy = x2 - x1, y2 - y1
+        L = hypot(dx, dy)
+        ux, uy = dx / L, dy / L
+        a, b = L / 3, L / 6
+        ts = range(0, 2π, length=24)
+        xs = [mx + a * cos(t) * ux - b * sin(t) * uy for t in ts]
+        ys = [my + a * cos(t) * uy + b * sin(t) * ux for t in ts]
+        plot!(p, Shape(xs, ys), fillcolor=color, linewidth=0, label=false)
+    end
+
     for t in top
         px = t.x * (img_size - 1) + 1
         py = t.y * (img_size - 1) + 1
@@ -132,14 +146,13 @@ let
         # the crossbar orientation was determined.
         nx = px + round(Int, cos(t.α)) * step
         ny = plot_y - round(Int, sin(t.α)) * step
-        plot!(p, [px, nx], [plot_y, ny], color=color, linewidth=2, label=false)
+        ellipse_seg!(p, px, plot_y, nx, ny, color)
 
         # Crossbar: centered at that adjacent point, perpendicular to α,
         # length = the sample spacing.
         cdx = step / 2 * cos(t.α + Float32(π / 2))
         cdy = -step / 2 * sin(t.α + Float32(π / 2))
-        plot!(p, [nx - cdx, nx + cdx], [ny - cdy, ny + cdy],
-              color=color, linewidth=2, label=false)
+        ellipse_seg!(p, nx - cdx, ny - cdy, nx + cdx, ny + cdy, color)
     end
     p
 end
@@ -190,6 +203,20 @@ let
         end
     end
 
+    # A segment drawn as a filled ellipse at 2/3 its length, aspect 2:1 —
+    # same glyph style as the Gabor test notebook.
+    function ellipse_seg!(p, x1, y1, x2, y2, color)
+        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+        dx, dy = x2 - x1, y2 - y1
+        L = hypot(dx, dy)
+        ux, uy = dx / L, dy / L
+        a, b = L / 3, L / 6
+        ts = range(0, 2π, length=24)
+        xs = [mx + a * cos(t) * ux - b * sin(t) * uy for t in ts]
+        ys = [my + a * cos(t) * uy + b * sin(t) * ux for t in ts]
+        plot!(p, Shape(xs, ys), fillcolor=color, linewidth=0, label=false)
+    end
+
     panels = Plots.Plot[]
     for (s_idx, λ) in enumerate(SCALES)
         pts = sort([t for t in values(best_per_point) if t.s == Float32(s_idx)],
@@ -219,14 +246,13 @@ let
             # the crossbar orientation was determined.
             nx = px + round(Int, cos(t.α)) * step
             ny = plot_y - round(Int, sin(t.α)) * step
-            plot!(p, [px, nx], [plot_y, ny], color=color, linewidth=1.5, label=false)
+            ellipse_seg!(p, px, plot_y, nx, ny, color)
 
             # Crossbar: centered at that adjacent point, perpendicular to α,
             # length = the sample spacing.
             cdx = step / 2 * cos(t.α + Float32(π / 2))
             cdy = -step / 2 * sin(t.α + Float32(π / 2))
-            plot!(p, [nx - cdx, nx + cdx], [ny - cdy, ny + cdy],
-                  color=color, linewidth=1.5, label=false)
+            ellipse_seg!(p, nx - cdx, ny - cdy, nx + cdx, ny + cdy, color)
         end
         push!(panels, p)
     end
