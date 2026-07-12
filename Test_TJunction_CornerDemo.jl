@@ -63,11 +63,18 @@ the *sign* of the even part (0 vs π is a real bright/dark polarity) but is
 all four corners**, still zero for opposite-polarity crossings, and invariant to
 both contrast inversion and the per-detector normal-sign artifact.
 
-**How to read the effect.** The two-panel overlay below is *max-pooled* per grid
-point, which partly hides the difference (the old rule can find some other
-weakly-compatible pair nearby). The crisp comparison is the **winning-pairing
-readout** under it, which probes the actual junction pairing, and the summary
-table at the bottom.
+**How to read the panels.** *NEW fires here* shows where the new detector
+responds — the max strength over the 8 stem/crossbar directions at each grid
+point. A plain OLD-vs-NEW overlay looks nearly identical, because at almost
+every point *some* direction gives a compatible even/even pair that both terms
+accept, drowning out the one corner pairing that differs. So instead the second
+panel, *RESCUE*, shows per grid point the largest `new − old` gap over
+directions: it lights up only where the new term detects a junction the old term
+cancelled. For a corner stimulus the rescue sits on the corner; for a T it is
+empty at the junction itself (both terms already handle T's) and only picks up
+the bar ends (which are corner-like). The **winning-pairing readout** below
+probes the single strongest pairing directly, and the summary table lists every
+stimulus.
 """
 
 # ╔═╡ c0000000-0000-0000-0000-000000000005
@@ -84,9 +91,11 @@ begin
 end
 
 # ╔═╡ c0000000-0000-0000-0000-000000000006
-# For one image and one scale index: the best (old, new) strength over the 8
-# directions at every grid point, plus the single pairing with the strongest
-# NEW strength (the junction the detector "means"). Mirrors t_junction_lift's
+# For one image and one scale index, at every grid point: the best NEW strength
+# over the 8 directions, and the best "rescue" gap (new − old) over the 8
+# directions — the latter isolates junctions the new term detects that the old
+# term cancelled. Also returns the single pairing with the strongest NEW
+# strength (the junction the detector "means"). Mirrors t_junction_lift's
 # pairing but scores both compat formulas.
 function pair_scores(img, si)
     N = N_DEMO
@@ -101,21 +110,21 @@ function pair_scores(img, si)
     best = Dict{Tuple{Int,Int}, Tuple{Float32,Float32}}()
     winner = nothing
     for cx in gc, cy in gc
-        bo = bn = 0f0
+        bnew = brescue = 0f0
         for (dx, dy, α) in ND
             nx = cx + dx*step; ny = cy + dy*step
             (lo <= nx <= hi && lo <= ny <= hi) || continue
             s = lk[(cx, cy, si, closest(mod(α, Float32(π)), ORIENTATIONS))]
             c = lk[(nx, ny, si, closest(mod(α + Float32(π/2), Float32(π)), ORIENTATIONS))]
             mm = min(s.modulus, c.modulus)
-            oc = old_compat(s, c); nc = new_compat(s, c)
-            bo = max(bo, mm*oc); bn = max(bn, mm*nc)
-            if winner === nothing || mm*nc > winner.ns
-                winner = (ns = mm*nc, cx = cx, cy = cy, sp = s.phase, cp = c.phase,
-                          oc = oc, nc = nc, mm = mm)
+            os = mm * old_compat(s, c); ns = mm * new_compat(s, c)
+            bnew = max(bnew, ns); brescue = max(brescue, ns - os)
+            if winner === nothing || ns > winner.ns
+                winner = (ns = ns, cx = cx, cy = cy, sp = s.phase, cp = c.phase,
+                          oc = old_compat(s, c), nc = new_compat(s, c), mm = mm)
             end
         end
-        best[(cx, cy)] = (bo, bn)
+        best[(cx, cy)] = (bnew, brescue)   # (new strength, rescue gap = new − old)
     end
     return (best, winner, step)
 end
@@ -157,20 +166,24 @@ scan_result = pair_scores(selected_stim, findfirst(==(lam_sel), SCALES))
 # ╔═╡ c0000000-0000-0000-0000-00000000000b
 let
     best, _, _ = scan_result
-    gmax = maximum(max(o, n) for (o, n) in values(best)); gmax = gmax == 0 ? 1f0 : gmax
-    function panel(idx, ttl)
+    # Each panel is normalized to its own max: the two quantities are on
+    # different scales (rescue = a difference, usually much smaller).
+    nmax = maximum(v[1] for v in values(best)); nmax = nmax == 0 ? 1f0 : nmax
+    rmax = maximum(v[2] for v in values(best)); rmax = rmax <= 0 ? 1f0 : rmax
+    function panel(idx, norm, ttl)
         p = heatmap(to_image(selected_stim), color=:grays, aspect_ratio=:equal,
                     axis=false, colorbar=false, title=ttl, titlefontsize=9,
                     xlim=(0.5, N_DEMO+0.5), ylim=(0.5, N_DEMO+0.5))
         for ((cx, cy), v) in best
-            a = v[idx] / gmax
-            a < 0.08 && continue
+            a = v[idx] / norm
+            a < 0.12 && continue
             scatter!(p, [cx], [N_DEMO - cy + 1], markersize=7, markerstrokewidth=0,
                      color=RGBA(1, 0.15, 0.15, clamp(a, 0, 1)), label=false)
         end
         p
     end
-    plot(panel(1, "OLD  (1+cos Δφ)/2"), panel(2, "NEW  cos·cos+|sin·sin|"),
+    plot(panel(1, nmax, "NEW fires here"),
+         panel(2, rmax, "RESCUE:  new − old  (old missed these)"),
          layout=(1, 2), size=(760, 410))
 end
 
