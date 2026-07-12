@@ -108,7 +108,32 @@ function t_junction_lift(gabor_samples::AbstractVector;
                 stem = lookup[(cx, cy, s_idx, stem_θ)]
                 cross = lookup[(nx, ny, s_idx, cross_θ)]
 
-                phase_compat = (1 + cos(cross.phase - stem.phase)) / 2
+                # Phase-compatibility of the stem and crossbar responses.
+                #
+                # Previous version (matched the phases directly):
+                #     phase_compat = (1 + cos(cross.phase - stem.phase)) / 2
+                #
+                # That rewards equal phase, kills phase π apart, and is a good
+                # SAME-POLARITY test for line⟂line T's, whose phases are even
+                # (0/π). But it mishandles CORNERS: edge⟂edge phases are ±90°,
+                # and that ±90 sign is an artifact of canonicalizing orientation
+                # to [0,π) (flipping a detector's normal conjugates its response,
+                # φ→−φ). So the old term fires on corners whose region straddles
+                # one diagonal (phases 90/90 → Δ=0) but SUPPRESSES the mirror-
+                # image corners on the other diagonal (90/270 → Δ=π), purely as a
+                # convention side effect — not a real distinction.
+                #
+                # The version below treats the even (line) and odd (edge) parts
+                # separately: match the sign of the even part (0 vs π is a real
+                # bright/dark polarity), but be sign-blind on the odd part (the
+                # ±90 sign is arbitrary). It gives full strength to same-polarity
+                # T's AND all four corner types, stays zero for opposite-polarity
+                # crossings (0/π), and is invariant both to contrast inversion
+                # and to the per-detector normal-sign artifact. (Algebraically it
+                # equals max(cos(φ_s−φ_c), cos(φ_s+φ_c)), clamped to [0,1].)
+                phase_compat = clamp(
+                    cos(stem.phase) * cos(cross.phase) +
+                    abs(sin(stem.phase) * sin(cross.phase)), 0f0, 1f0)
                 strength = min(stem.modulus, cross.modulus) * phase_compat
 
                 push!(results, TJunctionSample(

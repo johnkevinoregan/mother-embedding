@@ -55,6 +55,12 @@ Test_CreateGaborLifting.jl    Sanity-check notebook for CreateGaborLifting
 Gabor_Orientation_Demo.jl     Standalone notebook: fixed-scale argmax-orientation
                               analysis (flow field, mask, modulus(theta) profiles,
                               even/odd phase) -- Julia port of gabor_orientation_demo.py
+CreateTJunctionLifting.jl     T-junction detector over the Gabor grid: stem/crossbar
+                              pairs scored by phase-compatibility x weaker modulus
+Test_CreateTJunctionLifting.jl            Sanity-check notebook for CreateTJunctionLifting (EMNIST)
+Test_CreateTJunctionLifting_SyntheticT.jl Same, on a controlled synthetic T stimulus
+Test_TJunction_CornerDemo.jl  Synthetic-stimulus notebook comparing the old vs new
+                              phase-compatibility term: T's and all 4 corner types
 ```
 
 To change a shared constant (image size, filter scales/orientations, etc.),
