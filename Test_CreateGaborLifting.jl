@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.21
+# v1.0.3
 
 using Markdown
 using InteractiveUtils
@@ -56,6 +56,8 @@ md"""
 **Classes to load**: $(@bind n_classes_ui Slider(1:47, default=5, show_value=true))
 
 **Images to scan**: $(@bind n_images_ui Slider(2000:2000:40000, default=3000, show_value=true))
+
+**Gabor aspect** (σ along ÷ across; 1 = isotropic, >1 = elongated along the stroke): $(@bind aspect_ui Slider(1.0:0.25:4.0, default=1.0, show_value=true))
 """
 
 # ╔═╡ e7f59bd3-f6a2-49a1-a6ec-74b6bef73a5f
@@ -74,8 +76,9 @@ selected_image = result.class_images[class_idx][min(img_idx, length(result.class
 # ╔═╡ 885373bb-6317-4256-bfef-a174e70e8a84
 # Raw, unthresholded Gabor lift of the currently selected image — every grid
 # point at every scale/orientation, each carrying modulus and phase.
-# gabor_lift's own defaults already come from Config, so no need to pass them.
-samples = gabor_lift(selected_image)
+# gabor_lift's other defaults already come from Config; aspect is driven by the
+# slider above (1.0 = the isotropic Config default, identical to before).
+samples = gabor_lift(selected_image; aspect=aspect_ui)
 
 # ╔═╡ 7d8ebfaf-502c-439c-a027-8fb1d921cde8
 md"""
@@ -129,7 +132,7 @@ let
     # where neighboring glyphs overlap.
     ux, uy = cos(θ), sin(θ)      # along the bar
     vx, vy = -sin(θ), cos(θ)     # across the bar
-    hl, hw = λ / 3, λ / 6        # semi-axes: 2/3 of λ/2 and λ/4
+    hl, hw = λ / 3 * aspect_ui, λ / 6   # semi-axes; along-bar axis scales with the aspect slider
     ts = range(0, 2π, length=24)
     for s in filtered
         cx = s.x * (img_size - 1) + 1
@@ -194,7 +197,7 @@ let
             # single-filter overlay.
             ux, uy = cos(θ), sin(θ)
             vx, vy = -sin(θ), cos(θ)
-            hl, hw = λ / 3, λ / 6
+            hl, hw = λ / 3 * aspect_ui, λ / 6   # along-bar axis scales with the aspect slider
             ts = range(0, 2π, length=24)
             for s in filtered
                 cx = s.x * (img_size - 1) + 1

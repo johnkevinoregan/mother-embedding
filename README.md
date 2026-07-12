@@ -52,6 +52,9 @@ LoadEMNIST.jl                 EMNIST IDX loading, class bucketing, display-orien
 Test_LoadEMNIST.jl            Sanity-check notebook for LoadEMNIST
 CreateGaborLifting.jl         Complex Gabor filter bank -> raw (modulus, phase) tokens
 Test_CreateGaborLifting.jl    Sanity-check notebook for CreateGaborLifting
+Gabor_Orientation_Demo.jl     Standalone notebook: fixed-scale argmax-orientation
+                              analysis (flow field, mask, modulus(theta) profiles,
+                              even/odd phase) -- Julia port of gabor_orientation_demo.py
 ```
 
 To change a shared constant (image size, filter scales/orientations, etc.),

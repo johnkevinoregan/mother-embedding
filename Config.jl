@@ -7,7 +7,7 @@ module Config
 # server (these are `const` bindings — Julia won't let them be mutated live,
 # only replaced by reloading the module).
 
-export IMG_SIZE, NATIVE_SIZE, SCALES, ORIENTATIONS, OVERLAP_FRAC
+export IMG_SIZE, NATIVE_SIZE, SCALES, ORIENTATIONS, OVERLAP_FRAC, GABOR_ASPECT
 
 # --- Gabor lifting (CreateGaborLifting.jl) ---
 const IMG_SIZE = 56
@@ -15,5 +15,11 @@ const NATIVE_SIZE = 28
 const SCALES = Float32[3, 6, 12, 24]
 const ORIENTATIONS = Float32[k * π/8 for k in 0:7]
 const OVERLAP_FRAC = 0.25f0
+
+# Gabor envelope aspect ratio: σ along the contour ÷ σ across it.
+#   1  → isotropic (the original circular envelope)
+#   >1 → elongated along the stroke (narrower orientation tuning, simple-cell-like)
+# At exactly 1 every result is identical to before this parameter existed.
+const GABOR_ASPECT = 1.0f0
 
 end # module

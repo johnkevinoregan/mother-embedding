@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.21
+# v1.0.3
 
 using Markdown
 using InteractiveUtils
@@ -70,12 +70,17 @@ selected_image = let
     img
 end
 
+# ╔═╡ aa11bb22-cc33-dd44-ee55-ff6677889900
+md"""
+**Gabor aspect** (σ along ÷ across; 1 = isotropic, >1 = elongated along the stroke): $(@bind aspect_ui Slider(1.0:0.25:4.0, default=1.0, show_value=true))
+"""
+
 # ╔═╡ 98f93280-7e6d-4872-8dd9-b356ea033ebc
 # Raw Gabor lift, then the T-junction lift computed directly from it — no FPE
 # embedding involved. Both unthresholded; filtering happens only below, for
 # display.
 begin
-    gsamples = gabor_lift(selected_image)
+    gsamples = gabor_lift(selected_image; aspect=aspect_ui)
     tsamples = t_junction_lift(gsamples)
 end
 
@@ -87,10 +92,11 @@ Only the top `n_show` candidates (by strength) are drawn, purely for
 legibility — `t_junction_lift` itself applies no threshold; every grid
 point/neighbor-direction pair is present in `tsamples`.
 
-Each candidate also gets a dashed circle of radius λ around its stem
-sample point — the kernel's true receptive-field extent (radius 2σ = λ),
-much larger than the glyph at the bigger scales: a glyph in a blank area
-can still carry a genuine response if the circle reaches image content.
+Each candidate also gets a dashed ellipse around its stem sample point —
+the kernel's true receptive-field extent, λ across the stroke (radius
+2σ = λ) and λ·aspect along it (a circle at aspect=1), much larger than the
+glyph at the bigger scales: a glyph in a blank area can still carry a
+genuine response if the receptive field reaches image content.
 
 **Number of top candidates to show**: $(@bind n_show Slider(5:5:100, default=30, show_value=true))
 """
@@ -115,7 +121,7 @@ let
     function ellipse_at!(p, cx0, cy0, dx, dy, λ, color)
         L = hypot(dx, dy)
         ux, uy = dx / L, dy / L
-        a, b = λ / 3, λ / 6
+        a, b = λ / 3 * aspect_ui, λ / 6   # along-stroke axis scales with the aspect slider
         ts = range(0, 2π, length=24)
         xs = [cx0 + a * cos(t) * ux - b * sin(t) * uy for t in ts]
         ys = [cy0 + a * cos(t) * uy + b * sin(t) * ux for t in ts]
@@ -147,11 +153,13 @@ let
         # perpendicular to α.
         ellipse_at!(p, nx, ny, cos(t.α + Float32(π / 2)), -sin(t.α + Float32(π / 2)), λ, color)
 
-        # Dashed circle of radius λ around the stem sample point: the
-        # kernel's true receptive-field extent (radius 2σ = λ), which is
+        # Dashed ellipse around the stem sample point: the kernel's true
+        # receptive-field extent — λ across the stroke (radius 2σ = λ),
+        # λ·aspect along it — reducing to a circle at aspect=1, and
         # much larger than the glyph at the bigger scales.
         circ = range(0, 2π, length=48)
-        plot!(p, px .+ λ .* cos.(circ), plot_y .+ λ .* sin.(circ),
+        plot!(p, px .+ (λ*aspect_ui) .* cos.(circ) .* cos(t.α) .+ λ .* sin.(circ) .* sin(t.α),
+              plot_y .- (λ*aspect_ui) .* cos.(circ) .* sin(t.α) .+ λ .* sin.(circ) .* cos(t.α),
               color=color, linestyle=:dash, linewidth=1, label=false)
     end
     p
@@ -185,8 +193,8 @@ determined, and the crossbar ellipse is centered on that adjacent point,
 perpendicular. Hue encodes the stem Gabor's phase; opacity is proportional
 to strength, normalized once across all panels (to the strongest
 best-per-location candidate at any scale), so panel brightness is
-comparable between scales. The dashed circle of radius λ around each stem
-point shows the kernel's true receptive-field extent.
+comparable between scales. The dashed ellipse around each stem point shows
+the kernel's true receptive-field extent (λ across, λ·aspect along).
 
 **Top candidates per panel**: $(@bind n_show_panel Slider(5:5:100, default=20, show_value=true))
 """
@@ -211,7 +219,7 @@ let
     function ellipse_at!(p, cx0, cy0, dx, dy, λ, color)
         L = hypot(dx, dy)
         ux, uy = dx / L, dy / L
-        a, b = λ / 3, λ / 6
+        a, b = λ / 3 * aspect_ui, λ / 6   # along-stroke axis scales with the aspect slider
         ts = range(0, 2π, length=24)
         xs = [cx0 + a * cos(t) * ux - b * sin(t) * uy for t in ts]
         ys = [cy0 + a * cos(t) * uy + b * sin(t) * ux for t in ts]
@@ -259,7 +267,8 @@ let
             # kernel's true receptive-field extent (radius 2σ = λ), which is
             # much larger than the glyph at the bigger scales.
             circ = range(0, 2π, length=48)
-            plot!(p, px .+ λ .* cos.(circ), plot_y .+ λ .* sin.(circ),
+            plot!(p, px .+ (λ*aspect_ui) .* cos.(circ) .* cos(t.α) .+ λ .* sin.(circ) .* sin(t.α),
+              plot_y .- (λ*aspect_ui) .* cos.(circ) .* sin(t.α) .+ λ .* sin.(circ) .* cos(t.α),
                   color=color, linestyle=:dash, linewidth=1, label=false)
         end
         push!(panels, p)
@@ -274,6 +283,7 @@ end
 # ╠═4b74faaf-f5b3-42f0-9081-3066d07bc52e
 # ╟─3a76c864-f6c5-49fe-b13b-3767615ff12d
 # ╠═01375ee5-4227-4768-a96b-70b3c637659b
+# ╟─aa11bb22-cc33-dd44-ee55-ff6677889900
 # ╠═98f93280-7e6d-4872-8dd9-b356ea033ebc
 # ╟─f866d9bb-daa2-486e-93f0-01808450d4ad
 # ╠═f0133005-19f2-467f-a4db-d4e27bed4f91
