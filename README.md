@@ -52,9 +52,6 @@ LoadEMNIST.jl                 EMNIST IDX loading, class bucketing, display-orien
 Test_LoadEMNIST.jl            Sanity-check notebook for LoadEMNIST
 CreateGaborLifting.jl         Complex Gabor filter bank -> raw (modulus, phase) tokens
 Test_CreateGaborLifting.jl    Sanity-check notebook for CreateGaborLifting
-Gabor_Orientation_Demo.jl     Standalone notebook: fixed-scale argmax-orientation
-                              analysis (flow field, mask, modulus(theta) profiles,
-                              even/odd phase) -- Julia port of gabor_orientation_demo.py
 CreateTJunctionLifting.jl     T-junction detector over the Gabor grid: stem/crossbar
                               pairs scored by phase-compatibility x weaker modulus
 Test_CreateTJunctionLifting.jl            Sanity-check notebook for CreateTJunctionLifting (EMNIST)
@@ -66,3 +63,32 @@ Test_TJunction_CornerDemo.jl  Synthetic-stimulus notebook comparing the old vs n
 To change a shared constant (image size, filter scales/orientations, etc.),
 edit `Config.jl` and restart the Pluto server — these are `const` bindings,
 so a browser refresh alone won't pick up the change.
+
+## Dense_Gabors/ — dense-sampling keypoint extraction
+
+A self-contained side investigation, independent of the `Config.jl` /
+`CreateGaborLifting.jl` pipeline above (different Gabor convention — see the
+notebooks for the details): instead of a sparse grid of Gabor samples, convolve
+a character with a *dense*, per-pixel bank of oriented Gabor filters and read
+discrete, typed keypoints — **endpoint / corner / T-junction / X-crossing** —
+directly off the resulting oriented-energy field.
+
+```
+Dense_Gabors/
+  gabor_orientation_demo.py    Python source: fixed-scale argmax-orientation analysis
+  Gabor_Orientation_Demo.jl    Julia/Pluto port of the above
+  Gabor_Feature_Layer.jl       Julia/Pluto port of the feature-type layer below
+  Gabor_feature_layer_python/
+    feature_layer.py                        Python source: end-stopping, orientation-
+                                             profile bimodality, and ring spoke-count
+                                             turned into typed keypoints
+    Gabor_feature_layer_design_notes.md      Design rationale for every threshold/choice
+```
+
+The approach: three cheap per-pixel operations read off the oriented-energy
+stack — end-stopping (segment termination -> endpoint), orientation-profile
+peak structure (bimodal -> corner-family), and a multi-radius ring "spoke
+count" (junction order). The key architectural idea, laid out in the design
+notes, is *propose ≠ classify*: the two dense operations propose keypoints and
+decide corner-family vs. endpoint; the sparse geometric ring count only
+refines an already-proposed point (corner -> T -> X), never proposes one.

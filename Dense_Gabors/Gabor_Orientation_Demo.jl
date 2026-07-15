@@ -19,7 +19,7 @@ end
 # ╔═╡ 10000000-0000-0000-0000-000000000001
 begin
     import Pkg
-    Pkg.activate(@__DIR__)
+    Pkg.activate(joinpath(@__DIR__, ".."))
 end
 
 # ╔═╡ 10000000-0000-0000-0000-000000000002
@@ -37,7 +37,7 @@ begin
     # Everything else in this notebook is a self-contained port of the Python
     # demo and does NOT use Config.jl / CreateGaborLifting.jl (those use a
     # different Gabor convention; see the note below).
-    include(joinpath(@__DIR__, "LoadEMNIST.jl"))
+    include(joinpath(@__DIR__, "..", "LoadEMNIST.jl"))
     using .LoadEMNIST
 end
 
