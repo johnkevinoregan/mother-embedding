@@ -78,6 +78,12 @@ Dense_Gabors/
   gabor_orientation_demo.py    Python source: fixed-scale argmax-orientation analysis
   Gabor_Orientation_Demo.jl    Julia/Pluto port of the above
   Gabor_Feature_Layer.jl       Julia/Pluto port of the feature-type layer below
+  Gabor_Feature_Layer_MultiScale.jl  Round-2 extension: same operations at 3 Gabor
+                                     scales with cross-scale voting. Documents what
+                                     the multi-scale idea fixes (spurious ring-based
+                                     T/X junctions) and what it doesn't (separating
+                                     a curve's false corners from real ones) -- an
+                                     open problem, not swept under the rug.
   Gabor_feature_layer_python/
     feature_layer.py                        Python source: end-stopping, orientation-
                                              profile bimodality, and ring spoke-count
