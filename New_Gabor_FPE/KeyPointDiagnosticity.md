@@ -192,6 +192,57 @@ endpoint channel. Caveat: on real letters a larger `D_RAY` also raises cross-tal
 between nearby strokes, and this fixes the *signature at a known point*, not the
 detection-against-background confound. The notebook exposes `D_RAY` as a slider.
 
+### Phase — an additional channel, not a replacement (handoff doc §9)
+
+Everything above uses the **energy** (modulus) of the ray profile, which is
+phase-invariant by design. What does the **phase** carry? We built a parallel
+descriptor: sample the *unit phasor* `e^{i·phase}` along the rays and take its
+circular harmonics `pₙ` (so `|p₀|` = phase coherence around the ring, `|p₁|,|p₂|`
+its angular variation), then pooled `|p₀|,|p₁|,|p₂|` over the keypoints.
+
+**For letter identity, phase is weakly diagnostic and does not help.**
+
+```
+per-feature η²:  |p0|=0.12   |p1|=0.26   |p2|=0.22       (shape harmonics ≈ 0.6)
+LOO:  phase-only 18.8 %   shape-only 62.1 %   shape+phase 61.3 %
+```
+
+It carries *some* signal (`|p₁|` η²=0.26, phase-alone 2.3× chance) — and notably
+more than the naive winning-θ phase read at a single point (η²=0.05), so taking
+harmonics of the *profile* does extract structure a point-sample misses. But it
+is far below shape and does not add to it (the same equal-weight dilution). `|p₀|`
+is only ~0.3 for every letter, because the ring samples both on-stroke (bar phase)
+and off-stroke (near-random phase) points, so ring-coherence is low and
+non-class-specific.
+
+**Where phase *does* earn its keep — junction verification, which energy cannot
+do at all.** On synthetic figures with controlled polarity (center signature):
+
+```
+figure                         c₀     |c₁|/c₀ |c₂|/c₀ |  |p₀|  |p₁|  |p₂|
+same-pol X (4 bright arms)      15.4   0.00   0.00    |  0.37  0.16  0.05
+OPP-pol crossing (bright ⟂ dark) 15.5  0.01   0.01    |  0.43  0.36  0.15
+straight bright bar             7.4    0.00   0.89    |  0.46  0.44  0.31
+straight dark bar               7.4    0.00   0.89    |  0.46  0.44  0.31
+```
+
+Energy is **blind to polarity**: the same-polarity X and the opposite-polarity
+crossing are identical in `(c₀,|c₁|/c₀,|c₂|/c₀)`, and a bright bar equals a dark
+bar exactly. The **phase harmonics break that degeneracy** — same-pol vs opp-pol X
+differ 2.3× in `|p₁|` (0.16 vs 0.36); for a T the `|p₀|,|p₁|` signature nearly
+swaps. And with the right invariance: bright and dark *straight* bars give
+identical `|pₙ|` (phase is blind to a global contrast flip) but *relative* branch
+polarity at a junction is visible. This is exactly the `CreateTJunctionLifting`
+phase-compatibility axis — telling a genuine same-ink junction from an accidental
+opposite-contrast crossing.
+
+**Conclusion:** keep energy as the *primary* channel (phase-invariant, it's what
+carries identity). Phase is a useful *additional* channel for **verification /
+scene-parsing** (rejecting accidental crossings, line-vs-edge polarity), not for
+clean single-letter identity, where it's marginal. On EMNIST — all strokes one
+ink — there are no opposite-polarity crossings to reject, so the verification gain
+is latent until the input is more than isolated same-ink letters.
+
 ### Why typed counts are inherently weak
 
 A count is a **census** ("1 junction, 2 endpoints"). T, Y and F share roughly
