@@ -237,7 +237,12 @@ end
 # Bottom line: keypoint SELECTION is the untested/weak stage (handoff doc §7.6) — the
 # descriptor (c₀,|c₁|/c₀,…) is the verified part, where you read it is not. A real
 # fix is likely local maxima PLUS a dedicated stroke-end term, not either alone.
-# This function is a placeholder; don't treat its choice as settled.
+# DECISION: switched to plain local maxima below; the greedy is kept commented, just
+# beneath, for reference. Still a placeholder — the stroke-end term is not built yet.
+
+# --- old greedy detector, kept for reference (see the CAUTION above for why it was
+#     dropped: it tiles c₀ ridges at ~`rad` spacing and pads to a fixed `n`) --------
+#=
 """Keypoints = greedy top-`n` of the c₀ map with non-max suppression radius `rad`."""
 function find_keypoints(c0::Matrix{Float32}; n=10, rad=12)
     A = copy(c0)
@@ -251,6 +256,29 @@ function find_keypoints(c0::Matrix{Float32}; n=10, rad=12)
         A[max(1,y-rad):min(H,y+rad), max(1,x-rad):min(W,x+rad)] .= 0f0
     end
     return pts
+end
+=#
+
+"""Keypoints = the clear local maxima of c₀: strict 8-neighbour maxima above
+`frac`·max, returned top-`n` by height. c₀ is a ring-integral (heavily smoothed),
+so these are few and stable (~5 on a 'T'). Known blind spot: a stroke tip that is a
+shoulder, not a peak, is missed — a later stroke-end term should cover it."""
+function find_keypoints(c0::Matrix{Float32}; n=12, frac=0.25f0)
+    H, W = size(c0)
+    mx = maximum(c0)
+    pts = Tuple{Int,Int,Float32}[]
+    for y in 2:H-1, x in 2:W-1
+        v = c0[y, x]
+        v <= frac * mx && continue
+        ismax = true
+        for dy in -1:1, dx in -1:1
+            (dy == 0 && dx == 0) && continue
+            c0[y+dy, x+dx] > v && (ismax = false; break)
+        end
+        ismax && push!(pts, (y, x, v))
+    end
+    sort!(pts, by = p -> -p[3])
+    return length(pts) > n ? pts[1:n] : pts
 end
 
 # ╔═╡ c0000011-0001-4000-8000-000000000011
