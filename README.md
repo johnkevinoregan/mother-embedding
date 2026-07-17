@@ -124,7 +124,7 @@ operations only**: no peak counting, no ring run-length analysis, no
 `if npk >= 2`, no hand-tuned thresholds. The output is a **continuous
 descriptor** suitable for FPE/VSA binding, not a symbolic label.
 
-Verified in Julia on real EMNIST. `New_Gabor_FPE_summary.md` is the primary
+Verified in Julia on real EMNIST. `New_Gabor_FPE_handoff_for_claude-code.md` is the primary
 document — read its §1–§3 before touching the code.
 
 ### Why the previous approaches failed
@@ -209,22 +209,25 @@ angular-position code.)
 
 ```
 New_Gabor_FPE/
-  New_Gabor_FPE_summary.md          The handoff doc -- read §1-§3 first
-  ray_fpe_junctions.jl              Pluto notebook: the core implementation
-  EMNIST_Junction_Keypoints.jl      Real EMNIST + ray-harmonic keypoints
-  EMNIST_Junction_GlobalShape.jl    Above + a global-shape descriptor (same
-                                    construction one level up: harmonics of the
-                                    mass distribution about the centroid)
-  TASK_add_global_shape.md          Spec for the global-shape extension
-  rayharm.py                        Python reference (estack, ray_profile, ray_harmonics)
-  pluto2md.py                       Renders a Pluto notebook's markdown without Pluto
-  figA_profiles.png                 KEY FIGURE: col 2 E(θ) -- L/T/X identical;
-                                    col 3 R(φ) -- 1/2/2/3/4 lobes
-  figB_signature.png                c₀ and normalised harmonics per type
-  figC_letters.png                  Dense c₀ and |c₁|/c₀ maps + polar probes on T, K
+  New_Gabor_FPE_handoff_for_claude-code.md   The handoff doc -- read §1-§3 first
+  ray_fpe_junctions.jl                       Pluto notebook: the core implementation
+  EMNIST_Junction_Keypoints.jl               Real EMNIST + ray-harmonic keypoints
+  EMNIST_Junction_GlobalShape.jl             Above + a global-shape descriptor (same
+                                             construction one level up: harmonics of
+                                             the mass distribution about the centroid)
+  TASK_add_global_shape.md                   Spec for the global-shape extension
+  rayharm.py                                 Python reference (estack, ray_profile,
+                                             ray_harmonics)
+  pluto2md.py                                Renders a Pluto notebook's markdown
+                                             without Pluto
+  figA_profiles.png                          KEY FIGURE: col 2 E(θ) -- L/T/X identical;
+                                             col 3 R(φ) -- 1/2/2/3/4 lobes
+  figB_signature.png                         c₀ and normalised harmonics per type
+  figC_letters.png                           Dense c₀ and |c₁|/c₀ maps + polar probes
+                                             on T, K
 ```
 
-### Design rules (from `New_Gabor_FPE_summary.md` §8)
+### Design rules (from `New_Gabor_FPE_handoff_for_claude-code.md` §8)
 
 - **No thresholds, no counting, no `if/elif` on feature type.**
   `(c₀, |c₁|/c₀, |c₂|/c₀, …)` **is** the descriptor — bind the continuous vector

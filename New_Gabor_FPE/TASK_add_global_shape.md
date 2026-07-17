@@ -3,7 +3,7 @@
 **For:** Claude Code, working on `ray_fpe_junctions.jl` (the Pluto notebook that
 does local keypoint analysis via ray harmonics).
 
-**Read first:** `New_Gabor_FPE_summary.md` §3 (ray profile → circular harmonics)
+**Read first:** `New_Gabor_FPE_handoff_for_claude-code.md` §3 (ray profile → circular harmonics)
 and §8 (design rules). This task extends the *same construction to a second
 level*; do not invent a different mechanism.
 
