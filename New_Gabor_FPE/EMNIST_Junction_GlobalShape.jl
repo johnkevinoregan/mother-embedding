@@ -1,8 +1,562 @@
+### A Pluto.jl notebook ###
+# v0.20.21
+
+using Markdown
+using InteractiveUtils
+
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    #! format: off
+    return quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+    #! format: on
+end
+
+# ╔═╡ c0000002-0001-4000-8000-000000000002
+begin
+    using LinearAlgebra
+    using Statistics
+    using Random
+    using FFTW
+    using Plots
+    using PlutoUI
+    include(joinpath(@__DIR__, "..", "LoadEMNIST.jl"))
+    using .LoadEMNIST
+end
+
+# ╔═╡ c0000001-0001-4000-8000-000000000001
+md"""
+# EMNIST junction keypoints + global shape
+
+Pick a **real EMNIST letter**; see its detected keypoints (local ray-harmonic
+analysis) **and its global-shape descriptor** (the same circular-harmonic
+construction applied one level up — harmonics of the *mass distribution about
+the centroid* instead of the *ray profile about a point*).
+
+**Data.** EMNIST balanced train split via the repo's `LoadEMNIST` module
+(first 20 000 images, bucketed into all 47 classes). Each 28×28 sample is
+bilinearly upsampled to 112×112, then: `energy_stack` → `ray_harmonics`.
+
+**Keypoints = greedy top-N of the c₀ map with non-max suppression:**
+repeatedly take the global maximum of c₀, suppress a 12 px disk around it,
+repeat; stop early if the next peak falls below 10 % of the first (empty
+background). Plain local-maxima detection does *not* work here — c₀ rises
+monotonically toward junctions along a stroke, so an endpoint is a ridge
+*terminus*, never a strict local max, and would never be selected. Greedy NMS
+is still just "top-N of c₀" (the architecture in the handoff doc) and spreads
+keypoints along the strokes out to the tips.
+
+**Display.** Four panels: the letter with keypoints (colour = |c₁|/c₀
+asymmetry: yellow ≈ endpoint, dark ≈ junction/crossing/mid-stroke), the c₀
+map, and the dense |c₁|/c₀ and |c₂|/c₀ maps (masked to the glyph). The two
+ratios complement each other: mid-stroke and T-junction both have low
+|c₁|/c₀, but mid-stroke has **high** |c₂|/c₀ (two opposite rays align after
+angle-doubling) while the junction stays low — so a junction is dark in
+*both* ratio maps. Below the figure, each keypoint's `(c₀, |c₁|/c₀, |c₂|/c₀)`
+signature, strongest first.
+
+**Speed.** Each slider move recomputes the full pipeline: ~5–10 s with the
+naive `ray_harmonics` loop (deliberately kept; restructure as shift+`axpy!`
+when it starts to annoy).
+
+Global-shape section starts at §Global shape below.
+"""
+
+# ╔═╡ c0000003-0001-4000-8000-000000000003
+begin
+    const IMG        = 112          # analysis size (28 × 4)
+    const N_THETA    = 48           # orientation channels (mod π)
+    const K_PHI      = 96           # ray directions (mod 2π)
+    const N_MAX      = 4            # highest harmonic
+    const LAM        = 12.0f0       # Gabor wavelength
+    const SIGMA_N    = 6.0f0        # across-contour envelope
+    const SIGMA_T    = 10.0f0       # along-contour envelope
+    const KSIZE      = 39
+    const D_RAY      = 15.0f0       # ray probe radius
+    const THETAS     = Float32.(range(0, π, length=N_THETA+1)[1:N_THETA])
+    const PHIS       = Float32.(range(0, 2π, length=K_PHI+1)[1:K_PHI])
+end
+
+# ╔═╡ c0000004-0001-4000-8000-000000000004
+function gabor_kernel(θ::Float32; λ=LAM, σn=SIGMA_N, σt=SIGMA_T, ks=KSIZE)
+    h = ks ÷ 2
+    K = zeros(ComplexF32, ks, ks)
+    c, s = cos(θ), sin(θ)
+    for i in -h:h, j in -h:h
+        y, x = Float32(i), Float32(j)
+        xt =  x*c + y*s
+        xn = -x*s + y*c
+        env = exp(-(xt^2/(2σt^2) + xn^2/(2σn^2)))
+        K[i+h+1, j+h+1] = env * cis(2f0π * xn / λ)
+    end
+    K .-= mean(K)
+    return K
+end
+
+# ╔═╡ c0000005-0001-4000-8000-000000000005
+function conv_same(img::Matrix{Float32}, K::Matrix{ComplexF32})
+    H, W   = size(img)
+    kh, kw = size(K)
+    ph, pw = H + kh - 1, W + kw - 1
+    A = zeros(ComplexF32, ph, pw); A[1:H, 1:W] .= img
+    B = zeros(ComplexF32, ph, pw); B[1:kh, 1:kw] .= K
+    full = ifft(fft(A) .* fft(B))
+    o1, o2 = kh ÷ 2, kw ÷ 2
+    return full[o1+1:o1+H, o2+1:o2+W]
+end
+
+# ╔═╡ c0000006-0001-4000-8000-000000000006
+function energy_stack(img::Matrix{Float32})
+    E = zeros(Float32, N_THETA, size(img)...)
+    for (i, θ) in enumerate(THETAS)
+        E[i, :, :] .= abs.(conv_same(img, gabor_kernel(θ)))
+    end
+    return E
+end
+
+# ╔═╡ c0000007-0001-4000-8000-000000000007
+@inline function bilinear(M::AbstractMatrix{Float32}, y::Float32, x::Float32)
+    H, W = size(M)
+    (y < 1 || x < 1 || y > H || x > W) && return 0f0
+    y0, x0 = floor(Int, y), floor(Int, x)
+    y1, x1 = min(y0+1, H), min(x0+1, W)
+    fy, fx = y - y0, x - x0
+    return (1-fy)*(1-fx)*M[y0,x0] + fy*(1-fx)*M[y1,x0] +
+           (1-fy)*fx    *M[y0,x1] + fy*fx    *M[y1,x1]
+end
+
+# ╔═╡ c0000008-0001-4000-8000-000000000008
+function ray_harmonics(E::Array{Float32,3}; d=D_RAY, nmax=N_MAX)
+    _, H, W = size(E)
+    C = zeros(ComplexF32, nmax+1, H, W)
+    for φ in PHIS
+        ti = mod(round(Int, (mod(φ, π)/π) * N_THETA), N_THETA) + 1
+        Eθ = view(E, ti, :, :)
+        dy, dx = d*sin(φ), d*cos(φ)
+        for y in 1:H, x in 1:W
+            v = bilinear(Eθ, Float32(y + dy), Float32(x + dx))
+            v == 0f0 && continue
+            for n in 0:nmax
+                C[n+1, y, x] += v * cis(-Float32(n) * φ)
+            end
+        end
+    end
+    return C ./ K_PHI
+end
+
+# ╔═╡ c0000009-0001-4000-8000-000000000009
+"""Bilinear upsample of a 28×28 EMNIST image to IMG×IMG."""
+function upsample(img::Matrix{Float32}; S=IMG)
+    H, W = size(img)
+    out = zeros(Float32, S, S)
+    for i in 1:S, j in 1:S
+        out[i, j] = bilinear(img, Float32(1 + (i-1)*(H-1)/(S-1)),
+                                  Float32(1 + (j-1)*(W-1)/(S-1)))
+    end
+    return out
+end
+
+# ╔═╡ c0000010-0001-4000-8000-000000000010
+"""Keypoints = greedy top-`n` of the c₀ map with non-max suppression radius `rad`."""
+function find_keypoints(c0::Matrix{Float32}; n=10, rad=12)
+    A = copy(c0)
+    H, W = size(A)
+    pts = Tuple{Int,Int,Float32}[]
+    for _ in 1:n
+        v, k = findmax(A)
+        v ≤ 0.1f0 * (isempty(pts) ? v : pts[1][3]) && break   # stop in empty background
+        y, x = Tuple(k)
+        push!(pts, (y, x, v))
+        A[max(1,y-rad):min(H,y+rad), max(1,x-rad):min(W,x+rad)] .= 0f0
+    end
+    return pts
+end
+
+# ╔═╡ c0000011-0001-4000-8000-000000000011
+emnist = load_emnist(n_images_to_load=20000, n_classes=47)
+
+# ╔═╡ c0000012-0001-4000-8000-000000000012
+md"""
+## Choose a letter
+
+**class** $(@bind class_name Select(emnist.class_names, default="T"))
+ · **keypoints** $(@bind n_kp Slider(4:24, default=10, show_value=true))
+"""
+
+# ╔═╡ c0000013-0001-4000-8000-000000000013
+class_idx = findfirst(==(class_name), emnist.class_names)
+
+# ╔═╡ c0000014-0001-4000-8000-000000000014
+md"""
+**sample** $(@bind sample_idx Slider(1:length(emnist.class_images[class_idx]), default=1, show_value=true))
+"""
+
+# ╔═╡ c0000015-0001-4000-8000-000000000015
+letter_img = upsample(emnist.class_images[class_idx][sample_idx])
+
+# ╔═╡ c0000016-0001-4000-8000-000000000016
+letter_C = ray_harmonics(energy_stack(letter_img))
+
+# ╔═╡ c0000017-0001-4000-8000-000000000017
+let
+    c0  = abs.(letter_C[1, :, :])
+    r1m = abs.(letter_C[2, :, :]) ./ (c0 .+ 1f-6)
+    r2m = abs.(letter_C[3, :, :]) ./ (c0 .+ 1f-6)
+    mask = c0 .> 0.25f0 * maximum(c0)          # display mask: hide background
+    masked(M) = map(i -> mask[i] ? M[i] : NaN32, CartesianIndices(M))
+    kps = find_keypoints(c0; n=n_kp)
+    r1  = [r1m[y, x] for (y, x, _) in kps]
+    p1 = heatmap(letter_img, color=:grays, yflip=true, aspect_ratio=:equal,
+                 axis=false, colorbar=false, title="'$class_name' #$sample_idx — keypoints")
+    scatter!(p1, [p[2] for p in kps], [p[1] for p in kps],
+             marker_z=r1, color=:viridis, clims=(0, 1), ms=8, msw=1.5,
+             msc=:magenta, label=false)
+    p2 = heatmap(c0, color=:magma, yflip=true, aspect_ratio=:equal, axis=false,
+                 title="c₀ — ray energy")
+    scatter!(p2, [p[2] for p in kps], [p[1] for p in kps],
+             m=:circle, ms=5, mc=:cyan, msw=0, malpha=0.6, label=false)
+    p3 = heatmap(masked(r1m), color=:viridis, clims=(0, 1), yflip=true,
+                 aspect_ratio=:equal, axis=false,
+                 title="|c₁|/c₀ — asymmetry (endpoint ≈ 1)")
+    p4 = heatmap(masked(r2m), color=:viridis, clims=(0, 1), yflip=true,
+                 aspect_ratio=:equal, axis=false,
+                 title="|c₂|/c₀ — straightness (mid-stroke ≈ 1, junction ≈ 0)")
+    plot(p1, p2, p3, p4, layout=(2, 2), size=(760, 720), titlefontsize=10)
+end
+
+# ╔═╡ c0000018-0001-4000-8000-000000000018
+md"""
+Keypoint signatures, strongest first:
+"""
+
+# ╔═╡ c0000019-0001-4000-8000-000000000019
+let
+    c0  = abs.(letter_C[1, :, :])
+    kps = find_keypoints(c0; n=n_kp)
+    hdr = "| (y, x) | c₀ | \\|c₁\\|/c₀ | \\|c₂\\|/c₀ |\n|---|---|---|---|\n"
+    body = join(["| ($y, $x) | $(round(v, digits=1)) | " *
+                 "$(round(abs(letter_C[2,y,x])/(v+1f-6), digits=2)) | " *
+                 "$(round(abs(letter_C[3,y,x])/(v+1f-6), digits=2)) |"
+                 for (y, x, v) in kps], "\n")
+    Markdown.parse(hdr * body)
+end
+
+# ╔═╡ c0000020-0001-4000-8000-000000000020
+md"""
+## Global shape — the same construction one level up
+
+The local analysis takes circular harmonics of the **ray profile R(φ) around a
+point**. The global analysis takes circular harmonics of the **mass
+distribution around the object centroid**. Same operation, different origin:
+
+```
+Mₙ = Σ_pixels  I(y,x) · exp(-i n α(y,x))        α = angle about the centroid
+M₀(r) = radial mass profile in the same frame
+```
+
+- **angular spectrum |Mₙ|/M₀** → shape class (oval → n=2, triangle → n=3, …)
+- **radial profile M₀(r)** → filled vs hollow
+- **anisotropy A = Σ_{n≥1}|Mₙ|²/|M₀|²** → the blob→complicated axis (A = 0 ⟺
+  rotationally symmetric). *Not* spectral entropy — normalising a near-zero
+  spectrum amplifies noise and scores the disk above the oval.
+
+Everything is linear in `I`; the only nonlinearity is |·|. The object-centred
+frame comes free from moments (origin = centroid, scale = RMS radius) — no
+decision procedure.
+
+Worth knowing: **n = 2 is the inertia tensor.** The complex 2nd moment
+`μ₂₀ − μ₀₂ + 2i·μ₁₁` is `M₂`: modulus = elongation, arg/2 = major-axis
+orientation — the classical "is it an oval and which way does it point" is
+just the 2nd angular harmonic, structurally identical to the orientation
+tensor of the doubled-angle E(θ).
+"""
+
+# ╔═╡ c0000021-0001-4000-8000-000000000021
+"""Object-centred, scale-normalised polar frame from image moments.
+Returns (rn, α, w) where rn = r/r_rms, α = angle about centroid, w = I/ΣI."""
+function object_frame(img::Matrix{Float32})
+    H, W = size(img)
+    tot = sum(img)
+    cy = sum(i * img[i,j] for i in 1:H, j in 1:W) / tot     # 1st moment
+    cx = sum(j * img[i,j] for i in 1:H, j in 1:W) / tot
+    r = [sqrt((i-cy)^2 + (j-cx)^2) for i in 1:H, j in 1:W]
+    α = [atan(i-cy, j-cx)          for i in 1:H, j in 1:W]
+    rms = sqrt(sum(img .* r.^2) / tot)                      # 2nd moment
+    return Float32.(r ./ rms), Float32.(α), Float32.(img ./ tot)
+end
+
+# ╔═╡ c0000022-0001-4000-8000-000000000022
+begin
+    """Angular harmonics of the mass distribution. Mₙ = Σ w·exp(-i n α)."""
+    function angular_spectrum(img::Matrix{Float32}; nmax=8)
+        _, α, w = object_frame(img)
+        return [sum(w .* cis.(-Float32(n) .* α)) for n in 0:nmax]
+    end
+
+    """Radial mass profile M₀(r) — separates filled from hollow."""
+    function radial_profile(img::Matrix{Float32}; nbins=16, rmax=2.0f0)
+        rn, _, w = object_frame(img)
+        edges = range(0f0, rmax, length=nbins+1)
+        return [sum(w[(rn .>= edges[i]) .& (rn .< edges[i+1])]) for i in 1:nbins], edges
+    end
+
+    """Angular anisotropy A = Σ_{n≥1}|Mₙ|²/|M₀|².  A = 0 ⟺ rotationally symmetric.
+    This is the blob→complicated axis."""
+    function anisotropy(M::Vector{ComplexF32})
+        s = abs.(M) ./ abs(M[1])
+        return sum(s[2:end] .^ 2)
+    end
+end
+
+# ╔═╡ c0000023-0001-4000-8000-000000000023
+md"""
+### Test shapes
+
+Filled disk / 2:1 oval / annulus / triangle / square on a 161×161 canvas, plus
+**real EMNIST O, A, K** (first sample of each). Reference values (verified
+Python implementation, font-rendered letter stand-ins):
+
+```
+shape        anisotropy A   dominant n
+disk             0.0000     — (round)
+annulus          0.0000     — (round)
+letter O         0.0003     — (round)
+square           0.0226     4
+triangle         0.0952     3
+oval 2:1         0.1548     2
+letter A         0.2269     3  (spread 4–8)
+letter K         0.3585     4  (spread 1–6)
+```
+
+The EMNIST letters are handwritten, so their numbers will deviate from the
+font-rendered references — the *ordering* (round ≈ 0 ≪ regular shapes ≪
+letters) is what must hold. Dominant n is meaningless when A ≈ 0 (an honest
+0/0: a round blob has no dominant angular frequency) — read it only alongside A.
+"""
+
+# ╔═╡ c0000024-0001-4000-8000-000000000024
+begin
+    function disk_img(; S=161, R=50)
+        c = (S + 1) / 2
+        return Float32[(i-c)^2 + (j-c)^2 <= R^2 ? 1f0 : 0f0 for i in 1:S, j in 1:S]
+    end
+
+    function oval_img(; S=161, a=60, b=28)          # a = horizontal semi-axis
+        c = (S + 1) / 2
+        return Float32[((i-c)/b)^2 + ((j-c)/a)^2 <= 1 ? 1f0 : 0f0 for i in 1:S, j in 1:S]
+    end
+
+    function annulus_img(; S=161, R=50, r=32)
+        c = (S + 1) / 2
+        return Float32[r^2 <= (i-c)^2 + (j-c)^2 <= R^2 ? 1f0 : 0f0 for i in 1:S, j in 1:S]
+    end
+
+    """Filled regular nv-gon: boundary radius R·cos(π/nv)/cos(mod(ang+π/nv, 2π/nv) − π/nv)."""
+    function poly_img(nv::Int; S=161, R=55)
+        c = (S + 1) / 2
+        rr(ang) = R * cos(π/nv) / cos(mod(ang + π/nv, 2π/nv) - π/nv)
+        return Float32[sqrt((i-c)^2 + (j-c)^2) <= rr(atan(i-c, j-c)) ? 1f0 : 0f0
+                       for i in 1:S, j in 1:S]
+    end
+
+    """Bilinear rotation about the canvas centre; mass at angle α moves to α+β."""
+    function rotate_img(img::Matrix{Float32}, β::Real)
+        H, W = size(img)
+        cy, cx = (H + 1) / 2, (W + 1) / 2
+        c, s = cos(β), sin(β)
+        out = zeros(Float32, H, W)
+        for i in 1:H, j in 1:W                      # inverse map: rotate by -β
+            y = cy + (i - cy) * c - (j - cx) * s
+            x = cx + (i - cy) * s + (j - cx) * c
+            out[i, j] = bilinear(img, Float32(y), Float32(x))
+        end
+        return out
+    end
+end
+
+# ╔═╡ c0000025-0001-4000-8000-000000000025
+test_shapes = [
+    "disk"     => disk_img(),
+    "annulus"  => annulus_img(),
+    "letter O" => upsample(emnist.class_images[findfirst(==("O"), emnist.class_names)][1]),
+    "square"   => poly_img(4),
+    "triangle" => poly_img(3),
+    "oval 2:1" => oval_img(),
+    "letter A" => upsample(emnist.class_images[findfirst(==("A"), emnist.class_names)][1]),
+    "letter K" => upsample(emnist.class_images[findfirst(==("K"), emnist.class_names)][1]),
+]
+
+# ╔═╡ c0000026-0001-4000-8000-000000000026
+let
+    hdr = "| shape | A | dom n | \\|M₁\\|/M₀ | \\|M₂\\|/M₀ | \\|M₃\\|/M₀ | \\|M₄\\|/M₀ | \\|M₅\\|/M₀ |\n" *
+          "|---|---|---|---|---|---|---|---|\n"
+    rows = String[]
+    for (name, im) in test_shapes
+        M = angular_spectrum(im)
+        s = abs.(M) ./ abs(M[1])
+        A = anisotropy(M)
+        push!(rows, "| $name | $(round(A, digits=4)) | $(argmax(s[2:end])) | " *
+                    join([string(round(s[n+1], digits=3)) for n in 1:5], " | ") * " |")
+    end
+    Markdown.parse(hdr * join(rows, "\n"))
+end
+
+# ╔═╡ c0000027-0001-4000-8000-000000000027
+md"""
+### Angular spectrum → class; radial profile → filled vs hollow
+
+Disk and annulus have **identical angular spectra** (both flat zero — both
+round). Only the radial profile M₀(r) separates them: the disk ramps up then
+cuts off; the annulus concentrates near r/r_rms ≈ 0.75–1.0. Letter O behaves
+like the annulus.
+"""
+
+# ╔═╡ c0000028-0001-4000-8000-000000000028
+let
+    panels = []
+    for (name, im) in test_shapes
+        M = angular_spectrum(im)
+        s = abs.(M) ./ abs(M[1])
+        prof, edges = radial_profile(im)
+        mids = [(edges[i] + edges[i+1]) / 2 for i in 1:length(prof)]
+        push!(panels, heatmap(im, color=:grays, yflip=true, aspect_ratio=:equal,
+                              axis=false, colorbar=false, title=name))
+        push!(panels, bar(1:8, s[2:9], label=false, ylims=(0, 0.45),
+                          title="|Mₙ|/M₀", xticks=1:8))
+        push!(panels, plot(mids, prof, lw=2, label=false, ylims=(0, :auto),
+                           title="M₀(r)", xlabel="r/r_rms"))
+    end
+    plot(panels..., layout=(length(test_shapes), 3),
+         size=(720, 190 * length(test_shapes)), titlefontsize=9)
+end
+
+# ╔═╡ c0000029-0001-4000-8000-000000000029
+md"""
+### Rotation covariance
+
+Rotate the triangle by 30°: |M₃| must be invariant (to ~3 decimals — otherwise
+the centroid/rms frame is wrong) and arg(M₃) must shift by 3 × 30° = 90°
+(Mₙ → Mₙ·e^{∓inβ}).
+"""
+
+# ╔═╡ c0000030-0001-4000-8000-000000000030
+let
+    tri = poly_img(3)
+    M  = angular_spectrum(tri)
+    Mr = angular_spectrum(rotate_img(tri, Float32(π/6)))
+    dφ = rad2deg(rem2pi(angle(Mr[4]) - angle(M[4]), RoundNearest))
+    md"""
+    | | \\|M₃\\| | arg M₃ shift |
+    |---|---|---|
+    | before | $(round(abs(M[4])/abs(M[1]), digits=4)) | |
+    | after 30° rotation | $(round(abs(Mr[4])/abs(Mr[1]), digits=4)) | $(round(dφ, digits=1))° (expect ±90°) |
+    """
+end
+
+# ╔═╡ c0000031-0001-4000-8000-000000000031
+md"""
+### FPE log-polar descriptor — the whole similarity group acts by binding
+
+```
+D = Σ_pixels I(y,x) · z_ρ^{log r} ⊙ z_α^{α}
+```
+
+- `α` is **mod 2π → integer frequencies** (same rule as the ray base; Bug A
+  otherwise). Note `α` is encoded directly, *not* doubled — doubling is only
+  for orientation (mod π).
+- `log r` is **not periodic → continuous frequencies**.
+
+Rotation by β → `D ⊙ z_α^β`; scaling by s → `D ⊙ z_ρ^{log s}`. Log-polar buys
+scale covariance for the same price as rotation — both are bindings. And the
+global descriptor has the same form as the keypoint bundle
+(`Σ I(p)·z_α^α` mass-weighted vs `Σ V_ray(p) ⊙ z_α^α` feature-weighted), so
+global shape and local structure can live in one descriptor.
+"""
+
+# ╔═╡ c0000032-0001-4000-8000-000000000032
+begin
+    const DIM = 1024
+    # angular base: INTEGER frequencies (α is mod 2π — periodic)
+    const ALPHA_FREQS = Int.(rand(MersenneTwister(0xBEEF), -8:8, DIM))
+    alpha_pow(u::Real) = cis.(Float32(u) .* Float32.(ALPHA_FREQS))
+    # radial base: CONTINUOUS frequencies (log r is NOT periodic)
+    const RHO_FREQS = Float32.(randn(MersenneTwister(0xC0FFEE), DIM))
+    rho_pow(u::Real) = cis.(Float32(u) .* RHO_FREQS)
+
+    """Fourier–Mellin-style global descriptor. Rotation/scaling act by binding."""
+    function global_descriptor(img::Matrix{Float32}; eps=1f-3)
+        rn, α, w = object_frame(img)
+        D = zeros(ComplexF32, DIM)
+        for idx in eachindex(w)
+            w[idx] == 0f0 && continue
+            lr = log(max(rn[idx], eps))          # guard: r → 0 at the centroid
+            D .+= w[idx] .* rho_pow(lr) .* alpha_pow(α[idx])
+        end
+        return D ./ (norm(D) + 1f-8)
+    end
+end
+
+# ╔═╡ c0000033-0001-4000-8000-000000000033
+let
+    β  = Float32(π/6)
+    im = poly_img(3)
+    D  = global_descriptor(im)
+    Dr = global_descriptor(rotate_img(im, β))
+    cs_bound   = abs(dot(Dr, D .* alpha_pow(β)))  # binding predicts the rotation
+    cs_unbound = abs(dot(Dr, D))
+    Markdown.parse("**Binding test** (triangle, β = 30°): " *
+        "cos(D\\_rot, D ⊙ z\\_α^β) = **$(round(cs_bound, digits=3))** " *
+        "(expect > 0.9; ≈ 0 would mean non-integer ALPHA\\_FREQS) · " *
+        "without binding: $(round(cs_unbound, digits=3))")
+end
+
+# ╔═╡ c0000034-0001-4000-8000-000000000034
+md"""
+### Global shape of the selected letter
+
+The same descriptor applied to the letter chosen at the top of the notebook.
+"""
+
+# ╔═╡ c0000035-0001-4000-8000-000000000035
+let
+    M = angular_spectrum(letter_img)
+    s = abs.(M) ./ abs(M[1])
+    prof, edges = radial_profile(letter_img)
+    mids = [(edges[i] + edges[i+1]) / 2 for i in 1:length(prof)]
+    p1 = bar(1:8, s[2:9], label=false, xticks=1:8,
+             title="'$class_name' #$sample_idx — |Mₙ|/M₀,  A = $(round(anisotropy(M), digits=3))")
+    p2 = plot(mids, prof, lw=2.5, label=false, xlabel="r/r_rms",
+              title="M₀(r) — radial mass profile")
+    plot(p1, p2, layout=(1, 2), size=(760, 300), titlefontsize=10)
+end
+
+# ╔═╡ 00000000-0000-0000-0000-000000000001
+PLUTO_PROJECT_TOML_CONTENTS = """
+[deps]
+FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[compat]
+FFTW = "~1.10.0"
+Plots = "~1.41.6"
+PlutoUI = "~0.7.83"
+"""
+
+# ╔═╡ 00000000-0000-0000-0000-000000000002
+PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
 julia_version = "1.11.2"
 manifest_format = "2.0"
-project_hash = "61be26a8c9166a34c0cc73db26938ee70b7d5b4b"
+project_hash = "57b9d2bfc644d9f032b394c9aee793c1e387dc17"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -23,17 +577,6 @@ git-tree-sha1 = "6c3913f4e9bdf6ba3c08041a446fb1332716cbc2"
 uuid = "6e696c72-6542-2067-7265-42206c756150"
 version = "1.4.0"
 
-[[deps.Adapt]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "daa72978cd7a624246e894a4f4f067706d4e17e2"
-uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-version = "4.7.0"
-weakdeps = ["SparseArrays", "StaticArrays"]
-
-    [deps.Adapt.extensions]
-    AdaptSparseArraysExt = "SparseArrays"
-    AdaptStaticArraysExt = "StaticArrays"
-
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
 git-tree-sha1 = "9876e1e164b144ca45e9e3198d0b689cadfed9ff"
@@ -43,44 +586,6 @@ version = "1.1.3"
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 version = "1.1.2"
-
-[[deps.ArrayInterface]]
-deps = ["Adapt", "LinearAlgebra"]
-git-tree-sha1 = "75757da5d9f771ef5909fc84f81d2f9d24127315"
-uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "7.27.0"
-
-    [deps.ArrayInterface.extensions]
-    ArrayInterfaceAMDGPUExt = "AMDGPU"
-    ArrayInterfaceBandedMatricesExt = "BandedMatrices"
-    ArrayInterfaceBlockBandedMatricesExt = "BlockBandedMatrices"
-    ArrayInterfaceCUDAExt = "CUDA"
-    ArrayInterfaceCUDSSExt = ["CUDSS", "CUDA"]
-    ArrayInterfaceChainRulesCoreExt = "ChainRulesCore"
-    ArrayInterfaceChainRulesExt = "ChainRules"
-    ArrayInterfaceFillArraysExt = "FillArrays"
-    ArrayInterfaceGPUArraysCoreExt = "GPUArraysCore"
-    ArrayInterfaceMetalExt = "Metal"
-    ArrayInterfaceReverseDiffExt = "ReverseDiff"
-    ArrayInterfaceSparseArraysExt = "SparseArrays"
-    ArrayInterfaceStaticArraysCoreExt = "StaticArraysCore"
-    ArrayInterfaceTrackerExt = "Tracker"
-
-    [deps.ArrayInterface.weakdeps]
-    AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
-    BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
-    BlockBandedMatrices = "ffab5731-97b5-5995-9138-79e8c1846df0"
-    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-    CUDSS = "45b445bb-4962-46a0-9369-b4df9d0f772e"
-    ChainRules = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
-    GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
-    Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
-    ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
-    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-    StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-    Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -106,12 +611,6 @@ deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jl
 git-tree-sha1 = "1fa950ebc3e37eccd51c6a8fe1f92f7d86263522"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 version = "1.18.7+0"
-
-[[deps.CatIndices]]
-deps = ["CustomUnitRanges", "OffsetArrays"]
-git-tree-sha1 = "a0f80a09780eed9b1d106a1bf62041c2efc995bc"
-uuid = "aafaddc9-749c-510e-ac4f-586e18779b91"
-version = "0.2.2"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -153,30 +652,10 @@ git-tree-sha1 = "37ea44092930b1811e666c3bc38065d7d87fcc74"
 uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
 version = "0.13.1"
 
-[[deps.CommonWorldInvalidations]]
-git-tree-sha1 = "f1697a56da59e8a2cefcbbfe71c13354a6f18c61"
-uuid = "f70d9fcc-98c5-4d4a-abd7-e4cdeebd8ca8"
-version = "1.1.0"
-
-[[deps.Compat]]
-deps = ["TOML", "UUIDs"]
-git-tree-sha1 = "9d8a54ce4b17aa5bdce0ea5c34bc5e7c340d16ad"
-uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.18.1"
-weakdeps = ["Dates", "LinearAlgebra"]
-
-    [deps.Compat.extensions]
-    CompatLinearAlgebraExt = "LinearAlgebra"
-
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 version = "1.1.1+0"
-
-[[deps.ComputationalResources]]
-git-tree-sha1 = "52cb3ec90e8a8bea0e62e275ba577ad0f74821f7"
-uuid = "ed09eef8-17a6-5b46-8889-db040fac31e3"
-version = "0.3.2"
 
 [[deps.ConcurrentUtilities]]
 deps = ["Serialization", "Sockets"]
@@ -184,21 +663,10 @@ git-tree-sha1 = "21d088c496ea22914fe80906eb5bce65755e5ec8"
 uuid = "f0e56b4a-5159-44fe-b623-3e5288b988bb"
 version = "2.5.1"
 
-[[deps.Configurations]]
-deps = ["ExproniconLite", "OrderedCollections", "TOML"]
-git-tree-sha1 = "4358750bb58a3caefd5f37a4a0c5bfdbbf075252"
-uuid = "5218b696-f38b-4ac9-8b61-a12ec717816d"
-version = "0.17.6"
-
 [[deps.Contour]]
 git-tree-sha1 = "439e35b0b36e2e5881738abc8857bd92ad6ff9a8"
 uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.6.3"
-
-[[deps.CustomUnitRanges]]
-git-tree-sha1 = "1a3f97f907e6dd8983b744d2642651bb162a3f7a"
-uuid = "dc8bdbbb-1ca9-579f-8c36-e416f6a65cce"
-version = "1.0.2"
 
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
@@ -210,11 +678,6 @@ deps = ["OrderedCollections"]
 git-tree-sha1 = "6fb53a69613a0b2b68a0d12671717d307ab8b24e"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 version = "0.19.5"
-
-[[deps.DataValueInterfaces]]
-git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
-uuid = "e2d170a0-9d28-54be-80f0-106bbe20a464"
-version = "1.0.0"
 
 [[deps.Dates]]
 deps = ["Printf"]
@@ -232,11 +695,6 @@ deps = ["Mmap"]
 git-tree-sha1 = "9e2f36d3c96a820c678f2f1f1782582fcf685bae"
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 version = "1.9.1"
-
-[[deps.Distributed]]
-deps = ["Random", "Serialization", "Sockets"]
-uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
-version = "1.11.0"
 
 [[deps.DocStringExtensions]]
 git-tree-sha1 = "7442a5dfe1ebb773c29cc2962a8980f47221d76c"
@@ -266,16 +724,6 @@ git-tree-sha1 = "c307cd83373868391f3ac30b41530bc5d5d05d08"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.8.1+0"
 
-[[deps.ExpressionExplorer]]
-git-tree-sha1 = "5f1c005ed214356bbe41d442cc1ccd416e510b7e"
-uuid = "21656369-7473-754a-2065-74616d696c43"
-version = "1.1.4"
-
-[[deps.ExproniconLite]]
-git-tree-sha1 = "c13f0b150373771b0fdc1713c97860f8df12e6c2"
-uuid = "55351af7-c7e9-48d6-89ff-24e801d99491"
-version = "0.10.14"
-
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
 git-tree-sha1 = "95ecf07c2eea562b5adbd0696af6db62c0f52560"
@@ -287,12 +735,6 @@ deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers",
 git-tree-sha1 = "7a58e45171b63ed4782f2d36fdee8713a469e6e0"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "8.1.2+0"
-
-[[deps.FFTViews]]
-deps = ["CustomUnitRanges", "FFTW"]
-git-tree-sha1 = "cbdf14d1e8c7c8aacbe8b19862e0179fd08321c2"
-uuid = "4f61f5a4-77b1-5117-aa51-3ab5ef4ef0cd"
-version = "0.3.2"
 
 [[deps.FFTW]]
 deps = ["AbstractFFTs", "FFTW_jll", "Libdl", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
@@ -381,12 +823,6 @@ git-tree-sha1 = "24f6def62397474a297bfcec22384101609142ed"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.86.3+0"
 
-[[deps.GracefulPkg]]
-deps = ["Compat", "Pkg", "TOML"]
-git-tree-sha1 = "a854d6c0e9fb561b88cd20b4ad64f518cb1bfb8d"
-uuid = "828d9ff0-206c-6161-646e-6576656f7244"
-version = "2.4.3"
-
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "69ffb934a5c5b7e086a0b4fee3427db2556fba6e"
@@ -428,29 +864,6 @@ git-tree-sha1 = "0ee181ec08df7d7c911901ea38baf16f755114dc"
 uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
 version = "1.0.0"
 
-[[deps.IfElse]]
-git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
-uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
-version = "0.1.1"
-
-[[deps.ImageBase]]
-deps = ["ImageCore", "Reexport"]
-git-tree-sha1 = "eb49b82c172811fd2c86759fa0553a2221feb909"
-uuid = "c817782e-172a-44cc-b673-b171935fbb9e"
-version = "0.1.7"
-
-[[deps.ImageCore]]
-deps = ["ColorVectorSpace", "Colors", "FixedPointNumbers", "MappedArrays", "MosaicViews", "OffsetArrays", "PaddedViews", "PrecompileTools", "Reexport"]
-git-tree-sha1 = "8c193230235bbcee22c8066b0374f63b5683c2d3"
-uuid = "a09fc81d-aa75-5fe9-8630-4744c3626534"
-version = "0.10.5"
-
-[[deps.ImageFiltering]]
-deps = ["CatIndices", "ComputationalResources", "DataStructures", "FFTViews", "FFTW", "ImageBase", "ImageCore", "LinearAlgebra", "OffsetArrays", "PrecompileTools", "Reexport", "SparseArrays", "StaticArrays", "Statistics", "TiledIteration"]
-git-tree-sha1 = "52116260a234af5f69969c5286e6a5f8dc3feab8"
-uuid = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
-version = "0.7.12"
-
 [[deps.IntelOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
 git-tree-sha1 = "ec1debd61c300961f98064cfb21287613ad7f303"
@@ -466,11 +879,6 @@ version = "1.11.0"
 git-tree-sha1 = "b2d91fe939cae05960e760110b328288867b5758"
 uuid = "92d709cd-6900-40b7-9082-c6be49f344b6"
 version = "0.2.6"
-
-[[deps.IteratorInterfaceExtensions]]
-git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
-uuid = "82899510-4779-5014-852e-03e436cf321d"
-version = "1.0.0"
 
 [[deps.JLFzf]]
 deps = ["REPL", "Random", "fzf_jll"]
@@ -520,15 +928,6 @@ git-tree-sha1 = "3ac157462e1e800777cc97d0eafd1bdb5356a470"
 uuid = "1d63c593-3942-5779-bab2-d838dc0a180e"
 version = "21.1.8+0"
 
-[[deps.LRUCache]]
-git-tree-sha1 = "5519b95a490ff5fe629c4a7aa3b3dfc9160498b3"
-uuid = "8ac3fa9e-de4c-5943-b1dc-09c6b5f20637"
-version = "1.6.2"
-weakdeps = ["Serialization"]
-
-    [deps.LRUCache.extensions]
-    SerializationExt = ["Serialization"]
-
 [[deps.LaTeXStrings]]
 git-tree-sha1 = "dda21b8cbd6a6c40d9d02a73230f9d70fed6918c"
 uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
@@ -551,11 +950,6 @@ version = "0.16.10"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
     tectonic_jll = "d7dd28d6-a5e6-559c-9131-7eb760cdacc5"
-
-[[deps.LazilyInitializedFields]]
-git-tree-sha1 = "0f2da712350b020bc3957f269c9caad516383ee0"
-uuid = "0e77f7df-68c5-4e49-93ce-4cd80f5598bf"
-version = "1.3.0"
 
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
@@ -674,17 +1068,6 @@ git-tree-sha1 = "1e0228a030642014fe5cfe68c2c0a818f9e3f522"
 uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 version = "0.5.16"
 
-[[deps.Malt]]
-deps = ["Distributed", "Logging", "RelocatableFolders", "Serialization", "Sockets"]
-git-tree-sha1 = "c2335b4e291f2422e2be8abf8936ccad58a98992"
-uuid = "36869731-bdee-424d-aa32-cab38c994e3b"
-version = "1.4.1"
-
-[[deps.MappedArrays]]
-git-tree-sha1 = "0ee4497a4e80dbd29c058fcee6493f5219556f40"
-uuid = "dbb5928d-eab1-5f90-85c2-b9b0edb7c900"
-version = "0.4.3"
-
 [[deps.Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
@@ -716,21 +1099,9 @@ version = "1.2.0"
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 version = "1.11.0"
 
-[[deps.MosaicViews]]
-deps = ["MappedArrays", "OffsetArrays", "PaddedViews", "StackViews"]
-git-tree-sha1 = "7b86a5d4d70a9f5cdf2dacb3cbe6d251d1a61dbe"
-uuid = "e94cdb99-869f-56ef-bcf0-1ae2bcbe0389"
-version = "0.3.4"
-
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 version = "2023.12.12"
-
-[[deps.MsgPack]]
-deps = ["Serialization"]
-git-tree-sha1 = "f5db02ae992c260e4826fe78c942954b48e1d9c2"
-uuid = "99f44e22-a591-53d1-9472-aa23ef4bd671"
-version = "1.2.1"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
@@ -741,15 +1112,6 @@ version = "1.1.4"
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
-
-[[deps.OffsetArrays]]
-git-tree-sha1 = "117432e406b5c023f665fa73dc26e79ec3630151"
-uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
-version = "1.17.0"
-weakdeps = ["Adapt"]
-
-    [deps.OffsetArrays.extensions]
-    OffsetArraysAdaptExt = "Adapt"
 
 [[deps.Ogg_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -794,12 +1156,6 @@ version = "1.8.2"
 deps = ["Artifacts", "Libdl"]
 uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
 version = "10.42.0+1"
-
-[[deps.PaddedViews]]
-deps = ["OffsetArrays"]
-git-tree-sha1 = "0fac6313486baae819364c52b4f483450a9d793f"
-uuid = "5432bcbf-9aad-5242-b902-cca2824c8663"
-version = "0.5.12"
 
 [[deps.Pango_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl"]
@@ -860,28 +1216,11 @@ version = "1.41.6"
     ImageInTerminal = "d8c32880-2388-543b-8c61-d9f865259254"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
-[[deps.Pluto]]
-deps = ["Base64", "Configurations", "Dates", "Downloads", "ExpressionExplorer", "FileWatching", "GracefulPkg", "HTTP", "HypertextLiteral", "InteractiveUtils", "LRUCache", "Logging", "LoggingExtras", "MIMEs", "Malt", "Markdown", "MsgPack", "Pkg", "PlutoDependencyExplorer", "PrecompileSignatures", "PrecompileTools", "REPL", "Random", "RegistryInstances", "RelocatableFolders", "SHA", "Scratch", "Sockets", "TOML", "Tables", "URIs", "UUIDs"]
-git-tree-sha1 = "fe7515cf6ddb62e738d924e4ca2dddaa60ff80ba"
-uuid = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
-version = "1.0.3"
-
-[[deps.PlutoDependencyExplorer]]
-deps = ["ExpressionExplorer", "InteractiveUtils", "Markdown"]
-git-tree-sha1 = "c3e5073a977b1c58b2d55c1ec187c3737e64e6af"
-uuid = "72656b73-756c-7461-726b-72656b6b696b"
-version = "1.2.2"
-
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Downloads", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
 git-tree-sha1 = "e189d0623e7ce9c37389bac17e80aac3b0302e75"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 version = "0.7.83"
-
-[[deps.PrecompileSignatures]]
-git-tree-sha1 = "18ef344185f25ee9d51d80e179f8dad33dc48eb1"
-uuid = "91cefc8d-f054-46dc-8f8c-26e11d7c5411"
-version = "3.0.3"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -962,12 +1301,6 @@ git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
 uuid = "189a3867-3050-52da-a836-e630ba90ab69"
 version = "1.2.2"
 
-[[deps.RegistryInstances]]
-deps = ["LazilyInitializedFields", "Pkg", "TOML", "Tar"]
-git-tree-sha1 = "ffd19052caf598b8653b99404058fce14828be51"
-uuid = "2792f1a3-b283-48e8-9a74-f99dce5104f3"
-version = "0.1.0"
-
 [[deps.RelocatableFolders]]
 deps = ["SHA", "Scratch"]
 git-tree-sha1 = "ffdaf70d81cf6ff22c2b6e733c900c3321cab864"
@@ -983,11 +1316,6 @@ version = "1.3.1"
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 version = "0.7.0"
-
-[[deps.SciMLPublic]]
-git-tree-sha1 = "2b1b64add566435a768abdb3b053cac17d19ff3c"
-uuid = "431bcebd-1456-4ced-9d72-93c2757fff0b"
-version = "1.2.1"
 
 [[deps.Scratch]]
 deps = ["Dates"]
@@ -1030,48 +1358,6 @@ deps = ["Random"]
 git-tree-sha1 = "4f96c596b8c8258cc7d3b19797854d368f243ddc"
 uuid = "860ef19b-820b-49d6-a774-d7a799459cd3"
 version = "1.0.4"
-
-[[deps.StackViews]]
-deps = ["OffsetArrays"]
-git-tree-sha1 = "be1cf4eb0ac528d96f5115b4ed80c26a8d8ae621"
-uuid = "cae243ae-269e-4f55-b966-ac2d0dc13c15"
-version = "0.1.2"
-
-[[deps.Static]]
-deps = ["CommonWorldInvalidations", "IfElse", "PrecompileTools", "SciMLPublic"]
-git-tree-sha1 = "b151f033556272891e184d7d36c62518b56bbaac"
-uuid = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
-version = "1.4.2"
-
-[[deps.StaticArrayInterface]]
-deps = ["ArrayInterface", "Compat", "IfElse", "LinearAlgebra", "PrecompileTools", "SciMLPublic", "Static"]
-git-tree-sha1 = "2a635e15d5035c53b345077c947f31ff91744078"
-uuid = "0d7ed370-da01-4f52-bd93-41d350b8b718"
-version = "1.10.0"
-weakdeps = ["OffsetArrays", "StaticArrays"]
-
-    [deps.StaticArrayInterface.extensions]
-    StaticArrayInterfaceOffsetArraysExt = "OffsetArrays"
-    StaticArrayInterfaceStaticArraysExt = "StaticArrays"
-
-[[deps.StaticArrays]]
-deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
-git-tree-sha1 = "246a8bb2e6667f832eea063c3a56aef96429a3db"
-uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.9.18"
-
-    [deps.StaticArrays.extensions]
-    StaticArraysChainRulesCoreExt = "ChainRulesCore"
-    StaticArraysStatisticsExt = "Statistics"
-
-    [deps.StaticArrays.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-
-[[deps.StaticArraysCore]]
-git-tree-sha1 = "6ab403037779dae8c514bad259f32a447262455a"
-uuid = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-version = "1.4.4"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra"]
@@ -1125,18 +1411,6 @@ deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 version = "1.0.3"
 
-[[deps.TableTraits]]
-deps = ["IteratorInterfaceExtensions"]
-git-tree-sha1 = "c06b2f539df1c6efa794486abfb6ed2022561a39"
-uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
-version = "1.0.1"
-
-[[deps.Tables]]
-deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "OrderedCollections", "TableTraits"]
-git-tree-sha1 = "0f38a06c83f0007bbab3cf911262841c9a0f07e0"
-uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.13.0"
-
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
@@ -1152,12 +1426,6 @@ version = "0.1.1"
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 version = "1.11.0"
-
-[[deps.TiledIteration]]
-deps = ["OffsetArrays", "StaticArrayInterface"]
-git-tree-sha1 = "1176cc31e867217b06928e2f140c90bd1bc88283"
-uuid = "06e1c1a7-607b-532d-9fad-de7d9aa2abac"
-version = "0.5.0"
 
 [[deps.TranscodingStreams]]
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
@@ -1483,3 +1751,43 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libxcb_jll", "Xorg_xkeyboard_
 git-tree-sha1 = "a1fc6507a40bf504527d0d4067d718f8e179b2b8"
 uuid = "d8fb68d0-12a3-5cfd-a85a-d49703b185fd"
 version = "1.13.0+0"
+"""
+
+# ╔═╡ Cell order:
+# ╟─c0000001-0001-4000-8000-000000000001
+# ╠═c0000002-0001-4000-8000-000000000002
+# ╠═c0000003-0001-4000-8000-000000000003
+# ╠═c0000004-0001-4000-8000-000000000004
+# ╠═c0000005-0001-4000-8000-000000000005
+# ╠═c0000006-0001-4000-8000-000000000006
+# ╠═c0000007-0001-4000-8000-000000000007
+# ╠═c0000008-0001-4000-8000-000000000008
+# ╠═c0000009-0001-4000-8000-000000000009
+# ╠═c0000010-0001-4000-8000-000000000010
+# ╠═c0000011-0001-4000-8000-000000000011
+# ╟─c0000012-0001-4000-8000-000000000012
+# ╠═c0000013-0001-4000-8000-000000000013
+# ╟─c0000014-0001-4000-8000-000000000014
+# ╠═c0000015-0001-4000-8000-000000000015
+# ╠═c0000016-0001-4000-8000-000000000016
+# ╠═c0000017-0001-4000-8000-000000000017
+# ╟─c0000018-0001-4000-8000-000000000018
+# ╠═c0000019-0001-4000-8000-000000000019
+# ╟─c0000020-0001-4000-8000-000000000020
+# ╠═c0000021-0001-4000-8000-000000000021
+# ╠═c0000022-0001-4000-8000-000000000022
+# ╟─c0000023-0001-4000-8000-000000000023
+# ╠═c0000024-0001-4000-8000-000000000024
+# ╠═c0000025-0001-4000-8000-000000000025
+# ╠═c0000026-0001-4000-8000-000000000026
+# ╟─c0000027-0001-4000-8000-000000000027
+# ╠═c0000028-0001-4000-8000-000000000028
+# ╟─c0000029-0001-4000-8000-000000000029
+# ╠═c0000030-0001-4000-8000-000000000030
+# ╟─c0000031-0001-4000-8000-000000000031
+# ╠═c0000032-0001-4000-8000-000000000032
+# ╠═c0000033-0001-4000-8000-000000000033
+# ╟─c0000034-0001-4000-8000-000000000034
+# ╠═c0000035-0001-4000-8000-000000000035
+# ╟─00000000-0000-0000-0000-000000000001
+# ╟─00000000-0000-0000-0000-000000000002
