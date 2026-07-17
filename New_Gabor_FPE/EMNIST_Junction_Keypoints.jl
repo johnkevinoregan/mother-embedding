@@ -100,6 +100,21 @@ function gabor_kernel(θ::Float32; λ=LAM, σn=SIGMA_N, σt=SIGMA_T, ks=KSIZE)
 end
 
 # ╔═╡ c0000005-0001-4000-8000-000000000005
+# Convolution whose output is the SAME size as `img` — scipy/MATLAB naming:
+# "full" = H+kh-1 (every overlap), "same" = H, "valid" = H-kh+1 (full overlap only).
+# Why it's written this way:
+#  · FFT, not a direct loop — convolution = pointwise product in frequency, so
+#    O(N log N) instead of O(N·kh·kw): the kernel size stops mattering. (We do
+#    N_THETA of these per image.)
+#  · B = K zero-padded to A's size — `.*` needs equal shapes, and both spectra must
+#    sit on the same frequency grid (zero-pad in space = interpolate in frequency).
+#    Padding with zeros is free: they contribute nothing to a convolution sum.
+#  · Size H+kh-1 — the FFT convolves *circularly*; this gives the wrap-around zeros
+#    to land on, so the result equals the linear convolution.
+#  · K goes top-left, so `full` is shifted by kh÷2 — exactly what the o1/o2 crop
+#    undoes, returning the image's own coordinate frame.
+#  · This is true convolution; imfilter() computes correlation (conjugated). |·| is
+#    unaffected, but phase would differ in sign.
 function conv_same(img::Matrix{Float32}, K::Matrix{ComplexF32})
     H, W   = size(img)
     kh, kw = size(K)
@@ -121,6 +136,27 @@ function energy_stack(img::Matrix{Float32})
 end
 
 # ╔═╡ c0000007-0001-4000-8000-000000000007
+# Samples ONE point of M at fractional (y,x) by bilinear interpolation. Notes:
+#  · Out of range → exactly 0f0 (the guard line). So the padding is ZERO — not a
+#    circular wrap, not edge-replication. The cutoff is abrupt: at y=H you get
+#    M[H,·], at y=H+ε you get 0, with no ramp between. (A "true" zero-extended
+#    bilinear would give ½·M[H,·] at y=H+0.5.) UNVERIFIED whether that is intended:
+#    it does coincide with scipy's documented mode='constant' ("no interpolation is
+#    performed beyond the edges of the input"), which is what rayharm.py passes —
+#    but rayharm.py has never been tested, so it is NOT a ground truth to check
+#    against, whatever the handoff doc's §6 table says. Only affects a half-pixel
+#    shell at the border; revisit if it ever matters.
+#  · `AbstractMatrix`, not `Matrix`, so that a `view` can be passed: ray_harmonics
+#    hands us `view(E, ti, :, :)`, a SubArray, which is an AbstractMatrix but is
+#    NOT a Matrix — `::Matrix` here would be a MethodError.
+#  · THIS FUNCTION IS NOT A SHIFT — it samples a single point. But ray_harmonics
+#    calls it over every (y,x) at a FIXED offset (dy,dx), and that whole sweep is
+#    equivalent to rigidly shifting the array by (−dy,−dx) with zero fill. That
+#    equivalence is what makes cₙ a linear filter over the lifted (x,y,θ) field
+#    (handoff doc §3b) rather than a lookup, and it is the whole basis for the
+#    §7.2 speedup: one array shift per φ instead of H·W scalar calls. (rayharm.py
+#    is *written* that way — one ndshift per φ — but it is untested, so treat it
+#    as a sketch of the idea, not as a verified implementation to copy.)
 @inline function bilinear(M::AbstractMatrix{Float32}, y::Float32, x::Float32)
     H, W = size(M)
     (y < 1 || x < 1 || y > H || x > W) && return 0f0
@@ -132,6 +168,24 @@ end
 end
 
 # ╔═╡ c0000008-0001-4000-8000-000000000008
+# cₙ(y,x) = (1/K_PHI) · Σ_φ E[φ mod π](y + d·sin φ, x + d·cos φ) · e^{-inφ}
+# Reading notes:
+#  · `_, H, W = size(E)` — `_` is a write-only throwaway (Julia errors if you try to
+#    read it back). E is [θ,y,x]; we want only the spatial dims, and the θ count is
+#    taken from N_THETA instead.
+#  · `ti` maps ray DIRECTION φ (mod 2π) → orientation CHANNEL (mod π): fold via
+#    mod(φ,π), scale to a channel, round to the nearest, wrap if it lands on the
+#    seam (θ=π ≡ θ=0), +1 for 1-based indexing. With K_PHI=96 = 2·N_THETA the map is
+#    exact: each channel gets precisely the two opposite rays φ and φ+π, so round()
+#    and the outer mod() are no-ops here (the wrap only bites above ~K_PHI=200).
+#    The mod(φ,π) fold is the lossy step — the d-offset below is what restores
+#    direction, turning a mod-π quantity back into a mod-2π one.
+#  · `v == 0f0 && continue` — short-circuit `&&` as control flow, i.e.
+#    `if v == 0f0; continue; end`. Pure optimisation: v=0 contributes 0 to every
+#    harmonic. Measured on a real "T" it fires on 17% of (φ,y,x) samples — but
+#    204670 of those 204713 are the ray landing OFF-IMAGE (bilinear's own guard
+#    returns 0f0); only 43 are true background zeros. So it is really "skip the
+#    D_RAY-wide border band", not "skip the background".
 function ray_harmonics(E::Array{Float32,3}; d=D_RAY, nmax=N_MAX)
     _, H, W = size(E)
     C = zeros(ComplexF32, nmax+1, H, W)
@@ -163,6 +217,27 @@ function upsample(img::Matrix{Float32}; S=IMG)
 end
 
 # ╔═╡ c0000010-0001-4000-8000-000000000010
+# CAUTION — the rationale for greedy-over-local-maxima does NOT survive measurement.
+# The markdown claims "plain local-maxima detection does not work here — c₀ rises
+# monotonically toward junctions, so an endpoint is a ridge, not a peak … a broad
+# junction plateau spawns a cluster." Measured on a real EMNIST 'T' (see below),
+# that is overstated:
+#  · c₀ is a radius-D_RAY ring integral → heavily SMOOTHED, so it has FEW maxima,
+#    not speckle: exactly 5 strict 8-neighbour local maxima, stable from 5%..35% of
+#    max. No plateau-cluster problem.
+#  · Those 5 cover 3 of the 4 semantic features (T-junction + 2 of 3 tips), with one
+#    spurious mid-stem point. The "endpoint is a ridge" miss is REAL but partial —
+#    it hits exactly one tip (the thin crossbar-left end near the image border,
+#    where the ring also spills off-image); the other two tips ARE local maxima.
+#  · The greedy is not finding semantic keypoints at all — it TILES the bright c₀
+#    ridges at ~`rad`-spacing. With n=10 it spent its budget down the stem/crossbar
+#    and MISSED both crossbar-end tips (the right one, c₀=5.94, ranked 11th). So on
+#    this letter plain local maxima (5 pts, 3/4 features) arguably beat greedy
+#    top-10 (2/4 tips, several redundant ridge samples).
+# Bottom line: keypoint SELECTION is the untested/weak stage (handoff doc §7.6) — the
+# descriptor (c₀,|c₁|/c₀,…) is the verified part, where you read it is not. A real
+# fix is likely local maxima PLUS a dedicated stroke-end term, not either alone.
+# This function is a placeholder; don't treat its choice as settled.
 """Keypoints = greedy top-`n` of the c₀ map with non-max suppression radius `rad`."""
 function find_keypoints(c0::Matrix{Float32}; n=10, rad=12)
     A = copy(c0)
