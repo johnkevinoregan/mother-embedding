@@ -4,18 +4,6 @@
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    #! format: off
-    return quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-    #! format: on
-end
-
 # ╔═╡ 30000000-0000-0000-0000-000000000001
 begin
     import Pkg
@@ -201,7 +189,7 @@ function energy_stack(img, thetas, scfg)
     return S
 end
 
-# ╔═╡ 3000000A-0000-0000-0000-00000000000a
+# ╔═╡ 3000000a-0000-0000-0000-00000000000a
 md"""
 ## Operation 1 — end-stopping along the winning orientation (unchanged)
 
@@ -211,7 +199,7 @@ three scales — the same numeric coincidence `d ≈ λ` the single-scale notebo
 used).
 """
 
-# ╔═╡ 3000000B-0000-0000-0000-00000000000b
+# ╔═╡ 3000000b-0000-0000-0000-00000000000b
 function end_stopping(S, thetas; d=15.0)
     ES = zero(S)
     N, h, w = size(S)
@@ -227,7 +215,7 @@ function end_stopping(S, thetas; d=15.0)
     return ES
 end
 
-# ╔═╡ 3000000C-0000-0000-0000-00000000000c
+# ╔═╡ 3000000c-0000-0000-0000-00000000000c
 md"""
 ## Operation 2 — orientation-profile peak structure (unchanged)
 
@@ -237,7 +225,7 @@ corner-family point must be bimodal at ≥ 2 of the 3 scales, with the finest
 scale required — is applied afterwards in `detect_multiscale`, not here.
 """
 
-# ╔═╡ 3000000D-0000-0000-0000-00000000000d
+# ╔═╡ 3000000d-0000-0000-0000-00000000000d
 function peak_maps(S; relthr=0.40, sep_bins=10)
     N, h, w = size(S)
     M = dropdims(maximum(S, dims=1), dims=1)
@@ -277,7 +265,7 @@ function peak_maps(S; relthr=0.40, sep_bins=10)
     return npk, first_pk, second_pk
 end
 
-# ╔═╡ 3000000E-0000-0000-0000-00000000000e
+# ╔═╡ 3000000e-0000-0000-0000-00000000000e
 md"""
 ## Operation 3 — ring spoke count, pooled across scales
 
@@ -294,7 +282,7 @@ curves alike. The two-level vote keeps the same agreement strength
 regardless of scale count.
 """
 
-# ╔═╡ 3000000F-0000-0000-0000-00000000000f
+# ╔═╡ 3000000f-0000-0000-0000-00000000000f
 function arc_count(M, y, x, r; K=72, relthr=0.4, min_run=3)
     ph = [2π*(k - 1)/K for k in 1:K]
     g = [bilinear(M, y + r*sin(p), x + r*cos(p)) for p in ph]
@@ -518,18 +506,18 @@ begin
     end
 end
 
-# ╔═╡ 3000001A-0000-0000-0000-00000000001a
+# ╔═╡ 3000001a-0000-0000-0000-00000000001a
 fig5 = let
     panels = [keypoint_panel(res[c], c) for c in cfg.chars]
     plot(panels..., layout=(3, 2), size=(680, 1080), legend=false)
 end
 
-# ╔═╡ 3000001B-0000-0000-0000-00000000001b
+# ╔═╡ 3000001b-0000-0000-0000-00000000001b
 Markdown.parse(join(["**$c** → " * (isempty(res[c].keypoints) ? "*none*" :
                      join(["`$typ` ($y, $x)" for (typ, y, x) in res[c].keypoints], ", "))
                      for c in cfg.chars], "\n\n"))
 
-# ╔═╡ 3000001C-0000-0000-0000-00000000001c
+# ╔═╡ 3000001c-0000-0000-0000-00000000001c
 md"""
 ### Fig 6 — per-scale cornerness on `S` (the mechanism doesn't clean up)
 
@@ -541,7 +529,7 @@ curve doesn't meaningfully shrink from λ=18 to λ=8 — consistent with the
 bimodal-fraction table above. This is the honest result, not the fixed one.
 """
 
-# ╔═╡ 3000001D-0000-0000-0000-00000000001d
+# ╔═╡ 3000001d-0000-0000-0000-00000000001d
 fig6 = let
     ps = res["S"].per_scale
     style = (yflip=true, aspect_ratio=:equal, axis=false, colorbar=false, titlefontsize=10)
@@ -550,7 +538,7 @@ fig6 = let
     plot(panels..., layout=(1, length(panels)), size=(320*length(panels), 340))
 end
 
-# ╔═╡ 3000001E-0000-0000-0000-00000000001e
+# ╔═╡ 3000001e-0000-0000-0000-00000000001e
 md"""
 ### Fig 7 — single-scale vs. multi-scale keypoints on `S`
 
@@ -565,7 +553,7 @@ confirming junction order scale-by-scale first, then voting across scales,
 removed that false-positive class. Compare keypoint *types*, not just count.
 """
 
-# ╔═╡ 3000001F-0000-0000-0000-00000000001f
+# ╔═╡ 3000001f-0000-0000-0000-00000000001f
 fig7 = let
     single = detect_multiscale(imgs["S"], cfg; lams=[cfg.lams[2]])   # λ=12 only
     multi  = res["S"]
@@ -584,12 +572,12 @@ end
 # ╠═30000000-0000-0000-0000-000000000007
 # ╠═30000000-0000-0000-0000-000000000008
 # ╠═30000000-0000-0000-0000-000000000009
-# ╟─3000000A-0000-0000-0000-00000000000a
-# ╠═3000000B-0000-0000-0000-00000000000b
-# ╟─3000000C-0000-0000-0000-00000000000c
-# ╠═3000000D-0000-0000-0000-00000000000d
-# ╟─3000000E-0000-0000-0000-00000000000e
-# ╠═3000000F-0000-0000-0000-00000000000f
+# ╟─3000000a-0000-0000-0000-00000000000a
+# ╠═3000000b-0000-0000-0000-00000000000b
+# ╟─3000000c-0000-0000-0000-00000000000c
+# ╠═3000000d-0000-0000-0000-00000000000d
+# ╟─3000000e-0000-0000-0000-00000000000e
+# ╠═3000000f-0000-0000-0000-00000000000f
 # ╠═30000010-0000-0000-0000-000000000010
 # ╟─30000011-0000-0000-0000-000000000011
 # ╠═30000012-0000-0000-0000-000000000012
@@ -600,9 +588,9 @@ end
 # ╠═30000017-0000-0000-0000-000000000017
 # ╟─30000018-0000-0000-0000-000000000018
 # ╠═30000019-0000-0000-0000-000000000019
-# ╠═3000001A-0000-0000-0000-00000000001a
-# ╠═3000001B-0000-0000-0000-00000000001b
-# ╟─3000001C-0000-0000-0000-00000000001c
-# ╠═3000001D-0000-0000-0000-00000000001d
-# ╟─3000001E-0000-0000-0000-00000000001e
-# ╠═3000001F-0000-0000-0000-00000000001f
+# ╠═3000001a-0000-0000-0000-00000000001a
+# ╠═3000001b-0000-0000-0000-00000000001b
+# ╟─3000001c-0000-0000-0000-00000000001c
+# ╠═3000001d-0000-0000-0000-00000000001d
+# ╟─3000001e-0000-0000-0000-00000000001e
+# ╠═3000001f-0000-0000-0000-00000000001f
