@@ -243,6 +243,63 @@ clean single-letter identity, where it's marginal. On EMNIST — all strokes one
 ink — there are no opposite-polarity crossings to reject, so the verification gain
 is latent until the input is more than isolated same-ink letters.
 
+### Endpoint detection — a deep dive, and a nonlinearity lesson
+
+Endpoints are the channel that failed in every energy-based attempt (asymmetry
+`|c₁|/c₀` confounded by background, `n_endpoint ≈ 0` on real letters). A better
+model of what an endpoint *is*, physically: at a stroke tip there is a **step edge
+running across the stroke** — oriented *perpendicular* to the stroke, at a scale
+~the stroke width, with **odd (edge) phase**, not the even (line) phase of the
+stroke body. This is the classic end-stopped / hypercomplex cell; a row of such
+line-ends is what forms an illusory "virtual contour" perpendicular to the lines.
+
+**1. The perpendicular-odd-phase signature is real** (synthetic bar with a clean
+end, probing the tip vs mid-bar):
+
+```
+                    ⟂-orientation response:  energy   edgeness(|sin φ|)
+tip   (small λ≈width)                          9.0     0.89   ← odd/edge
+mid-bar                                        0.14    0.00   ← nothing
+end score (⟂energy·edgeness), tip/mid contrast:  large λ 381×,  small λ 8·10⁶×
+```
+
+The tip has a strong odd perpendicular response; mid-bar has ~none. My earlier
+"phase is minor" conclusion was wrong *for endpoints* — it came from reading the
+*winning* (stroke-parallel) orientation, which is always even. Read the
+*perpendicular* orientation and the odd endpoint signal is there. A **small scale**
+(λ≈stroke width) localizes it cleanly (mid-bar response exactly 0, no bleed).
+
+**2. A working detector needs three components** — each alone over-fires:
+
+- `perp-odd-edge` ("cross-stroke edge here") — also fires at junctions;
+- `× termination` ("stroke ends on one side") — also fires at corners (an arm
+  ends into the other arm);
+- `× single-branch` (ray-count `c₀ ≈ 1`) — rejects corners/junctions (≥2 branches).
+
+Together, on clean **synthetic** figures this is correct: `straight → 2 tips,
+T → 3 tips, X → 4 tips`, with the junction/crossing centres **rejected**. On real
+EMNIST it still **over-fires** (T/Y/K hit the cap of ~10) — handwriting wobble,
+curvature and thickness variation make all three per-pixel gates locally noisy.
+The same clean-input-works / messy-input-fails gap as everywhere.
+
+**3. Why not a purpose-built (non-Gabor) matched filter?** We tried: a
+directional (2π) end-stopped operator — excitatory tip, inhibitory beyond and
+flanks — built to match the line-end signature directly. It **traces the entire
+figure-ground boundary** (the response map outlines the whole letter), not just
+the ends. The lesson is fundamental: **a single *linear* filter cannot detect
+line-ends**, because a linear filter on the raw image responds to *contrast* — any
+boundary. To distinguish "a bar of orientation θ that *ends* here" from "any edge
+here" you must first **rectify** to oriented *energy* `|Gabor_θ * I|` (a
+nonlinearity); only then does end-stopping (subtract displaced energy) mean
+anything. That rectification is the defining feature of an end-stopped cell, and
+it is exactly why the energy-based 3-component detector got clean synthetic tips
+while the linear matched filter cannot.
+
+**Takeaway:** we are *not* limited to Gabors — the end-stopping *geometry* is free
+to design (the excite-inside / inhibit-beyond-and-across shape is right). But that
+shaped operator must sit on top of an oriented-*energy* front end, not the raw
+image; the Gabor's only essential job is providing that rectified oriented energy.
+
 ### Why typed counts are inherently weak
 
 A count is a **census** ("1 junction, 2 endpoints"). T, Y and F share roughly
@@ -319,9 +376,12 @@ part is real and fixable, while the underlying representation is sound.
 
 ## Open next steps
 
-1. **Recalibrate junction boundaries** from the measured clean-figure ray counts
-   and **rebuild the endpoint channel** around the 1-ray `c₀` level; re-validate
-   on the synthetic figures (all five should type correctly), then re-run EMNIST.
+1. **Recalibrate junction boundaries** from the measured clean-figure ray counts,
+   and **rebuild the endpoint channel** as a proper end-stopped operator — oriented
+   *energy* (rectified `|Gabor|`) followed by the shaped excite-inside /
+   inhibit-beyond-and-across geometry, at a small scale (λ≈stroke width), gated by
+   `c₀ ≈ 1`. Clean on synthetic; the open problem is robustifying it against
+   handwriting wobble (it over-fires on real EMNIST).
 2. **Add centroid-relative position** `(r, α)` to each keypoint and encode the
    *configuration* (e.g. FPE binding `type ⊗ position`, per the handoff doc),
    not the count.
