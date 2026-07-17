@@ -225,6 +225,10 @@ New_Gabor_FPE/
   figB_signature.png                         c₀ and normalised harmonics per type
   figC_letters.png                           Dense c₀ and |c₁|/c₀ maps + polar probes
                                              on T, K
+  KeyPointDiagnosticity.md                   Findings: how diagnostic are keypoints +
+                                             shape harmonics of letter identity?
+  KeyPointDiagnosticity.jl                   Interactive notebook reproducing every
+                                             detector / encoding / scale variant
 ```
 
 ### Design rules (from `New_Gabor_FPE_handoff_for_claude-code.md` §8)
@@ -241,3 +245,28 @@ New_Gabor_FPE/
   is not π-periodic — periodicity is a property of the base frequencies, not the
   exponent).
 - **Orientation mod π ⇒ encode 2θ. Ray direction mod 2π ⇒ encode φ.**
+
+### Diagnosticity experiments (`KeyPointDiagnosticity.md` / `.jl`)
+
+A round of experiments asking whether the local keypoints and the global shape
+harmonics are actually **diagnostic of letter identity** (360 EMNIST instances,
+12 classes; η² per feature + leave-one-out nearest-class-mean accuracy):
+
+- **The global shape harmonics carry the identity** — ~57 % accuracy alone
+  (≈ 7× chance), rising to ~61 % once extended from `|M1..4|` to `|M1..6|` plus a
+  radial (filled-vs-hollow) profile. `|M2|,|M3|,|M4|` are the strongest single
+  features (η² ≈ 0.6).
+- **Local keypoint *counts* are weak** (16–19 %) — a census of types discards
+  *where* each keypoint is, and configuration is what separates the letters. This
+  motivates the next step: bind each keypoint to its centroid-relative position
+  `(r, α)` and encode the configuration, not the count.
+- Detectors compared (greedy ridge-tiling vs. clear local maxima vs. a
+  two-channel junction+endpoint detector) and encodings (mean-pool vs. typed
+  counts). A synthetic-figure check shows the ray *signature* is correct but the
+  *detector* is miscalibrated even on clean input (junction boundaries; an
+  endpoint channel confounded by background asymmetry). The ray-probe scale
+  `D_RAY` is the endpoint lever — larger reaches past the stroke.
+- Methodological caution: "full < shape-only" in the accuracy table is a
+  nearest-mean *artifact* (equal-weighted noisy features dilute good ones);
+  η²-weighting flips it back (53.6 % → 61.4 %). Trust the per-feature η² and the
+  shape-only accuracy, not the raw ranking.
