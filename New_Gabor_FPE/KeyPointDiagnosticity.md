@@ -408,6 +408,92 @@ Interactive companion: **`BranchProfileDetector.jl`** — per-type score heatmap
 for a slider-chosen letter (score = weakest accepted branch, i.e. the strength
 of the AND), with abs/rel/d sliders, plus the η²/LOO survey.
 
+### Multi-scale consistency — a failed `min`, then a working drift test
+
+The corner/T over-firing pointed at the handoff doc's §7.4 principle: **a
+corner stays put across scale, a curve drifts.** Two implementations, one
+negative and one positive result.
+
+**Attempt 1 — elementwise `min` over probe scales (FAILED).** Compute the
+branch stack at d = 6, 10, 14 and take the pointwise min at fixed φ ("the
+branch must be present at the same angle at every scale"). Three separable
+effects, only one of them good:
+
+- ✔ T/X phantoms drop (spurious third branches don't survive three scales);
+- ✘ **endpoints re-break** (X-class: 2.2 → 8.3): near a junction any branch
+  *shorter than the largest d* is killed, so junction-adjacent pixels read
+  "1 branch" → phantom endpoints. The min conflates *"angle drifts"* (curve —
+  want to kill) with *"branch is short"* (near-junction — must keep);
+- ✘ corners *worsen*, and the synthetic circle point flips to L-corner: curve
+  chords bend **more** at larger d (31° deficit at d = 14 on r = 26), and a
+  fixed-φ min can only express "energy dropped", not "the angle moved".
+
+**Attempt 2 — drift-aware stability (WORKS).** Extract the branch *list* at
+each scale separately; a d = 6 branch is **stable** iff its angle recurs within
+±15° at *both* d = 10 and d = 14. Junction/corner typing uses only stable
+branches; **endpoints are decided at the smallest scale only** (structurally
+immune to the short-branch failure above). Results:
+
+- **Synthetic: 8/8**, now including a tight-curve trap (r = 12 — the
+  EMNIST-curl case): its branch angles drift 21° between scales → unstable →
+  correctly "continuation", where the single-scale ±30° angle test alone would
+  say corner.
+- **EMNIST (10/class means, drift-aware [single-scale]):** endpoints
+  *bit-identical* by construction; **T phantoms cut ~3×** with sensible class
+  ordering (O 3.5 [10.8], C 3.3 [11.2], K 3.5 [11.1], L 0.6 [2.7] — and L truly
+  has none; A/H/E highest, as they should be); X phantoms likewise down
+  (O 0.6 [2.5]).
+- Two honest costs: real **X centers are under-detected** (X class: 0.7 —
+  handwritten arms shorter than d = 14 fail stability and the center demotes
+  to T), and **corners barely moved** (O still ~20 [22.5]).
+
+**The corner residue has a specific suspect: outline tracing.** O's perimeter
+is ~200 px and the spatial NMS keeps one keypoint per ~8 px → ~25 slots —
+almost exactly the ~20 observed. A pixel on the *edge* of a thick (~10 px)
+stroke sees one branch along the edge and one pointing into the stroke
+interior — two stable branches at ~90° → "corner", all along the letter. If
+confirmed, the fix is a *centeredness* gate (classify only near the stroke
+spine), not more angle logic. Untested, alongside two other untested levers:
+a **short-anchor / long-probe** split (the anchor sits at the keypoint where
+structure is mixed → stubby filter; the probe sits mid-branch → elongated
+filter is pure upside), and simply more envelope elongation (the current
+Gabors are σ⊥ = 3, σ∥ = 6 px — aspect 2:1, but *nearly isotropic in stroke
+units*, since the along-stroke support ~2σ∥ = 12 px barely exceeds the ~10 px
+stroke width).
+
+### Where this leaves the Gabor-combination programme — an honest tally
+
+State of each channel after all of the above:
+
+| channel | state |
+|---|---|
+| endpoint | **works at the count level** (two-gate rule, smallest scale): O 0.7, C 1.3, Y 2.8 — right ballpark, right ordering |
+| T | phantom rate cut 3×, ordering sensible, absolute counts still ~2–4 too high |
+| X | detectable, but the stability requirement trades against short handwritten arms |
+| corner | **unsolved** — suspected outline artifact, plus a genuine problem: corner-vs-curve in handwriting is a *continuum*, and any binary detector will thrash at that boundary |
+
+Three structural lessons survived every experiment: (1) **rectification first**
+— no linear filter combination can detect termination; (2) **conjunctions must
+be gated (`min`), not summed** — sums let evidence trade against absence;
+(3) **each question needs its own gate and scale** — abs for junctions, rel
+for endpoints, small d for endpoint locality, angle-stability for curvature.
+
+But lesson (3) is also the worry, and it is worth stating plainly: every leak
+so far has been plugged with *one more gate*, and real handwriting has found
+the next leak every time. Two readings. (a) Keep going — the remaining corner
+problem is *diagnosed, not mysterious*, and one more gate (centeredness) may
+close it. (b) The hard-typing approach itself is the problem: the detector is
+being asked to make discrete symbolic decisions (corner! endpoint!) at exactly
+the points where handwriting is continuous, so the errors concentrate at the
+category boundaries by construction. On reading (b), the way out is to stop
+typing at detection time: keep the keypoint **soft** — carry the continuous
+branch profile `B_φ` (or its stable-branch spectrum) bound to
+centroid-relative position, and let the *classifier* draw the category
+boundaries where the data puts them. That converges, from a different
+direction, with what the survey results have said all along: hard counts cap
+out (~24 %), configuration is where the identity lives, and η²-weighting beats
+equal-weighted hard features.
+
 ### Why typed counts are inherently weak
 
 A count is a **census** ("1 junction, 2 endpoints"). T, Y and F share roughly
@@ -489,9 +575,12 @@ part is real and fixable, while the underlying representation is sound.
 
 1. ~~Recalibrate junction boundaries / rebuild the endpoint channel~~ **Done —
    superseded by the branch-profile detector** (see its section): min-gated
-   directional branches, two-gate rule, 7/7 synthetic, 24.2 % local-only. What
-   remains of this step: tame corner/T over-firing on real strokes (multi-point
-   ray probes; possibly a curvature-tolerant continuation test).
+   directional branches, two-gate rule, 7/7 synthetic, 24.2 % local-only.
+   T-phantoms since cut 3× by the drift-aware stability test (8/8 synthetic).
+   What remains: the corner channel — test the outline hypothesis
+   (centeredness gate) — or drop hard typing altogether and carry the soft
+   branch profile per keypoint (see "Where this leaves the Gabor-combination
+   programme").
 2. **Add centroid-relative position** `(r, α)` to each keypoint and encode the
    *configuration* (e.g. FPE binding `type ⊗ position`, per the handoff doc),
    not the count.
