@@ -62,9 +62,14 @@ structurally — no sum, no calibration:
 | 3 | any | **T** (or Y) |
 | 4 | — | **X** |
 
+An optional **medial (spine) gate** — the du Buf/Rodrigues *tangential-inhibition*
+idea adapted to this detector — restricts keypoints to the stroke spine, killing
+the outline-tracing phantom corners/junctions that otherwise dominate O, C, E.
+
 Below: per-type **heatmaps** for a slider-chosen letter (the score shown is the
-*weakest accepted branch* — the strength of the conjunction), and the
-**η² / leave-one-out diagnosticity survey** of the resulting typed counts.
+*weakest accepted branch* — the strength of the conjunction), with a checkbox to
+toggle the medial gate, and the **η² / leave-one-out diagnosticity survey**
+comparing the typed counts **with and without** the gate.
 """
 
 # ╔═╡ b1000000-0000-0000-0000-000000000005
@@ -79,6 +84,7 @@ begin
     const THR0=0.35f0   # survey default: abs gate — branch present if B > THR0·max(E)
     const REL0=0.40f0   # survey default: rel gate — endpoint confirmation, B > REL0·strongest-branch
     const D0=6f0        # survey default: probe offset (≈ stroke width)
+    const DELTA0=4f0    # medial gate: cross-stroke half-offset for the spine/ridge test
 end
 
 # ╔═╡ b1000000-0000-0000-0000-000000000006
@@ -169,6 +175,25 @@ begin
         end
         br
     end
+    # MEDIAL (centeredness) gate — du Buf/Rodrigues tangential-inhibition idea,
+    # adapted: a keypoint is allowed only where p sits on the stroke SPINE, i.e.
+    # p is a ridge of dominant-orientation energy across the stroke NORMAL:
+    # E_θ*(p) ≥ E_θ*(p ± δ·n).  A pixel on the FLANK of a thick stroke fails (its
+    # cross-section slopes up toward the spine) — this kills the outline-tracing
+    # phantom corners/junctions that dominate O, C, E … without touching endpoints.
+    function spine_mask(E; delta=DELTA0, tol=1.02f0)
+        M=falses(IMG,IMG)
+        for y in 1:IMG, x in 1:IMG
+            best=0f0; ti=1
+            for t in 1:N_THETA; E[t,y,x]>best && (best=E[t,y,x]; ti=t); end
+            best<=0 && continue
+            θ=THETAS[ti]; ny=sin(θ+Float32(π)/2); nx=cos(θ+Float32(π)/2)
+            e1=bilinear(@view(E[ti,:,:]), y+delta*ny, x+delta*nx)
+            e2=bilinear(@view(E[ti,:,:]), y-delta*ny, x-delta*nx)
+            M[y,x] = best*tol>=e1 && best*tol>=e2
+        end
+        M
+    end
     # per-type score maps; score = weakest accepted branch (conjunction strength).
     # TWO GATES, each used for the question it is good at (see Notes):
     #  · ABSOLUTE gate (B > thr_frac·max E) types the junctions — it rejects weak
@@ -178,10 +203,13 @@ begin
     #    a pixel is an endpoint iff the rel-gated profile has exactly 1 branch,
     #    so a tapering stroke (2nd branch weak in absolute terms but comparable
     #    in relative terms) reads "continuation", not "endpoint".
-    function type_maps(E; thr_frac=THR0, d=D0, rel=REL0)
+    # Optional MEDIAL gate (`gate=true`): keypoints only on the stroke spine.
+    function type_maps(E; thr_frac=THR0, d=D0, rel=REL0, gate=false, delta=DELTA0)
         Bst=branch_stack(E; d=d); thr=thr_frac*maximum(E)
+        sp = gate ? spine_mask(E; delta=delta) : trues(IMG,IMG)
         m=Dict(s=>zeros(Float32,IMG,IMG) for s in (:cont,:endp,:corner,:T,:X))
         for y in 1:IMG, x in 1:IMG
+            (gate && !sp[y,x]) && continue
             mx=0f0
             for k in 1:K_PHI; Bst[k,y,x]>mx && (mx=Bst[k,y,x]); end
             mx<=thr && continue
@@ -259,6 +287,9 @@ instance: $(@bind inst Slider(1:30, default=1, show_value=true))
 abs threshold: $(@bind thr_f Slider(0.20f0:0.01f0:0.50f0, default=THR0, show_value=true))
 rel gate: $(@bind rel_f Slider(0.30f0:0.05f0:0.60f0, default=REL0, show_value=true))
 d: $(@bind d_probe Slider(3f0:1f0:10f0, default=D0, show_value=true))
+
+medial (spine) gate: $(@bind medial CheckBox(default=false))
+δ: $(@bind delta_g Slider(2f0:1f0:6f0, default=DELTA0, show_value=true))
 """
 
 # ╔═╡ b1000000-0000-0000-0000-00000000000d
@@ -266,9 +297,11 @@ begin
     letter = CLASSES[ci]
     img_sel = upsample(em.class_images[findfirst(==(letter), em.class_names)][inst])
     E_sel = energy_stack(img_sel)
-    maps_sel = type_maps(E_sel; thr_frac=thr_f, d=d_probe, rel=rel_f)
+    maps_sel = type_maps(E_sel; thr_frac=thr_f, d=d_probe, rel=rel_f, gate=medial, delta=delta_g)
     kp_sel = Dict(s=>kpts(maps_sel[s]) for s in (:endp,:corner,:T,:X))
-    md"**letter $(letter)**, instance $(inst) — endpoints: $(length(kp_sel[:endp])), corners: $(length(kp_sel[:corner])), T: $(length(kp_sel[:T])), X: $(length(kp_sel[:X]))"
+    gate_lbl = medial ? "ON (δ=$(Int(delta_g)))" : "off"
+    ne, nc, nt, nx = length(kp_sel[:endp]), length(kp_sel[:corner]), length(kp_sel[:T]), length(kp_sel[:X])
+    Markdown.parse("**letter $(letter)**, instance $(inst) — medial gate **$(gate_lbl)** — endpoints: $(ne), corners: $(nc), T: $(nt), X: $(nx)")
 end
 
 # ╔═╡ b1000000-0000-0000-0000-00000000000e
@@ -306,20 +339,23 @@ few minutes — it does not depend on the sliders above.)*
 # ╔═╡ b1000000-0000-0000-0000-000000000010
 survey = let
     FEAT=["n_end","n_cor","n_T","n_X","|M1|/M0","|M2|/M0","|M3|/M0","|M4|/M0"]
+    # returns the counts under BOTH gate settings, sharing energy_stack + shape harmonics
     function features(img0)
         img=upsample(img0); E=energy_stack(img)
-        m=type_maps(E; thr_frac=THR0, d=D0)
-        M=angular_spectrum(img); g=[abs(M[n+1])/abs(M[1]) for n in 1:4]
-        Float32[length(kpts(m[:endp])),length(kpts(m[:corner])),
-                length(kpts(m[:T])),length(kpts(m[:X])),g...]
+        m0=type_maps(E; thr_frac=THR0, d=D0, gate=false)
+        m1=type_maps(E; thr_frac=THR0, d=D0, gate=true, delta=DELTA0)
+        M=angular_spectrum(img); g=Float32[abs(M[n+1])/abs(M[1]) for n in 1:4]
+        cnt(m)=Float32[length(kpts(m[:endp])),length(kpts(m[:corner])),length(kpts(m[:T])),length(kpts(m[:X]))]
+        (vcat(cnt(m0),g), vcat(cnt(m1),g))
     end
-    X=Vector{Vector{Float32}}(); y=String[]
+    X0=Vector{Vector{Float32}}(); X1=Vector{Vector{Float32}}(); y=String[]
     for c in CLASSES
         imgs=em.class_images[findfirst(==(c),em.class_names)]
-        for k in 1:min(30,length(imgs)); push!(X,features(imgs[k])); push!(y,c); end
+        for k in 1:min(30,length(imgs))
+            f0,f1=features(imgs[k]); push!(X0,f0); push!(X1,f1); push!(y,c)
+        end
     end
-    D=Matrix(reduce(hcat,X)')
-    (; FEAT, D, y)
+    (; FEAT, D0map=Matrix(reduce(hcat,X0)'), D1map=Matrix(reduce(hcat,X1)'), y)
 end;
 
 # ╔═╡ b1000000-0000-0000-0000-000000000011
@@ -349,33 +385,41 @@ end
 
 # ╔═╡ b1000000-0000-0000-0000-000000000012
 let
-    (; FEAT, D, y) = survey
-    mu=vec(mean(D,dims=1)); sd=vec(std(D,dims=1)); sd[sd.==0].=1f0
-    Z=(D.-mu')./sd'
+    (; FEAT, D0map, D1map, y) = survey
     esc(s)=replace(s,"|"=>"\\|")
+    zscore(D)=(mu=vec(mean(D,dims=1)); sd=vec(std(D,dims=1)); sd[sd.==0].=1f0; (D.-mu')./sd')
     rows=String[]
     for (j,f) in enumerate(FEAT)
-        e=eta2(D[:,j],y)
-        bar=repeat("█",round(Int,30*max(e,0.0)))
-        push!(rows,"| `$(esc(f))` | $(round(e,digits=3)) | $(round(minimum(D[:,j]),digits=2)) .. $(round(maximum(D[:,j]),digits=2)) | $(bar) |")
+        e0=eta2(D0map[:,j],y); e1=eta2(D1map[:,j],y)
+        bar=repeat("█",round(Int,30*max(e1,0.0)))
+        push!(rows,"| `$(esc(f))` | $(round(e0,digits=3)) | $(round(e1,digits=3)) | $(bar) |")
     end
-    a_loc=loo_acc(Z[:,1:4],y); a_shp=loo_acc(Z[:,5:8],y); a_all=loo_acc(Z,y)
+    Z0=zscore(D0map); Z1=zscore(D1map)
+    a_loc0=loo_acc(Z0[:,1:4],y); a_all0=loo_acc(Z0,y)
+    a_loc1=loo_acc(Z1[:,1:4],y); a_all1=loo_acc(Z1,y)
+    a_shp =loo_acc(Z1[:,5:8],y)   # shape cols identical in both
     Markdown.parse("""
-### η² per feature
+### η² per feature — medial gate off vs **on**
 
-| feature | η² | range | |
+| feature | η² (off) | η² (**medial on**) | |
 |---|---|---|---|
 $(join(rows,"\n"))
 
+*(The four shape-harmonic η² are identical in both columns — the gate only
+touches the local counts.)*
+
 ### Leave-one-out nearest-class-mean accuracy (chance 8.3 %)
 
-| feature set | LOO |
-|---|---|
-| typed counts only | **$(round(100a_loc,digits=1)) %** |
-| shape harmonics only | $(round(100a_shp,digits=1)) % |
-| both | $(round(100a_all,digits=1)) % |
+| feature set | off | **medial on** |
+|---|---|---|
+| typed counts only | $(round(100a_loc0,digits=1)) % | **$(round(100a_loc1,digits=1)) %** |
+| shape harmonics only | $(round(100a_shp,digits=1)) % | $(round(100a_shp,digits=1)) % |
+| both | $(round(100a_all0,digits=1)) % | $(round(100a_all1,digits=1)) % |
 
-Previous detectors (from the md): typed counts 16.7–18.9 % local-only.
+The medial gate (du Buf/Rodrigues tangential inhibition, adapted) roughly
+halves the phantom corner/T/X counts; whether that *helps* the unweighted
+nearest-mean classifier is what these two columns let you compare. Previous
+detectors (from the md): typed counts 16.7–18.9 % local-only.
 """)
 end
 
@@ -405,6 +449,16 @@ md"""
   curved stroke legitimately drifts toward "corner" — on real letters the corner
   and T channels still over-fire (curvature + wobble), and that is the open
   problem the heatmaps let you inspect.
+- **Medial (spine) gate** = the du Buf/Rodrigues *tangential-inhibition* idea,
+  adapted. Raw end-stopped/branch responses fire all along a thick stroke's
+  *outline* (a flank pixel sees one branch along the edge + one into the interior
+  → false "corner"). The gate keeps a keypoint only where p is a **ridge of
+  dominant-orientation energy across the stroke normal** (`E_θ*(p) ≥ E_θ*(p±δ·n)`),
+  i.e. on the spine. On synthetic figures it is a no-op (6/6 preserved at δ=3..5);
+  on real EMNIST it roughly **halves** the phantom corner/T/X counts (O corners
+  22.5 → 12.5, O T's 10.8 → 5.0) while leaving endpoints essentially untouched
+  (O 0.7 → 0.6). It does *not* fully solve corners (O still ≈12): the residue is
+  genuine curvature, where corner-vs-curve is a continuum, not a flank artifact.
 - Scale here is the *small* validated one (λ=8, σ=3/6, probe d≈stroke width) —
   deliberately different from the `D_RAY=15` ray-harmonic scale of
   `KeyPointDiagnosticity.jl`.
