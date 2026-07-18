@@ -453,13 +453,50 @@ almost exactly the ~20 observed. A pixel on the *edge* of a thick (~10 px)
 stroke sees one branch along the edge and one pointing into the stroke
 interior — two stable branches at ~90° → "corner", all along the letter. If
 confirmed, the fix is a *centeredness* gate (classify only near the stroke
-spine), not more angle logic. Untested, alongside two other untested levers:
-a **short-anchor / long-probe** split (the anchor sits at the keypoint where
-structure is mixed → stubby filter; the probe sits mid-branch → elongated
-filter is pure upside), and simply more envelope elongation (the current
-Gabors are σ⊥ = 3, σ∥ = 6 px — aspect 2:1, but *nearly isotropic in stroke
-units*, since the along-stroke support ~2σ∥ = 12 px barely exceeds the ~10 px
-stroke width).
+spine), not more angle logic (tested next — the outline hypothesis holds).
+Alongside two other untested levers: a **short-anchor / long-probe** split (the
+anchor sits at the keypoint where structure is mixed → stubby filter; the probe
+sits mid-branch → elongated filter is pure upside), and simply more envelope
+elongation (the current Gabors are σ⊥ = 3, σ∥ = 6 px — aspect 2:1, but *nearly
+isotropic in stroke units*, since the along-stroke support ~2σ∥ = 12 px barely
+exceeds the ~10 px stroke width).
+
+### The medial (spine) gate — borrowed from the biological literature
+
+A literature check (Heitger 1992; du Buf & Rodrigues, *Multi-scale keypoints in
+V1*; Würtz/Lourens end-stopped corner detection; and the a-contrario ACJ
+detector of Xia–Delon–Gousseau) turned up that our whole construction *is* the
+classical **end-stopped keypoint** model — Gabor complex-cell energy → single-
+stopped (line-ends) and double-stopped (corners/junctions) cells. Crucially it
+also named the one component we lacked: **tangential inhibition**, which
+suppresses end-stopped responses that lie along a continuing line or edge. That
+is exactly the cure for our diagnosed **outline-tracing** corner phantoms.
+
+Adapted to the branch detector as a **medial (spine) gate**: a keypoint is
+allowed only where p is a **ridge of dominant-orientation energy across the
+stroke normal**, `E_θ*(p) ≥ E_θ*(p ± δ·n)` with δ ≈ half the stroke width. A
+flank pixel fails (its cross-section slopes up toward the spine); a spine pixel
+passes. Results (δ = 4):
+
+- **Synthetic: no regression** — 6/6 preserved at δ = 3, 4, 5 (the gate is a
+  no-op on 2-px synthetic strokes, whose every ink pixel is on the spine).
+- **EMNIST: phantom corner/T/X counts roughly halved** — O corners 22.5 → 12.5,
+  O T's 10.8 → 5.0, X's 2.5 → 0.9; **endpoints essentially untouched** (O
+  0.7 → 0.6, F 2.9 → 2.9). This **confirms the outline hypothesis**: about half
+  of all corner/junction responses were flank pixels off the spine.
+- **Diagnosticity: a mild, honest win.** Per-feature η² barely moves (n_cor
+  0.326 → 0.289, others flat) — the outline phantoms were roughly proportional
+  across classes, so removing them sharpens no single count. But the cleaner
+  count vector dilutes the shape harmonics less, so **counts + shape LOO rises
+  49.7 % → 51.9 %** (counts-only unchanged at ~24 %).
+- **Not a full fix.** O still reads ~12 corners. The residue is *genuine
+  curvature*, not a flank artifact — corner-vs-curve on a smooth curl is a
+  continuum, which is the boundary any hard-typing detector thrashes at.
+
+So the biological model's missing ingredient closed exactly the gap it was
+supposed to (the flank artifact) and left standing exactly the problem it can't
+address (the curvature continuum). Both are exposed as a checkbox + δ slider,
+with the off-vs-on η²/LOO comparison, in `BranchProfileDetector.jl`.
 
 ### Where this leaves the Gabor-combination programme — an honest tally
 
@@ -468,9 +505,9 @@ State of each channel after all of the above:
 | channel | state |
 |---|---|
 | endpoint | **works at the count level** (two-gate rule, smallest scale): O 0.7, C 1.3, Y 2.8 — right ballpark, right ordering |
-| T | phantom rate cut 3×, ordering sensible, absolute counts still ~2–4 too high |
+| T | phantom rate cut 3× (drift test), halved again by the medial gate; ordering sensible |
 | X | detectable, but the stability requirement trades against short handwritten arms |
-| corner | **unsolved** — suspected outline artifact, plus a genuine problem: corner-vs-curve in handwriting is a *continuum*, and any binary detector will thrash at that boundary |
+| corner | **outline artifact solved** (medial gate halves the count, confirming the flank hypothesis); **curvature residue remains** — corner-vs-curve in handwriting is a *continuum*, and any binary detector thrashes at that boundary |
 
 Three structural lessons survived every experiment: (1) **rectification first**
 — no linear filter combination can detect termination; (2) **conjunctions must
@@ -480,19 +517,26 @@ for endpoints, small d for endpoint locality, angle-stability for curvature.
 
 But lesson (3) is also the worry, and it is worth stating plainly: every leak
 so far has been plugged with *one more gate*, and real handwriting has found
-the next leak every time. Two readings. (a) Keep going — the remaining corner
-problem is *diagnosed, not mysterious*, and one more gate (centeredness) may
-close it. (b) The hard-typing approach itself is the problem: the detector is
-being asked to make discrete symbolic decisions (corner! endpoint!) at exactly
-the points where handwriting is continuous, so the errors concentrate at the
-category boundaries by construction. On reading (b), the way out is to stop
-typing at detection time: keep the keypoint **soft** — carry the continuous
-branch profile `B_φ` (or its stable-branch spectrum) bound to
-centroid-relative position, and let the *classifier* draw the category
-boundaries where the data puts them. That converges, from a different
-direction, with what the survey results have said all along: hard counts cap
-out (~24 %), configuration is where the identity lives, and η²-weighting beats
-equal-weighted hard features.
+the next leak every time. Two readings. (a) Keep going — and the centeredness
+gate (reading-(a)'s bet, and the biological model's named missing piece) *did*
+close the outline artifact it targeted, ~2 points on combined LOO. (b) The
+hard-typing approach itself is the problem: the detector is being asked to make
+discrete symbolic decisions (corner! endpoint!) at exactly the points where
+handwriting is continuous, so the errors concentrate at the category boundaries
+by construction. **The medial-gate result supports both readings at once**: it
+worked for the *artifact* (the flank phantoms, a genuine detector bug) but left
+the *curvature* residue untouched (corner-vs-curve is not a bug, it's a
+continuum). That is the cleanest evidence yet that the remaining error is not a
+missing gate but the hard-typing frame itself. On reading (b), the way out is to
+stop typing at detection time: keep the keypoint **soft** — carry the continuous
+branch profile `B_φ` (or its stable-branch spectrum) bound to centroid-relative
+position, and let the *classifier* draw the category boundaries where the data
+puts them. That converges, from a different direction, with what the survey
+results have said all along: hard counts cap out (~24 %), configuration is where
+the identity lives, and η²-weighting beats equal-weighted hard features. The
+literature agrees on the destination: modern robust junction detectors (L-CNN,
+HAWP wireframe parsing) are *learned*, precisely because tuned filter
+combinations thrash at these boundaries.
 
 ### Why typed counts are inherently weak
 
