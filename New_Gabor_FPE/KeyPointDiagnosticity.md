@@ -69,13 +69,34 @@ fields**, because endpoints and junctions live in different signals:
 
 ![c₀, |c₁|/c₀ and |c₂|/c₀ maps on a bar, a T and an X](kpd_twochannel_maps.png)
 
-*The two channels, on synthetic figures (background masked out of the ratio maps).
-**`c₀`** (magma) has a bright **peak at the junction centre** of the T and X — and
-none on the bar, which has no junction. **`\|c₁\|/c₀`** (viridis) does the opposite:
-it lights up at the **arm tips (endpoints)** and goes dark at the junction centre
-and mid-stroke. So a `c₀`-maximum detector finds junctions but misses ends, while
-the asymmetry field finds ends — hence two channels. (`\|c₂\|/c₀`, straightness, is
-shown for completeness: high along straight stroke, low at junctions and corners.)*
+*The two channels, on synthetic figures (**background masked out** of the ratio
+maps — see the caveat below). **`c₀`** (magma) has a bright **peak at the junction
+centre** of the T and X — and none on the bar, which has no junction. **`\|c₁\|/c₀`**
+(viridis) does the opposite: it lights up at the **arm tips (endpoints)** and goes
+dark at the junction centre and mid-stroke. So a `c₀`-maximum detector finds
+junctions but misses ends, while the asymmetry field finds ends — hence two
+channels. (`\|c₂\|/c₀`, straightness, is shown for completeness: high along a
+straight stroke, low at junctions and corners.)*
+
+The mask above is **misleading if left unexplained** — here are the *same* ratio
+maps with the background left in:
+
+![the same maps, unmasked — |c₁|/c₀ ≈ 1 fills the background](kpd_twochannel_unmasked.png)
+
+*Unmasked, **`\|c₁\|/c₀` is bright (≈ 1) throughout the background** surrounding the
+figure — looking just like endpoints everywhere.* This is not noise (both `c₁` and
+`c₀` are radius-`D_RAY` ring integrals, so the maps are smooth). It is a real
+effect of the ray construction: far from the figure, the ring of radius `D_RAY`
+clips the ink on a **narrow, one-sided arc**, so all the rays that see anything
+point roughly one direction (toward the figure). One-sided rays = maximal
+asymmetry = `|c₁|/c₀ → 1` — the *same* signature a true endpoint produces (one
+uncancelled ray). So in the background the asymmetry field is **indistinguishable
+from a real stroke end**. The mask in the first figure is a *display convenience*
+(it hides where the ratio is meaningless because `c₀` is near zero); it is **not**
+part of the detector. And this same background-asymmetry effect is exactly what
+**defeats the endpoint channel on real data** — a `|c₁|/c₀` maximum just past a
+real tip is out-competed by the even-higher background asymmetry beyond it (see
+the endpoint-detection section).
 
 The two lists are then merged. The name just contrasts with the *single-channel*
 greedy and local-maxima detectors. It borrows *propose ≠ classify* from the
