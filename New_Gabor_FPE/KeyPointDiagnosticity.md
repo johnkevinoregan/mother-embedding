@@ -47,6 +47,7 @@ the keypoints into a feature vector?
 | **greedy top-N + NMS** | repeatedly take the global max of `c₀`, suppress a disk, repeat | **tiles the `c₀` ridges**; saturates at its cap (returned exactly 12 on all 360 images → `n_kp` carries zero information); misses weak endpoints |
 | **clear local maxima** | strict 8-neighbour maxima of `c₀` above `frac·max` | few and stable (~4–15); the current notebook detector. Misses stroke tips that are *shoulders* not peaks |
 | **two-channel** | junctions = strong `c₀` maxima with ray-count ≥ 2.5; endpoints = maxima of the asymmetry field `\|c₁\|/c₀` on the stroke | principled (propose≠classify), but the endpoint channel is defeated by background asymmetry — see below |
+| **branch-profile** (newest) | one min-gated detector for *all* types: branches = angular maxima of `B_φ(p) = min(E_θ(φ)(p), E_θ(φ)(p+d·u(φ)))`; type = branch count + angles | 7/7 on synthetic with zero calibration; **first sane endpoint counts on real EMNIST**; best local-only LOO (24.2 %). See its own section below |
 
 ### What "two-channel" means
 
@@ -331,6 +332,82 @@ to design (the excite-inside / inhibit-beyond-and-across shape is right). But th
 shaped operator must sit on top of an oriented-*energy* front end, not the raw
 image; the Gabor's only essential job is providing that rectified oriented energy.
 
+### The branch-profile detector — min-gates for every keypoint type
+
+The endpoint thread above ended with "the operator must sit on top of rectified
+oriented energy". The next question was *which* nonlinearity. Starting proposal:
+`max_φ min(E_θ(φ)(p), E_{θ(φ)+π/2}(p+d·u(φ)))` — "a line here AND a
+perpendicular cap ahead". Tested on synthetic bar/plus/T/X (scores normalized
+per shape, tips vs junction centre):
+
+| variant | bar | plus | T | X |
+|---|---|---|---|---|
+| A `min(here, ⟂ ahead)` | tips 1.0 / mid 0.37 ✓ | tips 0.35 / **ctr 0.89** ✗ | ctr 0.80 ✗ | ctr 0.99 ✗ |
+| B `min(here, [behind−ahead]₊)` same orientation | tips **1.0** ✓ | tips **1.0** / ctr 0.66 ✓ | tips 1.0 / ctr 0.94 | tips **1.0** / ctr 0.54 ✓ |
+| C = B AND ⟂ cap | worse than B everywhere | ✗ | ✗ | ✗ |
+
+**A is a *crossing* detector, not an endpoint detector** — the place with the
+most perpendicular energy is precisely a junction, so gating on it inverts the
+result. The discriminating operand is **termination** on the *same* orientation
+(B): "line here, line behind, gone ahead". The AND (`min`) is the right
+nonlinearity; the perpendicular axis was the wrong probe (re-adding it, C,
+re-imports the crossing confusion). Walking B along a bar axis shows the
+mechanics: the value is the min of a *rising* termination curve and a *falling*
+here-energy curve, so it peaks exactly at their crossing — the tip — and the
+here-energy operand vetoes the background beyond (where the old `|c₁|/c₀`
+channel was fooled).
+
+**Generalization: the branch profile.** For every 2π direction φ define
+
+```
+B_φ(p) = min( E_θ(φ)(p),  E_θ(φ)(p + d·u(φ)) )
+```
+
+— "a stroke of the *matching orientation* is here AND still there one step out
+in direction φ". The min anchors it to the stroke (background-proof); the
+d-offset makes π-periodic energy directional. The **angular local maxima of
+`B_φ(p)` are the branches leaving p**, and the branch count + angles give the
+type *structurally* — no sums, no median calibration:
+
+| branches | angles | type | synthetic result |
+|---|---|---|---|
+| 1 | — | endpoint (= detector B) | bar tip ✓ |
+| 2 | ≈180° | continuation — not a keypoint | bar mid ✓, circle point ✓ |
+| 2 | else | L-corner | L ✓ (106°) |
+| 3 | any | T / Y | T ✓, Y ✓ |
+| 4 | — | X | X ✓ (45/135/225/315°) |
+
+**7/7 correct with zero calibration** — the `nr ≥ 2.5/3.5` boundary problem
+dissolves (each branch clears its own gate; nothing is summed), O's phantom
+junctions vanish structurally (a curve point = 2 branches ≈180° → rejected),
+and L-vs-straight becomes an *angle*, not a count.
+
+**On real EMNIST, the gate design splits cleanly** (the recurring
+clean-vs-messy gap, but this time diagnosed to the threshold):
+
+- **absolute gate** (`B > 0.35·max E`) alone → *phantom endpoints* en masse
+  (O averaged 36!): where a stroke tapers, the weaker along-stroke branch falls
+  below threshold and mid-stroke pixels read "1 branch";
+- **relative gate** (`B > 0.4·strongest-branch-here`) alone → endpoints become
+  sane (O 0.7, C 1.3, Y 2.8 — right ordering) but weak angular noise-peaks now
+  clear the gate → *phantom junctions* (O: ~21 fake T's);
+- **two-gate rule** (junctions typed from the abs-gated list; endpoint iff the
+  rel-gated list has *exactly one* branch) keeps the best of both.
+
+Survey with the two-gate rule (same 12×30 protocol): per-class mean `n_end` =
+O 0.3, C 1.1, I 0.9, L 1.1, T 1.9, X 2.3, K 2.8, Y 2.6, E 2.3, F 2.3 — the
+**first detector whose endpoint counts are in the right ballpark with the right
+ordering** on real letters. Typed-counts-only LOO: **24.2 %**, the best
+local-only result of any detector (previous: 16.7–18.9 %). Still open: the
+corner and T channels over-fire on real letters (O: ~21 "corners", ~11 "T"s —
+curvature + wobble create genuine 2-branch-at-<150° and 3-branch pixels), and
+the 2-point min probe is sensitive to stroke gaps (probing 2–3 points per ray
+is the likely robustification).
+
+Interactive companion: **`BranchProfileDetector.jl`** — per-type score heatmaps
+for a slider-chosen letter (score = weakest accepted branch, i.e. the strength
+of the AND), with abs/rel/d sliders, plus the η²/LOO survey.
+
 ### Why typed counts are inherently weak
 
 A count is a **census** ("1 junction, 2 endpoints"). T, Y and F share roughly
@@ -401,18 +478,20 @@ part is real and fixable, while the underlying representation is sound.
 - **The detector is the bottleneck**, and it is broken in *specific, diagnosed*
   ways (junction-boundary calibration; the confounded endpoint channel), not
   hopelessly. Fixing it is a prerequisite for the position step to pay off.
+  **Update:** the branch-profile detector resolves the calibration problem and
+  the endpoint channel (24.2 % local-only, sane endpoint counts); the remaining
+  bottleneck is corner/T over-firing on curved, wobbly strokes.
 - Encoding choice matters as much as the detector: sparser/typed features carry
   less in an unweighted classifier than dense pooled ones, purely from sample
   count.
 
 ## Open next steps
 
-1. **Recalibrate junction boundaries** from the measured clean-figure ray counts,
-   and **rebuild the endpoint channel** as a proper end-stopped operator — oriented
-   *energy* (rectified `|Gabor|`) followed by the shaped excite-inside /
-   inhibit-beyond-and-across geometry, at a small scale (λ≈stroke width), gated by
-   `c₀ ≈ 1`. Clean on synthetic; the open problem is robustifying it against
-   handwriting wobble (it over-fires on real EMNIST).
+1. ~~Recalibrate junction boundaries / rebuild the endpoint channel~~ **Done —
+   superseded by the branch-profile detector** (see its section): min-gated
+   directional branches, two-gate rule, 7/7 synthetic, 24.2 % local-only. What
+   remains of this step: tame corner/T over-firing on real strokes (multi-point
+   ray probes; possibly a curvature-tolerant continuation test).
 2. **Add centroid-relative position** `(r, α)` to each keypoint and encode the
    *configuration* (e.g. FPE binding `type ⊗ position`, per the handoff doc),
    not the count.
