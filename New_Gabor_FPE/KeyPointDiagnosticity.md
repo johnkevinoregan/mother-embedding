@@ -67,6 +67,16 @@ fields**, because endpoints and junctions live in different signals:
 | junction channel | `c₀` local maxima, ray-count ≥ 2.5 | T / X |
 | endpoint channel | `\|c₁\|/c₀` (asymmetry) maxima on the stroke | endpoints |
 
+![c₀, |c₁|/c₀ and |c₂|/c₀ maps on a bar, a T and an X](kpd_twochannel_maps.png)
+
+*The two channels, on synthetic figures (background masked out of the ratio maps).
+**`c₀`** (magma) has a bright **peak at the junction centre** of the T and X — and
+none on the bar, which has no junction. **`\|c₁\|/c₀`** (viridis) does the opposite:
+it lights up at the **arm tips (endpoints)** and goes dark at the junction centre
+and mid-stroke. So a `c₀`-maximum detector finds junctions but misses ends, while
+the asymmetry field finds ends — hence two channels. (`\|c₂\|/c₀`, straightness, is
+shown for completeness: high along straight stroke, low at junctions and corners.)*
+
 The two lists are then merged. The name just contrasts with the *single-channel*
 greedy and local-maxima detectors. It borrows *propose ≠ classify* from the
 `Dense_Gabors` feature layer: different feature **types** get their own detection
