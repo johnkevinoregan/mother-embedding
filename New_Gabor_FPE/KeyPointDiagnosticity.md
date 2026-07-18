@@ -666,6 +666,67 @@ thresholds with a significance test. So: du Buf was the natural *pipeline*
 citation, Heitger is the correct *mechanism* citation, Würtz/Lourens the
 *corner-robustness* citation, and ACJ the one to study next.
 
+### What to borrow from ACJ
+
+*(Mechanism reconstructed from the a-contrario framework the paper builds on —
+Desolneux–Moisan–Morel — plus the ACJ abstract/figures; the exact per-branch
+statistic below is stated from that tradition, not quoted from the text.)*
+
+The a-contrario idea is the **Helmholtz principle**: a structure is meaningful
+if it would almost never arise by chance. Don't ask "does this look like a
+junction?" — ask "how many junctions this strong would a **pure-noise image**
+produce?" That expected count is the **Number of False Alarms**,
+`NFA = (#candidates tested) × P(a candidate this strong under H0)`, and a
+junction is kept iff **NFA < ε** (they use ε = 1). Multiplying by the number of
+tests pays the multiple-comparison bill automatically, so ε = 1 is a fixed,
+universal setting — **not a per-feature knob**. That is the whole answer to our
+"one more gate every time" treadmill.
+
+How ACJ instantiates it:
+
+- **A junction** = a centre `p`, a scale `r` (disk radius), and `M` branches
+  (rays). Order `M`: 2 = corner, 3 = T/Y, 4 = X.
+- **Branch strength** = built from the image **gradient** in a thin angular
+  sector out to `r`; a branch is only as strong as its **weakest point along the
+  ray** — an AND/`min` over the branch (a branch with a gap scores poorly).
+  *This is our `min`-gate, reached from statistics instead of biology.*
+- **Null model H0** = gradient magnitudes i.i.d. from the image's **own
+  empirical distribution**, used as **ranks/quantiles**. So the tail probability
+  is uniform, and — crucially — the method is **contrast-invariant**: scaling
+  image contrast leaves all ranks, hence all detections, unchanged.
+- **Order is chosen, not thresholded** — pick the `M`, branch angles and scale
+  `r` that **minimise NFA** (the most-improbable-by-chance configuration wins);
+  branches are added greedily while they lower NFA. *This replaces our abs/rel
+  gates and the drift test with one significance criterion.*
+- **Straight edges / smooth curves are rejected** because a branch is modelled
+  as a *straight* ray of radius `r`: a curve bends off it, so the min-gradient
+  drops as `r` grows → low strength → not meaningful (the statistical cousin of
+  our multi-scale drift test). Redundant candidates are resolved by keeping
+  **local NFA minima** — a principled NMS.
+
+Three concrete things to lift, in increasing effort:
+
+1. **Rank-normalise the energy** (use `E`'s empirical CDF instead of `0.35·max E`)
+   → contrast invariance, immediately, for free.
+2. **Replace the hand gates with an NFA score** on the branch profile: model a
+   null over the oriented-energy ring, score each candidate keypoint by NFA, keep
+   `NFA < 1`. Order (endpoint/corner/T/X) becomes the `M` that minimises NFA — no
+   `0.35 / 0.40 / ±15° / ±30°` constants.
+3. **Keep local NFA minima** as the detector output instead of per-type spatial
+   NMS.
+
+**The one caveat that matters for us:** ACJ is a **gradient/edge** detector for
+**natural images**, where junctions are region-boundary corners. Our strokes are
+thin *lines*, and to a gradient operator a stroke is a *pair* of parallel edges —
+so ACJ would find the two edge-junctions flanking each stroke junction, not the
+stroke's medial junction. For handwriting the right synthesis is **ACJ's
+a-contrario *decision rule* on top of our oriented-energy (line) *branch
+profile***, not adopting ACJ wholesale. That combination — our line front end +
+their significance test — is the most promising single next experiment on the
+detector side, and it directly attacks the thing this whole document keeps
+concluding is the real problem: hand-tuned gates thrashing at category
+boundaries.
+
 ---
 
 ## Conclusions
