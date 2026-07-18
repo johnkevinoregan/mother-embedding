@@ -463,14 +463,15 @@ exceeds the ~10 px stroke width).
 
 ### The medial (spine) gate — borrowed from the biological literature
 
-A literature check (Heitger 1992; du Buf & Rodrigues, *Multi-scale keypoints in
-V1*; Würtz/Lourens end-stopped corner detection; and the a-contrario ACJ
-detector of Xia–Delon–Gousseau) turned up that our whole construction *is* the
-classical **end-stopped keypoint** model — Gabor complex-cell energy → single-
-stopped (line-ends) and double-stopped (corners/junctions) cells. Crucially it
-also named the one component we lacked: **tangential inhibition**, which
-suppresses end-stopped responses that lie along a continuing line or edge. That
-is exactly the cure for our diagnosed **outline-tracing** corner phantoms.
+A literature check (see the **Literature** section for full citations: Heitger
+et al. 1992; Rodrigues & du Buf 2006; Würtz & Lourens 2000; and the a-contrario
+ACJ detector of Xia–Delon–Gousseau 2014) turned up that our whole construction
+*is* the classical **end-stopped keypoint** model — Gabor complex-cell energy →
+single-stopped (line-ends) and double-stopped (corners/junctions) cells.
+Crucially it also named the one component we lacked: **tangential inhibition**
+(originating with Heitger 1992), which suppresses end-stopped responses that lie
+along a continuing line or edge. That is exactly the cure for our diagnosed
+**outline-tracing** corner phantoms.
 
 Adapted to the branch detector as a **medial (spine) gate**: a keypoint is
 allowed only where p is a **ridge of dominant-orientation energy across the
@@ -595,6 +596,75 @@ fixable reasons:
 So the earlier EMNIST failures were **both** handwriting messiness **and** a
 genuinely miscalibrated detector — and the synthetic test proves the detector
 part is real and fixable, while the underlying representation is sound.
+
+---
+
+## Literature — where these ideas come from
+
+A survey of prior work on robust endpoint / corner / T-junction detection. The
+short version: **our branch-profile detector independently re-derives the
+classical "end-stopped cell" model**, and the medial gate we added is that
+model's long-known missing ingredient. Three families exist.
+
+**Biological / end-stopped-cell models** (the lineage our detector belongs to):
+
+- **Heitger, Rosenthaler, von der Heydt, Peterhans & Kübler (1992), "Simulation
+  of neural contour mechanisms: from simple to end-stopped cells,"** *Vision
+  Research* 32(5):963–981. The origin of the operator we use: rectified Gabor
+  complex-cell energy feeding **single-stopped** cells (line-ends) and
+  **double-stopped** cells (corners, junctions), with an explicit inhibition
+  step so responses don't smear along contours. This is the primary source for
+  the tangential-inhibition idea our medial gate implements, and it independently
+  proves the nonlinearity lesson (energy rectification before end-stopping).
+- **Rodrigues & du Buf (2006), "Multi-scale keypoints in V1 and beyond,"**
+  *BioSystems* 86:75–90. Builds Heitger's end-stopped cells into **multi-scale
+  keypoint maps** (line/edge crossings, singularities, high-curvature points)
+  used for saliency, segregation and face detection. Closest match to our
+  overall construction — same front end, same multi-scale spirit as our drift
+  test — which is why it was the reference reached for. Its agenda is broad
+  keypoints-for-attention, though, not accurate junction *typing*.
+- **Würtz & Lourens (2000), "Corner detection through a multiscale combination
+  of end-stopped cortical cells,"** *Image and Vision Computing* 18:531–541. The
+  most *corner-specific* member of this lineage: reports stability against
+  rounded corners, high-frequency texture, noise and varying contrast — exactly
+  our failure regime — via multiscale combination plus tangential + radial
+  inhibition. For our precise problem this is arguably the better-targeted paper
+  than du Buf.
+
+**Statistical / parameter-free** (the "really works robustly" classical result):
+
+- **Xia, Delon & Gousseau (2014), "Accurate Junction Detection and
+  Characterization in Natural Images,"** *IJCV* 106:31–56 (the ACJ detector).
+  Computes each junction's branch count, type (L/Y/X), location and scale — the
+  same output as our branch profile — but from normalized gradients under an
+  **a-contrario** model: a junction is kept only if its configuration is too
+  improbable to occur by chance (Number of False Alarms), with **no hand-tuned
+  thresholds**. Reported contrast- and scale-invariant, and specifically good at
+  *not* over-firing in texture. This is the most instructive model for escaping
+  our "one more gate every time" treadmill.
+
+**Learned** (the modern state of the art):
+
+- **Zhou, Qi & Ma (2019), "End-to-End Wireframe Parsing" (L-CNN),** ICCV; and
+  **Xue et al. (2020), "Holistically-Attracted Wireframe Parsing" (HAWP),** CVPR.
+  CNNs that predict a junction heatmap + offsets and verify candidate lines;
+  roughly doubled junction mAP over the hand-designed wireframe parser. The field
+  moved to learned detectors *because* robust corner/junction typing by tuned
+  filters thrashes at the category boundaries — the same wall we hit.
+
+**Was du Buf the best one to cite?** For the *fix we applied*, the
+tangential-inhibition / centeredness idea, it's a reasonable label but not the
+most precise: the mechanism **originates with Heitger et al. (1992)**, and the
+member of the lineage most directly validated on our exact failure (rounded
+corners, texture, noise) is **Würtz & Lourens (2000)**. du Buf/Rodrigues is the
+best match to our *overall pipeline* (multi-scale biological keypoints) but the
+weakest of the three on junction *typing* specifically. And for the deeper
+question the results keep pointing at — robust detection without an endless
+stack of gates — **the a-contrario ACJ detector (Xia–Delon–Gousseau) is the
+better model to emulate** than any end-stopped paper, because it replaces
+thresholds with a significance test. So: du Buf was the natural *pipeline*
+citation, Heitger is the correct *mechanism* citation, Würtz/Lourens the
+*corner-robustness* citation, and ACJ the one to study next.
 
 ---
 
