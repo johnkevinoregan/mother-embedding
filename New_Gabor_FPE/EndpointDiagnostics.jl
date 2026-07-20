@@ -354,7 +354,7 @@ end
 let
     sT,sN,lam    = Lparams(wL)
     sT2,sN2,lam2 = Eparams(wE)
-    # panels 1-2: the two kernels alone, common canvas (as before)
+    # panels 1-2: the two kernels alone
     KL0 = gabor_kernel(sT,sN,lam,0f0)
     KE0 = gabor_kernel(sT2,sN2,lam2,0f0)
     ttlL = "Re L  w_L=" * string(wL) * "  ks=" * string(size(KL0,1))
@@ -364,7 +364,10 @@ let
     # Each is normalised to unit peak first, else the big L kernel swamps Ed.
     KLv = gabor_kernel(sT,sN,lam, Float32(π)/2)      # line filter along a vertical stroke
     KEv = gabor_kernel(sT2,sN2,lam2, 0f0)            # edge filter perpendicular to it
-    C = 181; c0 = C÷2 + 1
+    # ONE canvas for ALL THREE panels — big enough for the offset layout — so the
+    # kernels are drawn at the SAME scale in every panel (they were not before).
+    C = 2*(max(size(KL0,1)÷2, round(Int,delta)+size(KE0,1)÷2) + 4) + 1
+    c0 = C÷2 + 1
     canvas = zeros(Float32, C, C)
     A = real.(KLv); A ./= max(maximum(abs,A), 1f-9)
     hL = size(A,1)÷2
@@ -380,13 +383,13 @@ let
     end
     m = max(maximum(abs,canvas), 1f-9)
     p3 = heatmap(canvas; c=:RdBu, clims=(-m,m), titlefontsize=8,
-                 title="combined: L at p, Ed at p+δ   (δ=" * string(delta) * ")",
+                 title="combined: L at p, Ed at p+δ   (δ=" * string(round(delta,digits=1)) * ")",
                  aspect_ratio=:equal, axis=false, ticks=false, cbar=false, yflip=true)
     scatter!(p3, [c0], [c0]; mc=:black, msw=0, ms=4, label="")   # p
     scatter!(p3, [c0], [oy]; mc=:lime,  msw=0, ms=4, label="")   # p + δ
     plot!(p3, [c0,c0], [c0,oy]; lc=:lime, lw=2, label="")
-    plot(kpanel(on_canvas(real.(KL0)), ttlL),
-         kpanel(on_canvas(imag.(KE0)), ttlE),
+    plot(kpanel(on_canvas(real.(KL0), C), ttlL),
+         kpanel(on_canvas(imag.(KE0), C), ttlE),
          p3; layout=(1,3), size=(1050,360))
 end
 
@@ -445,6 +448,11 @@ md"""
   magnitude or sign-referenced, so ticking *invert polarity* should leave every
   panel identical (verified to 3·10⁻⁵ relative in batch). `s` itself flips —
   that's the reference that makes `cap` invariant.
+- **Canvas scaling.** In the *selected-parameters* row all three panels share one
+  canvas, sized to fit the offset layout, so the kernels are drawn at the same
+  scale in each — that canvas therefore grows with δ and `w_L`, meaning the
+  apparent size shrinks as you raise those sliders. For comparing *across* scales
+  use the fixed-113 px overview grid above instead.
 - Rebuilding a bank on a new scale takes a moment the first time; banks are
   cached, so returning to a previous scale is instant.
 """
