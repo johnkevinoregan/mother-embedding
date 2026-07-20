@@ -87,8 +87,10 @@ begin
     struct Bank; ks::Int; o::Int; N::Int; bhat::Vector{Matrix{ComplexF32}}; end
     # scale conventions — shared by the banks AND the kernel display below,
     # so the pictures can never drift from what is actually convolved
-    Lparams(w)=(1.5f0*w, w/2, 2f0*w)   # (sigT,sigN,lam) line filter: along-extent 3w
-    Eparams(w)=(w/2,     w/4, w/2)     # edge filter: compact, at scale w
+    Lparams(w)=(1.5f0*w,   w/2, 2f0*w) # (sigT,sigN,lam) line filter: along-extent 3w
+    # edge filter: SAME wavelength and cross-section as the line filter, just much
+    # SHORTER along its own axis (sigT 1.5w -> 0.4w, i.e. ~4x shorter)
+    Eparams(w)=(w/2.5f0,   w/2, 2f0*w)
     function ksize_for(sigT,sigN)
         k=2*floor(Int,2.5*max(sigT,sigN))+1
         isodd(k) ? k : k+1
@@ -140,9 +142,11 @@ line filter, giving `Ce`) and **`Im` of the Ed kernel** (the odd / edge filter,
 giving `Co`), shown at θ = 0 for every scale on the sliders.
 
 Rows 1–2 put both on a **common 113 px canvas**, so the sizes are directly
-comparable — this is the point: the line filter is enormous and the edge filter
-is tiny. Row 3 re-plots the edge kernels at their **native size** so their
-odd/antisymmetric structure is actually visible.
+comparable. The edge filter now shares the line filter's **wavelength (2w) and
+cross-section (σ_N = w/2)** and differs only in being ~4× **shorter along its own
+axis** (σ_T = w/2.5 vs 1.5w) — so the two rows differ in *length*, not in stripe
+spacing. Row 3 re-plots the edge kernels at their **native size** so their
+odd/antisymmetric structure is visible.
 """
 
 # ╔═╡ e0000000-0000-0000-0000-000000000011
@@ -320,15 +324,40 @@ end
 let
     sT,sN,lam    = Lparams(wL)
     sT2,sN2,lam2 = Eparams(wE)
-    KL = gabor_kernel(sT,sN,lam,0f0)
-    KE = gabor_kernel(sT2,sN2,lam2,0f0)
-    ttlL = "Re L selected w_L=" * string(wL) * "  ks=" * string(size(KL,1))
-    ttlE = "Im Ed selected w_E=" * string(wE) * "  ks=" * string(size(KE,1))
-    ttlN = "Im Ed native   probe δ=" * string(delta) * " px"
-    plot(kpanel(on_canvas(real.(KL)), ttlL),
-         kpanel(on_canvas(imag.(KE)), ttlE),
-         kpanel(imag.(KE), ttlN);
-         layout=(1,3), size=(1000,340))
+    # panels 1-2: the two kernels alone, common canvas (as before)
+    KL0 = gabor_kernel(sT,sN,lam,0f0)
+    KE0 = gabor_kernel(sT2,sN2,lam2,0f0)
+    ttlL = "Re L  w_L=" * string(wL) * "  ks=" * string(size(KL0,1))
+    ttlE = "Im Ed w_E=" * string(wE) * "  ks=" * string(size(KE0,1))
+    # panel 3: COMBINED, drawn with the stroke VERTICAL so the probe offset is
+    # vertical on screen. Line filter sits at p; edge filter sits at p + δ (above).
+    # Each is normalised to unit peak first, else the big L kernel swamps Ed.
+    KLv = gabor_kernel(sT,sN,lam, Float32(π)/2)      # line filter along a vertical stroke
+    KEv = gabor_kernel(sT2,sN2,lam2, 0f0)            # edge filter perpendicular to it
+    C = 181; c0 = C÷2 + 1
+    canvas = zeros(Float32, C, C)
+    A = real.(KLv); A ./= max(maximum(abs,A), 1f-9)
+    hL = size(A,1)÷2
+    for a in -hL:hL, b in -hL:hL
+        y=c0+a; x=c0+b
+        (1<=y<=C && 1<=x<=C) && (canvas[y,x] += A[a+hL+1, b+hL+1])
+    end
+    B = imag.(KEv); B ./= max(maximum(abs,B), 1f-9)
+    hE = size(B,1)÷2; oy = c0 - round(Int, delta)    # yflip: smaller row = higher
+    for a in -hE:hE, b in -hE:hE
+        y=oy+a; x=c0+b
+        (1<=y<=C && 1<=x<=C) && (canvas[y,x] += B[a+hE+1, b+hE+1])
+    end
+    m = max(maximum(abs,canvas), 1f-9)
+    p3 = heatmap(canvas; c=:RdBu, clims=(-m,m), titlefontsize=8,
+                 title="combined: L at p, Ed at p+δ   (δ=" * string(delta) * ")",
+                 aspect_ratio=:equal, axis=false, ticks=false, cbar=false, yflip=true)
+    scatter!(p3, [c0], [c0]; mc=:black, msw=0, ms=4, label="")   # p
+    scatter!(p3, [c0], [oy]; mc=:lime,  msw=0, ms=4, label="")   # p + δ
+    plot!(p3, [c0,c0], [c0,oy]; lc=:lime, lw=2, label="")
+    plot(kpanel(on_canvas(real.(KL0)), ttlL),
+         kpanel(on_canvas(imag.(KE0)), ttlE),
+         p3; layout=(1,3), size=(1050,360))
 end
 
 # ╔═╡ e0000000-0000-0000-0000-00000000000c
