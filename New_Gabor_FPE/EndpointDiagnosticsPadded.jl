@@ -399,10 +399,18 @@ begin
     p2=heatmap(D.Lwin; c=:viridis, title="|Ce| of winning source (line)", kw...)
     p3=heatmap(D.capw; c=:viridis, title="cap at this pixel (edge)", kw...)
     p4=heatmap(D.Ew;   c=:magma,   title="Endpoint = min(|Ce|, cap)  @ p+δu", kw...)
-    p5=heatmap(D.sw;   c=:RdBu, clims=(-1,1), title="s = sign(Ce)", kw...)
-    p6=heatmap(D.align; c=:viridis, clims=(0,1),
+    # Where the score is ~0 nothing genuinely won, and phiw/sw/align hold whichever
+    # candidate merely wrote first — arbitrary. Mask those out (NaN renders blank)
+    # so the direction panel shows real winners only.
+    live = D.Ew .> 1f-2*maximum(D.Ew)
+    function masked(M)
+        out=fill(NaN32, size(M)); out[live].=M[live]; out
+    end
+    p5=heatmap(masked(D.sw);   c=:RdBu, clims=(-1,1), title="s = sign(Ce)  (live only)", kw...)
+    p6=heatmap(masked(D.align); c=:viridis, clims=(0,1),
                title="align: 1=along stroke, 0=across", kw...)
-    p7=heatmap(D.phiw; c=:hsv, clims=(0,2π), title="winning direction φ*", kw...)
+    p7=heatmap(masked(D.phiw); c=:hsv, clims=(0,2π),
+               title="winning direction φ*  (24 steps of 15°)", kw...)
     p8=heatmap(D.Ldom; c=:viridis, title="max_θ |Ce| (dominant line)", kw...)
     plot(p1,p2,p3,p4,p5,p6,p7,p8; layout=(2,4), size=(1300,660))
 end
@@ -444,6 +452,15 @@ md"""
 - **Scale conventions.** `Lparams(w) = (1.5w, w/2, 2w)`; `Eparams(w) =
   (w/2.5, w/2, 2w)` — the edge filter shares the line filter's wavelength and
   cross-section and is only ~4× shorter along its own axis.
+- **Why the φ\\* panel looks blocky.** Three reasons, all expected: φ\\* is an
+  `argmax` over only **24 directions**, so it is quantised to 15° steps and
+  rendered as 24 discrete hues; `argmax` is **discontinuous** — near-ties flip the
+  winner abruptly, producing watershed boundaries (that itself is useful: it marks
+  where the choice was marginal); and since scores are **scattered** to
+  `q = p + δ·u(φ)`, neighbouring output pixels may be written by unrelated source
+  pixels. Pixels with negligible score are now **masked out** rather than showing
+  the arbitrary direction that happened to write first. Raise `K_PHI` in the
+  constants cell for finer angular resolution at proportional cost.
 """
 
 # ╔═╡ Cell order:
