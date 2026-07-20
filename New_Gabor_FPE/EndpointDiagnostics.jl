@@ -311,7 +311,7 @@ synthetic stroke radius: $(@bind srad Slider(2:1:9, default=6, show_value=true))
 
 **Ce (even / line) scale** `w_L`: $(@bind wL Slider(Float32[4,6,8,10,12,15], default=8f0, show_value=true))
 **Co (odd / edge) scale** `w_E`: $(@bind wE Slider(Float32[3,4,6,8,10,12], default=8f0, show_value=true))
-**δ / σ_T** (probe offset as a fraction of the line filter's half-length): $(@bind dratio Slider(0.5f0:0.1f0:1.5f0, default=1.0f0, show_value=true))
+**δ / σ_T** (probe offset as a fraction of the line filter's half-length): $(@bind dratio Slider(0.5f0:0.1f0:3.0f0, default=1.0f0, show_value=true))
 
 κ (sign convention): $(@bind kappa Select([1f0=>"+1 (falling edge)", -1f0=>"−1 (rising edge)"]))
 keypoint threshold (× max): $(@bind kthr Slider(0.10f0:0.05f0:0.60f0, default=0.30f0, show_value=true))
