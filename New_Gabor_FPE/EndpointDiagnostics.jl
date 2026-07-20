@@ -59,9 +59,15 @@ for a response.
 
 ### What to look for
 
-- **`align`** = `|cos(φ* − θ_dominant)|`: 1 = the winning direction runs **along**
-  the stroke (what the detector is *supposed* to do), 0 = it points **across**
-  the stroke. My untested hypothesis for the ~12× over-firing on EMNIST is that
+**Where the score lands.** The evidence is gathered at `p` (line filter, inside
+the stroke) but the score is **deposited at `q = p + δ·u(φ)`** — the cap
+location, which is where the endpoint physically is. δ is set as a **fraction of
+the line filter's half-length σ_T**, not as an absolute pixel count, so it scales
+with `w_L` automatically. Several `p` can target the same `q`; the max is kept.
+
+- **`align`** = `|cos(φ* − θ_dominant)|` (tangent measured at the *source* `p`):
+  1 = the winning direction runs **along** the stroke (what the detector is
+  *supposed* to do), 0 = it points **across** the stroke. My untested hypothesis for the ~12× over-firing on EMNIST is that
   `max_φ` picks *across-stroke* directions, where the probe lands on the stroke's
   own **flank** — if so, `align` will be near 0 wherever the detector fires
   spuriously.
@@ -225,27 +231,39 @@ end
 # ---- the detector, returning every intermediate at the WINNING phi ----
 function diag_maps(Ce,Co; delta, kappa=1f0)
     Lwin=zeros(Float32,IMG,IMG); capw=zeros(Float32,IMG,IMG)
-    Ew  =zeros(Float32,IMG,IMG); sw  =zeros(Float32,IMG,IMG)
+    Ew  =fill(-1f0,IMG,IMG);     sw  =zeros(Float32,IMG,IMG)
     phiw=zeros(Float32,IMG,IMG); Ldom=zeros(Float32,IMG,IMG); thdom=zeros(Float32,IMG,IMG)
+    alignm=zeros(Float32,IMG,IMG)
+    # dominant orientation of the LINE channel, at each source pixel p
     for y in 1:IMG, x in 1:IMG
         bd=0f0; bt=1
         for t in 1:N_THETA
             a=abs(Ce[t,y,x]); a>bd && (bd=a; bt=t)
         end
         Ldom[y,x]=bd; thdom[y,x]=THETAS[bt]
-        best=-1f0; bl=0f0; bc=0f0; bs=0f0; bphi=0f0
+    end
+    # SCATTER: the evidence is gathered at p, but the score is deposited at
+    # q = p + δ·u(φ) — the cap location, i.e. where the endpoint really is.
+    # Several p may target the same q, so keep the max.
+    for y in 1:IMG, x in 1:IMG
         for φ in PHIS
             t=tidx(φ); ce=Ce[t,y,x]; a=abs(ce); ψ=perp(t)
-            co=bilinear(@view(Co[ψ,:,:]), y+delta*sin(φ), x+delta*cos(φ))
+            qy=y+delta*sin(φ); qx=x+delta*cos(φ)
+            co=bilinear(@view(Co[ψ,:,:]), qy, qx)
             ds = φ < Float32(π) ? 1f0 : -1f0
             cap = max(-sign(ce)*kappa*ds*co, 0f0)
             v=min(a,cap)
-            if v>best; best=v; bl=a; bc=cap; bs=sign(ce); bphi=φ; end
+            iy=round(Int,qy); ix=round(Int,qx)
+            (1<=iy<=IMG && 1<=ix<=IMG) || continue
+            if v>Ew[iy,ix]
+                Ew[iy,ix]=v; Lwin[iy,ix]=a; capw[iy,ix]=cap
+                sw[iy,ix]=sign(ce); phiw[iy,ix]=φ
+                alignm[iy,ix]=abs(cos(φ-thdom[y,x]))   # tangent measured at the SOURCE p
+            end
         end
-        Lwin[y,x]=bl; capw[y,x]=bc; Ew[y,x]=best; sw[y,x]=bs; phiw[y,x]=bphi
     end
-    align=abs.(cos.(phiw.-thdom))
-    (; Lwin, capw, Ew, sw, phiw, Ldom, align)
+    @inbounds for i in eachindex(Ew); Ew[i]<0 && (Ew[i]=0f0); end
+    (; Lwin, capw, Ew, sw, phiw, Ldom, align=alignm)
 end
 
 # ╔═╡ e0000000-0000-0000-0000-000000000009
@@ -293,12 +311,21 @@ synthetic stroke radius: $(@bind srad Slider(2:1:9, default=6, show_value=true))
 
 **Ce (even / line) scale** `w_L`: $(@bind wL Slider(Float32[4,6,8,10,12,15], default=8f0, show_value=true))
 **Co (odd / edge) scale** `w_E`: $(@bind wE Slider(Float32[3,4,6,8,10,12], default=8f0, show_value=true))
-**δ (probe offset)**: $(@bind delta Slider(Float32[1,2,3,4,6,8,10,13], default=4f0, show_value=true))
+**δ / σ_T** (probe offset as a fraction of the line filter's half-length): $(@bind dratio Slider(0.5f0:0.1f0:1.5f0, default=1.0f0, show_value=true))
 
 κ (sign convention): $(@bind kappa Select([1f0=>"+1 (falling edge)", -1f0=>"−1 (rising edge)"]))
 keypoint threshold (× max): $(@bind kthr Slider(0.10f0:0.05f0:0.60f0, default=0.30f0, show_value=true))
 invert polarity: $(@bind invert CheckBox(default=false))
 """
+
+# ╔═╡ e0000000-0000-0000-0000-000000000013
+begin
+    # probe offset is now TIED TO THE LINE FILTER'S LENGTH, not an absolute px count.
+    # p sits ~one filter half-length back inside the stroke; the cap probe lands at
+    # p + δ·u(φ), i.e. out at the tip — which is where the endpoint actually is.
+    sigT_L = 1.5f0 * wL          # line filter's along-stroke sigma
+    delta  = dratio * sigT_L
+end
 
 # ╔═╡ e0000000-0000-0000-0000-00000000000b
 begin
@@ -314,10 +341,13 @@ begin
     D = diag_maps(Ce, Co; delta=delta, kappa=kappa)
     kp = kpts(D.Ew, kthr*maximum(D.Ew))
     swid = stroke_width(img_raw)
-    md"""
-    **source** `$(src)` — measured stroke width **$(round(swid,digits=1)) px** —
-    `w_L`=$(wL), `w_E`=$(wE), δ=$(delta) — **$(length(kp)) endpoints detected**
-    """
+    swid_s = round(swid, digits=1)
+    sig_s  = round(sigT_L, digits=1)
+    del_s  = round(delta, digits=1)
+    nkp    = length(kp)
+    Markdown.parse("**source** `$(src)` — stroke width **$(swid_s) px** — " *
+        "`w_L`=$(wL), `w_E`=$(wE), σ_T=$(sig_s), **δ=$(del_s) px** = $(dratio)·σ_T — " *
+        "**$(nkp) endpoints detected** *(scored at p+δ·u(φ))*")
 end
 
 # ╔═╡ e0000000-0000-0000-0000-000000000012
@@ -367,9 +397,9 @@ begin
     p1=heatmap(img; c=:grays, title="input + keypoints", kw...)
     isempty(kp) || scatter!(p1,[p[2] for p in kp],[p[1] for p in kp];
                             mc=:cyan, msw=0, ms=5, label="")
-    p2=heatmap(D.Lwin; c=:viridis, title="|Ce| at winning φ  (line)", kw...)
-    p3=heatmap(D.capw; c=:viridis, title="cap at winning φ  (edge)", kw...)
-    p4=heatmap(D.Ew;   c=:magma,   title="Endpoint = min(|Ce|, cap)", kw...)
+    p2=heatmap(D.Lwin; c=:viridis, title="|Ce| of winning source (line)", kw...)
+    p3=heatmap(D.capw; c=:viridis, title="cap at this pixel (edge)", kw...)
+    p4=heatmap(D.Ew;   c=:magma,   title="Endpoint = min(|Ce|, cap)  @ p+δu", kw...)
     p5=heatmap(D.sw;   c=:RdBu, clims=(-1,1), title="s = sign(Ce)", kw...)
     p6=heatmap(D.align; c=:viridis, clims=(0,1),
                title="align: 1=along stroke, 0=across", kw...)
@@ -432,6 +462,7 @@ md"""
 # ╠═e0000000-0000-0000-0000-000000000008
 # ╠═e0000000-0000-0000-0000-000000000009
 # ╟─e0000000-0000-0000-0000-00000000000a
+# ╠═e0000000-0000-0000-0000-000000000013
 # ╟─e0000000-0000-0000-0000-00000000000b
 # ╠═e0000000-0000-0000-0000-000000000012
 # ╠═e0000000-0000-0000-0000-00000000000c
