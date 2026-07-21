@@ -333,10 +333,11 @@ default), so at a genuine end the *centre* energy is already on a gentle down-ra
 while the *behind* flank `E(end−Δ)` is still full strength; `E(end) − β·behind`
 then goes negative and rectifies to 0. Ronan's sharply-peaked `hw≈5` Mexican-hat
 cell keeps the end at its peak while the flanks fall off fast, so it tolerates
-β=0.7 — and his recurrent front end suppresses the broad skirt that our large
-Gabor leaves around every stroke (its dominant orientation there is *diagonal*,
-where the skirt artifacts live). Lowering `w_L` widens the usable β range, exactly
-as this explanation predicts.
+β=0.7. The broad skirt our large Gabor leaves around every stroke (dominant
+orientation *diagonal* there, where the artifacts live) is small in his system
+chiefly because his **filter** is small — *not*, as measured below, because of his
+front end. Lowering `w_L` widens the usable β range, exactly as this explanation
+predicts.
 
 This is the §3 constraint again, from the other side: **symmetric end-stopping
 wants a cell sharply peaked *relative to the stroke*, and at ~8 stroke-widths per
@@ -351,11 +352,41 @@ our min-gate** at equal threshold — EMNIST O 23→14, T 21→11, X 18→10, L 
 I 6→5. Whether that sparsity drops *spurious* fires or *real* ends is a visual,
 letter-by-letter judgement the A/B panels now support; it has not been scored.
 
-**Two things worth carrying forward regardless:** the *recurrent contrast
-normalisation* as a front end before our Gabors (it would suppress the broad
-energy skirt that defeats every gate here), and the *symmetric both-ends*
-subtraction as a cheap corner/crossing channel — with the caveat above that it
-must be paired with a filter sharply peaked relative to the stroke.
+### Front-end normalisation (Ronan's Stage 1) — thins strokes, does *not* help
+
+The natural next hope was that Ronan's Stage 1 — a recurrent E/I sheet whose
+narrow-excite / broad-inhibit coupling emerges as an on-centre/off-surround
+band-pass — would, by sharpening and contrast-normalising, suppress the skirt the
+symmetric end-stop fires on. Tested directly (a `normalise = off / DoG /
+DoG+divisive` toggle in `EndpointDiagnosticsPadded.jl`, kept **sign-preserving** —
+no ON-only rectification — so polarity invariance survives, verified 1e-4):
+
+- **It thins strokes, strongly.** A DoG (σ_E = 1, σ_I = 4) cuts the effective width
+  of a 13 px bar from **11.8 → 2.6 px**. The sharpening is real and large.
+- **It does not widen the β-range.** In all three modes the true ends are local-max
+  keypoints **only at β = 0.5**; β = 0.7 zeroes them exactly, as with no
+  normalisation. `DoG+divisive` is *worse* — it adds spurious keypoints
+  (bar 4 → 12–14) by gain-amplifying the low-contrast skirt.
+
+The reason closes the loop: the end-stop reads the **energy envelope of the `w_L`
+Gabor**, whose peak width is the **filter footprint** (~30 px), *not* the input
+stroke width. Thinning the input never sharpens the filter's response peak, so the
+behind-flank at a true end stays full strength and the subtraction still
+annihilates it. **The skirt is a filter-scale property; the lever is `w_L`, and
+front-end normalisation is orthogonal to it.** This is the fourth prediction in
+this programme — after multi-scale `min`, "L/Ed rejects crossings", "sharper λ_Ed
+fixes it" — plausible from the geometry and falsified by measurement; here it was
+*my own*, recorded as such.
+
+**What still carries forward:** the *symmetric both-ends* subtraction as a cheap
+corner/crossing channel, but only paired with a filter sharply peaked relative to
+the stroke — i.e. a *smaller* `w_L`, since normalising the input does not
+substitute for it. Normalisation itself may still earn a place — not for the skirt,
+but for the local gain-invariance and DC / low-frequency cleanup it gives (the same
+contrast-invariance ACJ reaches by gradient rank-normalisation), and *if* combined
+with a smaller `w_L` the thinning could buy back the scale separation §3 says we
+lack. That is a separate experiment; neither it nor normalisation touches the
+corner-vs-curve hard-typing wall.
 
 ## Next
 
@@ -365,7 +396,8 @@ must be paired with a filter sharply peaked relative to the stroke.
    mass) so the invariance is a tested property rather than a convention.
 3. Take seriously the §3 finding — ~8 stroke-widths per letter — as a constraint
    on how much "local context" any keypoint operator can have at this resolution.
-4. Try Ronan's **recurrent on/off normalisation** as a front end before the Gabor
-   bank, and re-run the §8 symmetric end-stop against it — the prediction is that
-   normalising away the broad energy skirt is what makes symmetric end-stopping
-   (and possibly our own gates) behave at this scale.
+4. **Done (§8): front-end normalisation thins strokes (13 → 2.6 px) but does not
+   fix the skirt or widen the β-range** — the skirt is a filter-scale property, so
+   the lever is `w_L`. The open version is the *combined* move: DoG / divisive
+   normalisation **plus a smaller `w_L`**, to test whether the thinning buys back
+   the §3 scale separation for bar detection generally, not just end-stopping.

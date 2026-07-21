@@ -189,6 +189,34 @@ begin
     end
 end
 
+# ╔═╡ f0000000-0000-0000-0000-000000000018
+# ---- optional Ronan-style front end: sign-preserving on-centre/off-surround
+# (DoG), plus optional divisive gain control, applied BEFORE the Gabor banks.
+# Kept sign-preserving (NOT Ronan's ON-only rectification) so the DC-free polarity
+# invariance of everything downstream survives. Off by default.
+begin
+    function gblur(im, σ)
+        r=max(1,ceil(Int,3σ)); g=Float32[exp(-(k^2)/(2σ^2)) for k in -r:r]; g./=sum(g)
+        H,W2=size(im); tmp=zeros(Float32,H,W2); out=zeros(Float32,H,W2)
+        for y in 1:H, x in 1:W2
+            s=0f0; for k in -r:r; s+=im[y,clamp(x+k,1,W2)]*g[k+r+1]; end; tmp[y,x]=s
+        end
+        for y in 1:H, x in 1:W2
+            s=0f0; for k in -r:r; s+=tmp[clamp(y+k,1,H),x]*g[k+r+1]; end; out[y,x]=s
+        end
+        out
+    end
+    # σI=4 thins a 13px bar to ~2.6px effective; σE=1 keeps a sharp centre
+    function normalize_input(im, mode; σE=1.0f0, σI=4.0f0)
+        mode=="off" && return im
+        dog = gblur(im,σE) .- gblur(im,σI)               # on-centre/off-surround, DC-free
+        mode=="DoG" && return dog
+        pool = sqrt.(gblur(dog.^2, σI) .+ 1f-8)          # local RMS energy (even → invariant)
+        dog ./ (pool .+ 0.2f0*maximum(pool))             # divisive gain control
+    end
+    posnorm(M)=(P=max.(0f0,M); m=maximum(P); m>0 ? P./m : P)
+end
+
 # ╔═╡ f0000000-0000-0000-0000-000000000008
 # ---- detector: gather evidence at p, deposit the score at q = p + δ·u(φ) ----
 function diag_maps(Ce,Co; delta, kappa=1f0)
@@ -342,6 +370,7 @@ synthetic stroke radius: $(@bind srad Slider(2:1:9, default=6, show_value=true))
 κ (sign convention): $(@bind kappa Select([1f0=>"+1 (falling edge)", -1f0=>"−1 (rising edge)"]))
 keypoint threshold (× max): $(@bind kthr Slider(0.10f0:0.05f0:0.60f0, default=0.30f0, show_value=true))
 **β** (symmetric end-stop, Ronan A/B): $(@bind beta Slider(0.0f0:0.05f0:1.2f0, default=0.5f0, show_value=true))
+front-end normalise (Ronan Stage 1): $(@bind normalise Select(["off","DoG","DoG+divisive"], default="off"))
 invert polarity: $(@bind invert CheckBox(default=false))
 """
 
@@ -360,17 +389,21 @@ begin
         synth_img(src, srad)
     end
     img_raw = embed(letter)                          # 112 patch -> 224 field
-    img = invert ? (1f0 .- img_raw) : img_raw        # inverts the WHOLE field, border too
+    img_pol = invert ? (1f0 .- img_raw) : img_raw    # inverts the WHOLE field, border too
+    img = normalize_input(img_pol, normalise)        # Ronan-style front end (off by default)
     Ce, CoL = CeCo(img, Lbank(wL))                   # line bank: quadrature pair (Ce, CoL)
     _,  Co  = CeCo(img, Ebank(wE))                   # edge bank: Co for the min-gate cap
     D = diag_maps(Ce, Co; delta=delta, kappa=kappa)
     kp = kpts(D.Ew, kthr*maximum(D.Ew))
-    swid = stroke_width(img_raw)
+    swid = stroke_width(img_raw)                     # true stroke width (raw, un-normalised)
+    ewid = normalise=="off" ? swid : stroke_width(posnorm(normalize_input(img_raw, normalise)))
     swid_s = round(swid, digits=1)
+    ewid_s = round(ewid, digits=1)
     sig_s  = round(sigT_L, digits=1)
     del_s  = round(delta, digits=1)
     nkp    = length(kp)
-    Markdown.parse("**source** `$(src)` — stroke width **$(swid_s) px** — " *
+    norm_s = normalise=="off" ? "" : " → **eff. core $(ewid_s) px** (normalise=$(normalise))"
+    Markdown.parse("**source** `$(src)` — stroke width **$(swid_s) px**$(norm_s) — " *
         "field **$(IMG)×$(IMG)** (letter $(IMG0), border $(PAD)) — " *
         "`w_L`=$(wL), `w_E`=$(wE), σ_T=$(sig_s), **δ=$(del_s) px** = $(dratio)·σ_T — " *
         "**$(nkp) endpoints detected** *(scored at p+δ·u(φ))*")
@@ -485,7 +518,18 @@ line kernel makes the *behind* flank full-strength while the end-response is sti
 gentle down-ramp; only diagonal skirt artifacts survive. **β≈0.5** is the working regime:
 the straight middle is suppressed but the ends survive (max `Es` lands on an end). Ronan's
 sharply-peaked `hw≈5` cell tolerates β=0.7; our smooth Gabor energy does not. Lower `w_L`
-(smaller kernel) widens the usable β range.
+(smaller kernel) widens the usable β range — **normalising the input does not** (below).
+
+**Front-end normalisation (Ronan's Stage 1), measured.** The `normalise` control applies a
+sign-preserving on-centre/off-surround band-pass (`DoG`) or that plus divisive gain control
+(`DoG+divisive`) before the Gabor banks — kept sign-preserving (*not* Ronan's ON-only
+rectification), so polarity invariance survives (verified 1e-4). It **thins the effective
+stroke dramatically** (bar 11.8 → 2.6 px, shown in the header) — but it does **not** widen
+the symmetric detector's β-range: β=0.7 still zeroes the true ends in every mode, and
+`DoG+divisive` even *adds* spurious fires by gain-amplifying the skirt. The reason is the
+whole point of the A/B: the end-stop reads the **large Gabor's energy envelope**, whose peak
+width is the *filter footprint*, not the input stroke width. Thinning the input is orthogonal
+to the skirt; shrinking `w_L` is the actual lever.
 """
 
 # ╔═╡ f0000000-0000-0000-0000-000000000015
@@ -554,6 +598,7 @@ md"""
 # ╠═f0000000-0000-0000-0000-000000000005
 # ╠═f0000000-0000-0000-0000-000000000006
 # ╠═f0000000-0000-0000-0000-000000000007
+# ╠═f0000000-0000-0000-0000-000000000018
 # ╠═f0000000-0000-0000-0000-000000000008
 # ╠═f0000000-0000-0000-0000-000000000014
 # ╠═f0000000-0000-0000-0000-000000000009
