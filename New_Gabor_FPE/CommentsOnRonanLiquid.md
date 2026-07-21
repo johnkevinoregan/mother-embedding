@@ -248,3 +248,63 @@ Two refinements to the original points:
 And row 2 stands independently: a stroke *reaching* the edge puts 0.81 on the border,
 which zero-padding truncates — he escapes it only because glyphs are centred, not
 because of anything the on-off stage does.
+
+---
+
+## 5. A chirality bug in *our* endpoint detector (found while comparing with Ronan)
+
+> *"With the old detector, going around the circle of a base line from 0 to 360°, the
+> perpendicular Gabor's sign was correct in what regions, and incorrect in what angles?"*
+
+Comparing our detector against Ronan's turned up a genuine bug in **ours**
+(`EndpointDiagnosticsPadded.jl`, `diag_maps`). Recording it here because the diagnosis
+was subtle and took the whole thread.
+
+**Symptom.** On a perfectly horizontal, symmetric bar the endpoint keypoints came out
+*asymmetric*. Measured: the endpoint map `Ew` is **exactly 180°-rotation symmetric**
+(1e-6, round-off) but **mirror-asymmetric by ~41 % of max**. The local-maximum extractor
+was innocent — the plateau probe found no ties; the *map itself* was chiral. The chirality
+sits in the `cap` term (its map carries the identical 41 % / 1e-6 signature).
+
+**Root cause.** The cap combines the odd/edge channel with a sign factor meant to encode
+"falling edge ahead along travel":
+```
+OLD:  ds  = (φ < π) ? +1 : −1            # a half-plane in the travel angle φ
+      cap = [ −sign(Ce)·κ·ds·co ]₊ ,  co = Co[perp(t)](q)
+```
+`ds` looks only at φ. But `ψ = perp(t)` is folded back into `[0°,180°)`, and the odd
+filter's carrier `n̂(θ_ψ) = (−sinθ_ψ, cosθ_ψ)` then points `−t̂` for stroke orientations
+below 90° and `+t̂` for orientations at/above 90° — it **flips at the 90° fold**. `ds`
+can't see that flip, so it carries the wrong sign on the far side of it. Going around the
+full circle of travel φ, the sign is **correct in Q1 (0–90°) and Q3 (180–270°), inverted in
+Q2 (90–180°) and Q4 (270–360°)**, flipping exactly at the cardinal axes.
+
+**The fix** — read the sign off the odd filter's own carrier instead of guessing it from φ:
+```
+NEW:  ds  = sign( u(φ)·n̂_ψ ) = sign( sin(φ − θ_ψ) )   # tracks the ±90° fold
+```
+(implemented as `ds = sin(φ - THETAS[ψ]) >= 0 ? -1f0 : 1f0`, the sign absorbed so `κ=+1`
+still means "falling").
+
+**Why it hid for so long** — the reason the heatmaps always looked coherent:
+1. **180°-symmetry is preserved.** A stroke's two ends travel in φ and φ+180°, which always
+   fall in the *same* quadrant pair, so both ends share the (right or wrong) convention,
+   fire together, and stay mutually symmetric. Genuine endpoints fire correctly at **every**
+   orientation (H, V, 45° all verified). You'd only ever see the chirality by comparing a
+   figure to its mirror image, which nothing does.
+2. **The 24-direction `max` papers over it.** In the inverted quadrants the natural
+   direction's cap rectifies to zero, but the max **falls back to a neighbouring
+   correct-phase direction** aimed at the same falling edge — weaker, not absent. So the
+   defect shows as a smooth *dimming*, never a discontinuity. On an **O** this is visible:
+   the old detector gives a ring bright on two opposite arcs (Q1/Q3) and dim (~15 vs ~23) on
+   the other two (Q2/Q4), with no sharp edges. The fix makes the ring uniform.
+3. The fallback is *still falling-edge detection*, not rising: a deliberately opposite-phase
+   (rising) detector is ~3× weaker (mean firing ~4.5 vs ~13) and correlates only 0.14–0.35
+   with the falling one — so the phase genuinely matters; the redundancy just hides local
+   sign errors.
+
+**Verified** (bar, default κ=+1, N_THETA=24): mirror-asym **0.415 → 1.1e-6**; endpoint tips
+unchanged (21.475, both ends equal); O-ring mirror **0.43 → 0.05** (down to the 24-direction
+quantization floor). The fix **restores symmetry but does not reduce over-firing** — the bar's
+keypoint count goes 11 → 13, because the previously-suppressed diagonal of corner responses now
+fires too. So min-gate counts elsewhere (`EvenOddChannels.md` §8) are now stale.

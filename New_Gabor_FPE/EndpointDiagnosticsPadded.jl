@@ -236,7 +236,8 @@ function diag_maps(Ce,Co; delta, kappa=1f0)
             t=tidx(φ); ce=Ce[t,y,x]; a=abs(ce); ψ=perp(t)
             qy=y+delta*sin(φ); qx=x+delta*cos(φ)
             co=bilinear(@view(Co[ψ,:,:]), qy, qx)
-            ds = φ < Float32(π) ? 1f0 : -1f0
+            # ds = φ < Float32(π) ? 1f0 : -1f0                # OLD: half-plane in φ — mirror-chiral (wrong sign on the far side of the perp fold; fired on the wrong side of travel in the 90–180° / 270–360° arcs)
+            ds = sin(φ - THETAS[ψ]) >= 0f0 ? -1f0 : 1f0       # geometric sign(u(φ)·n̂_ψ): reads "falling edge ahead" off the perp filter itself, so it tracks the ±90° fold; κ=+1 stays "falling"
             cap = max(-sign(ce)*kappa*ds*co, 0f0)
             v=min(a,cap)
             iy=round(Int,qy); ix=round(Int,qx)
