@@ -189,6 +189,35 @@ begin
     em = load_emnist(n_images_to_load=8000, n_classes=47)
 end;
 
+# ╔═╡ 90000000-0000-0000-0000-00000000000c
+# ---- local extrema of the (signed) curvature field, per scale ----
+begin
+    const CY = Float32((IMG+1)/2); const CX = Float32((IMG+1)/2)   # centre of the 224 field
+    "Strict local maxima AND minima of K with |K| > frac·max|K|, deduped by NMS
+     radius r, keeping the strongest topN. Returns a Vector of (y, x, value)."
+    function local_extrema(K; frac=0.30f0, r=8, topN=8, w=2)
+        m=maximum(abs,K); m==0f0 && return Tuple{Int,Int,Float32}[]
+        thr=frac*m; cand=Tuple{Int,Int,Float32}[]
+        for y in (w+1):(IMG-w), x in (w+1):(IMG-w)
+            v=K[y,x]; abs(v)<thr && continue
+            ismax=true; ismin=true
+            for dy in -w:w, dx in -w:w
+                (dy==0&&dx==0)&&continue; n=K[y+dy,x+dx]
+                n>=v && (ismax=false); n<=v && (ismin=false)
+            end
+            (ismax||ismin) && push!(cand,(y,x,v))
+        end
+        sort!(cand, by=p->-abs(p[3])); keep=Tuple{Int,Int,Float32}[]
+        for c in cand
+            any(hypot(c[1]-k[1],c[2]-k[2])<r for k in keep) && continue
+            push!(keep,c); length(keep)>=topN && break
+        end
+        keep
+    end
+    # polar coords of (y,x) about the image centre: (r in px, α in degrees)
+    radial(y,x) = (hypot(Float32(y)-CY, Float32(x)-CX), atand(Float32(y)-CY, Float32(x)-CX))
+end
+
 # ╔═╡ 90000000-0000-0000-0000-000000000008
 md"""
 ### Controls
@@ -203,6 +232,8 @@ synthetic stroke radius: $(@bind srad Slider(2:1:9, default=6, show_value=true))
 quantity: $(@bind quantity Select([:K=>"K  (Gaussian curvature)", :detH=>"det Hessian  (numerator)"]))
 scaling across panels: $(@bind scaling Select(["per-panel"=>"per-panel (each visible)", "shared"=>"shared, σ⁴-normalised"]))
 clip percentile: $(@bind clip Slider(0.90f0:0.01f0:1.0f0, default=0.995f0, show_value=true))
+
+**local extrema** — threshold (× max|K|) $(@bind ex_frac Slider(0.05f0:0.05f0:0.80f0, default=0.30f0, show_value=true)) · top-N / scale $(@bind ex_topN Slider(1:1:15, default=8, show_value=true)) · min separation $(@bind ex_rad Slider(3:1:15, default=8, show_value=true))
 invert polarity: $(@bind invert CheckBox(default=false))
 """
 
@@ -220,6 +251,13 @@ begin
     snorm   = scaling == "shared"
     Ks      = [curvature(img, σ; quantity=quantity, snorm=snorm) for σ in scales]
 
+    # local extrema per scale (list of (y,x,value)), + a flat table for later use
+    ex_by_scale = [ local_extrema(K; frac=ex_frac, r=ex_rad, topN=ex_topN) for K in Ks ]
+    EXTREMA = [ (scale=round(scales[i],digits=1), pol=(v>=0 ? "+" : "−"), value=v,
+                 r=round(hypot(Float32(y)-CY,Float32(x)-CX),digits=1),
+                 alpha=round(atand(Float32(y)-CY,Float32(x)-CX),digits=1), y=y, x=x)
+                for i in 1:5 for (y,x,v) in ex_by_scale[i] ]
+
     # polarity check (independent of the invert box): un-inverted vs inverted input
     σc  = scales[3]
     Kp  = curvature(img_raw, σc; quantity=quantity, snorm=snorm)
@@ -236,6 +274,18 @@ begin
         "(relative $(round(polrel,sigdigits=3)))")
 end
 
+# ╔═╡ 90000000-0000-0000-0000-00000000000d
+if isempty(EXTREMA)
+    md"**Local curvature extrema:** none above threshold."
+else
+    ttl = "**Local curvature extrema** — the dots on the panels below. `(r, α)` are " *
+          "polar coordinates about the image centre ($(CY), $(CX)); `EXTREMA` holds these rows.\n\n"
+    hdr = "| σ | sign | value | r (px) | α (°) | (y, x) |\n|--:|:--:|--:|--:|--:|:--|\n"
+    body = join(["| $(e.scale) | $(e.pol) | $(round(e.value,sigdigits=3)) | $(e.r) | $(e.alpha) | ($(e.y), $(e.x)) |"
+                 for e in EXTREMA], "\n")
+    Markdown.parse(ttl * hdr * body)
+end
+
 # ╔═╡ 90000000-0000-0000-0000-00000000000a
 let
     kw=(yflip=true, aspect_ratio=:equal, axis=false, ticks=false, cbar=false,
@@ -244,10 +294,17 @@ let
     rmax(M)=(v=quantile(abs.(vec(M)), clip); v==0 ? 1f0 : Float32(v))
     shared_m = rmax(reduce(vcat, vec.(Ks)))
     panels=Any[ heatmap(img; c=:grays, title="input — $(src)", titlefontsize=8, kw...) ]
-    for (σ,K) in zip(scales, Ks)
+    for (i,(σ,K)) in enumerate(zip(scales, Ks))
         m = snorm ? shared_m : rmax(K)
-        push!(panels, heatmap(K; c=cmap, clims=(-m,m),
-            title="σ = $(round(σ,digits=1))", titlefontsize=8, kw...))
+        p = heatmap(K; c=cmap, clims=(-m,m),
+            title="σ = $(round(σ,digits=1))  ($(length(ex_by_scale[i])) extrema)",
+            titlefontsize=8, kw...)
+        ex = ex_by_scale[i]                       # yellow = positive (max), cyan = negative (saddle)
+        px=[x for (y,x,v) in ex if v>=0]; py=[y for (y,x,v) in ex if v>=0]
+        nx=[x for (y,x,v) in ex if v<0 ]; ny=[y for (y,x,v) in ex if v<0 ]
+        isempty(px) || scatter!(p, px, py; mc=:yellow, msc=:black, msw=1, ms=5, label="")
+        isempty(nx) || scatter!(p, nx, ny; mc=:cyan,   msc=:black, msw=1, ms=5, label="")
+        push!(panels, p)
     end
     plot(panels...; layout=(2,3), size=(1200,780))
 end
@@ -256,6 +313,13 @@ end
 md"""
 ### Notes
 
+- **Dots & table.** Each scale panel is overlaid with its own local extrema of `K`,
+  found *separately per scale* — **yellow = positive** (elliptic max), **cyan =
+  negative** (saddle) — deduped by the *min separation* radius and capped at
+  *top-N / scale* (sliders), so there is a handful per panel. The table above lists
+  every dot with its value and its polar position `(r, α)` about the image centre;
+  the `EXTREMA` variable holds the same rows for downstream use. Raise *threshold*
+  or lower *top-N* if a panel is too busy.
 - **Reading the colours (measured, σ≈6, values ×1e6).** Red = `K > 0` = a
   dome-like local **maximum** of the smoothed intensity. It lights up at *every*
   salient point — a free **end** (≈ +46), a **junction / crossing** centre
@@ -302,7 +366,9 @@ md"""
 # ╠═90000000-0000-0000-0000-000000000005
 # ╠═90000000-0000-0000-0000-000000000006
 # ╠═90000000-0000-0000-0000-000000000007
+# ╠═90000000-0000-0000-0000-00000000000c
 # ╟─90000000-0000-0000-0000-000000000008
 # ╠═90000000-0000-0000-0000-000000000009
+# ╟─90000000-0000-0000-0000-00000000000d
 # ╠═90000000-0000-0000-0000-00000000000a
 # ╟─90000000-0000-0000-0000-00000000000b
