@@ -240,6 +240,9 @@ New_Gabor_FPE/
   CommentsOnRonanLiquid.md                   Ronan comparison; the chirality bug + fix (§5)
   GaussianCurvatureEMNIST.jl                 Gaussian-curvature heatmaps, 5 scales,
                                              polarity-invariant, chirality-free
+  CurvatureConstellationFPE.jl               FPE encoding of the K-extrema; shows pure
+                                             graph topology is not diagnostic, coarse
+                                             position (quadrant) is
 ```
 
 ### Design rules (from `New_Gabor_FPE_handoff_for_claude-code.md` §8)
