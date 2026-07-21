@@ -16,7 +16,7 @@ first cannot work:
   circular harmonics = FPE with integer frequencies). **This is the current line
   of work.**
 
-See `PROGRESS_2026-07-17.md` for the latest writeup (and the earlier
+See `PROGRESS_2026-07-21.md` for the latest writeup (and the earlier
 `PROGRESS_*.md` files for the history) — what's implemented, what's still to come,
 and the reasoning behind the changes.
 
@@ -229,6 +229,17 @@ New_Gabor_FPE/
                                              shape harmonics of letter identity?
   KeyPointDiagnosticity.jl                   Interactive notebook reproducing every
                                              detector / encoding / scale variant
+  BranchProfileDetector.jl                   Branch-profile detector + du Buf medial gate
+  EvenOddChannels.md                         Even/odd (line/edge) split: motivation +
+                                             why the endpoint hypothesis fails structurally
+  EndpointDiagnostics.jl                     Interactive endpoint-detector heatmaps (112)
+  EndpointDiagnosticsPadded.jl               Same on a 224 padded field; even/odd cap
+                                             detector, Ronan symmetric end-stop A/B toggle,
+                                             front-end normalisation toggle
+  RonanLiquid1.jl                            Ronan's topographic E/I end-stop notebook (ref)
+  CommentsOnRonanLiquid.md                   Ronan comparison; the chirality bug + fix (§5)
+  GaussianCurvatureEMNIST.jl                 Gaussian-curvature heatmaps, 5 scales,
+                                             polarity-invariant, chirality-free
 ```
 
 ### Design rules (from `New_Gabor_FPE_handoff_for_claude-code.md` §8)
@@ -270,3 +281,33 @@ harmonics are actually **diagnostic of letter identity** (360 EMNIST instances,
   nearest-mean *artifact* (equal-weighted noisy features dilute good ones);
   η²-weighting flips it back (53.6 % → 61.4 %). Trust the per-feature η² and the
   shape-only accuracy, not the raw ranking.
+
+### Endpoint-detector line (2026-07-18 → 21)
+
+A follow-on thread, under the same "no thresholds, continuous, polarity-invariant"
+rules, focused on the local **endpoint/keypoint** side. Full narrative in
+`PROGRESS_2026-07-21.md` and the per-topic `.md`s; the essentials:
+
+- **Even/odd split (`EvenOddChannels.md`).** Splitting oriented energy into
+  even/line and odd/edge channels is exactly polarity-invariant, but does **not**
+  help endpoint detection: an end-cap and a crossing stroke's flank are the *same*
+  oriented edge — only termination separates them. (Measured: EMNIST stroke ≈
+  13.4 px, so letters are ~8 stroke-widths across — almost no scale separation.)
+- **Interactive endpoint detectors (`EndpointDiagnostics*.jl`).** A sign-referenced,
+  exactly polarity-invariant cap detector on a padded 224 field (exact
+  edge-replicate padding; kernels shown at true scale). The best endpoint signal is
+  a directional min-gate; over-firing on flanks is the residual weakness.
+- **Ronan comparison + a real bug (`CommentsOnRonanLiquid.md`).** A/B against Ronan's
+  classical symmetric hypercomplex end-stopping (`RonanLiquid1.jl`) turned up a
+  **chirality bug** in our cap: the sign factor `ds = (φ<π ? ±1)` is a half-plane in
+  the travel angle, blind to the perpendicular-orientation fold at 90°, so the
+  detector was **~41 % mirror-asymmetric** (correct in two opposite quadrants,
+  inverted in the other two) while staying exactly 180°-rotation symmetric — which
+  is why it hid. Fixed by reading the sign off the odd filter's own carrier,
+  `ds = sign(sin(φ − θ_ψ))` (mirror-asym 0.41 → 1e-6).
+- **Gaussian curvature (`GaussianCurvatureEMNIST.jl`).** A polarity-invariant (by
+  construction) and chirality-free (isotropic Hessian) alternative:
+  `K = det Hess / (1 + |∇I|²)²` at five scales. Measured: the **sign does not
+  separate ends from crossings** — a smoothed crossing is a local *maximum* (K > 0),
+  not a saddle — so it is a blob/keypoint *saliency*, with magnitude (not sign)
+  carrying the type distinction.
