@@ -224,6 +224,29 @@ function diag_maps(Ce,Co; delta, kappa=1f0)
     (; Lwin, capw, Ew, sw, phiw, Ldom, align=alignm)
 end
 
+# ╔═╡ f0000000-0000-0000-0000-000000000014
+# ---- Ronan-style symmetric end-stop (classical hypercomplex cell):
+#        Es(p) = [ E_θ*(p) − β·( E_θ*(p+Δu) + E_θ*(p−Δu) ) ]₊
+# on the LINE bank's oriented energy E_θ = √(Ce² + Co²) — the phase-invariant
+# envelope, so no oscillatory |Ce| side-lobes to fire on, and exactly polarity-
+# invariant (both parts flip under inversion). θ* = dominant orientation at p; Δ
+# reuses δ; score registered at p (~Δ inside the true end). Ce, Co are BOTH from
+# Lbank (a true quadrature pair), unlike the min-gate which pairs Lbank·Ce with Ebank·Co.
+function endstop_sym(Ce, Co; delta, beta)
+    E  = @. sqrt(Ce^2 + Co^2)                      # oriented energy of the line bank
+    Es = zeros(Float32, IMG, IMG)
+    for y in 1:IMG, x in 1:IMG
+        bd=0f0; bt=1
+        for t in 1:N_THETA
+            E[t,y,x]>bd && (bd=E[t,y,x]; bt=t)
+        end
+        θ=THETAS[bt]; dy=delta*sin(θ); dx=delta*cos(θ); Et=@view E[bt,:,:]
+        f1=bilinear(Et, y+dy, x+dx); f2=bilinear(Et, y-dy, x-dx)
+        Es[y,x]=max(0f0, bd - beta*(f1+f2))
+    end
+    Es
+end
+
 # ╔═╡ f0000000-0000-0000-0000-000000000009
 # ---- synthetic figures (drawn on the 112 patch, then embedded) + EMNIST ----
 begin
@@ -318,6 +341,7 @@ synthetic stroke radius: $(@bind srad Slider(2:1:9, default=6, show_value=true))
 
 κ (sign convention): $(@bind kappa Select([1f0=>"+1 (falling edge)", -1f0=>"−1 (rising edge)"]))
 keypoint threshold (× max): $(@bind kthr Slider(0.10f0:0.05f0:0.60f0, default=0.30f0, show_value=true))
+**β** (symmetric end-stop, Ronan A/B): $(@bind beta Slider(0.0f0:0.05f0:1.2f0, default=0.5f0, show_value=true))
 invert polarity: $(@bind invert CheckBox(default=false))
 """
 
@@ -337,8 +361,8 @@ begin
     end
     img_raw = embed(letter)                          # 112 patch -> 224 field
     img = invert ? (1f0 .- img_raw) : img_raw        # inverts the WHOLE field, border too
-    Ce, _  = CeCo(img, Lbank(wL))
-    _,  Co = CeCo(img, Ebank(wE))
+    Ce, CoL = CeCo(img, Lbank(wL))                   # line bank: quadrature pair (Ce, CoL)
+    _,  Co  = CeCo(img, Ebank(wE))                   # edge bank: Co for the min-gate cap
     D = diag_maps(Ce, Co; delta=delta, kappa=kappa)
     kp = kpts(D.Ew, kthr*maximum(D.Ew))
     swid = stroke_width(img_raw)
@@ -431,6 +455,65 @@ begin
         "genuine end-cap — the suspected mechanism behind the over-firing.")
 end
 
+# ╔═╡ f0000000-0000-0000-0000-000000000016
+md"""
+### A/B — classical symmetric end-stop (Ronan) vs our min-gate
+
+Ronan's notebook obtains end-stopping the **textbook hypercomplex way**: a line-tuned
+simple cell inhibited by the *same* channel displaced **±Δ along its own orientation**,
+then rectified —
+
+```
+C_θ(p) = [ S_θ(p) − β·( S_θ(p+Δ·u_θ) + S_θ(p−Δ·u_θ) ) ]₊
+```
+
+— collapsed at the dominant orientation. A straight stroke has both flanks filled and
+cancels; an end has one empty flank and fires. It is **symmetric** (fires at both ends,
+corners, crossings) and **subtractive**, where ours is **directional** and a **min-gate**.
+
+Below the same mechanism runs on our line bank's **oriented energy**
+`S_θ = E_θ = √(Ce_θ² + Co_θ²)` — the phase-invariant envelope (kept full-wave so it stays
+polarity-invariant; Ronan's own `S_θ` is ON-only). Energy rather than `|Ce|` matters here:
+`|Ce|` of a Gabor has oscillatory side-lobes that `abs` turns into phantom ridges parallel
+to the stroke, which a symmetric end-stop then fires on; the energy envelope has none.
+It reuses **Δ = δ** and adds only β. The symmetric response sits at **p** (~Δ inside the
+true end); ours at **p+δ·u** (the end-cap itself). Compare where the two fire.
+
+**A/B finding (β is critical).** On a plain bar, Ronan's own default **β=0.7 kills the
+true ends** here — `E(end) − β·(behind+ahead)` goes negative because our broad `sigT=12`
+line kernel makes the *behind* flank full-strength while the end-response is still on its
+gentle down-ramp; only diagonal skirt artifacts survive. **β≈0.5** is the working regime:
+the straight middle is suppressed but the ends survive (max `Es` lands on an end). Ronan's
+sharply-peaked `hw≈5` cell tolerates β=0.7; our smooth Gabor energy does not. Lower `w_L`
+(smaller kernel) widens the usable β range.
+"""
+
+# ╔═╡ f0000000-0000-0000-0000-000000000015
+begin
+    Es = endstop_sym(Ce, CoL; delta=delta, beta=beta)
+    kp_sym = kpts(Es, kthr*maximum(Es))
+    Markdown.parse("**min-gate:** $(nkp) keypoints (score at p+δu) · " *
+        "**symmetric** `[E−β(E₊+E₋)]₊` on line-bank energy √(Ce²+Co²), β=$(beta), " *
+        "Δ=δ=$(del_s) px: **$(length(kp_sym))** keypoints (score at p).")
+end
+
+# ╔═╡ f0000000-0000-0000-0000-000000000017
+let
+    kw2=(yflip=true, aspect_ratio=:equal, axis=false, ticks=false, cbar=false,
+         xlims=(1,IMG), ylims=(1,IMG))
+    pa=heatmap(img; c=:grays, legend=:topright, titlefontsize=8,
+               title="min-gate (cyan) vs symmetric (orange)", kw2...)
+    isempty(kp)     || scatter!(pa,[p[2] for p in kp],     [p[1] for p in kp];
+                                mc=:cyan,   msw=0, ms=5, label="min-gate")
+    isempty(kp_sym) || scatter!(pa,[p[2] for p in kp_sym], [p[1] for p in kp_sym];
+                                mc=:orange, msw=0, ms=5, label="symmetric")
+    pb=heatmap(D.Ew; c=:magma, titlefontsize=8,
+               title="min-gate  min(|Ce|,cap) @ p+δu", kw2...)
+    pc=heatmap(Es;   c=:magma, titlefontsize=8,
+               title="symmetric  [E−β·(±Δ flanks)]₊ @ p", kw2...)
+    plot(pa,pb,pc; layout=(1,3), size=(1150,400))
+end
+
 # ╔═╡ f0000000-0000-0000-0000-00000000000e
 md"""
 ### Notes
@@ -472,13 +555,17 @@ md"""
 # ╠═f0000000-0000-0000-0000-000000000006
 # ╠═f0000000-0000-0000-0000-000000000007
 # ╠═f0000000-0000-0000-0000-000000000008
+# ╠═f0000000-0000-0000-0000-000000000014
 # ╠═f0000000-0000-0000-0000-000000000009
 # ╟─f0000000-0000-0000-0000-000000000010
 # ╠═f0000000-0000-0000-0000-000000000011
 # ╟─f0000000-0000-0000-0000-00000000000a
 # ╠═f0000000-0000-0000-0000-000000000013
-# ╟─f0000000-0000-0000-0000-00000000000b
+# ╠═f0000000-0000-0000-0000-00000000000b
 # ╠═f0000000-0000-0000-0000-000000000012
 # ╠═f0000000-0000-0000-0000-00000000000c
 # ╟─f0000000-0000-0000-0000-00000000000d
+# ╟─f0000000-0000-0000-0000-000000000016
+# ╟─f0000000-0000-0000-0000-000000000015
+# ╠═f0000000-0000-0000-0000-000000000017
 # ╟─f0000000-0000-0000-0000-00000000000e

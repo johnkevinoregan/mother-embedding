@@ -277,6 +277,86 @@ That pattern is itself evidence for the closing argument of
 the remaining error may be the hard-typing frame rather than any missing
 component.
 
+---
+
+## 8. A different mechanism — classical symmetric end-stopping (Ronan), A/B'd
+
+A parallel notebook (Ronan) obtains end-stopping the **textbook hypercomplex
+way**, worth recording because it is a genuinely different construction from ours
+and because the A/B produced a clean, quantitative lesson. His pipeline:
+
+1. a recurrent Dale's-law **E/I sheet** (≈80/20) whose narrow-excite / broad-inhibit
+   coupling *emerges* as a Mexican-hat on-centre/off-surround — i.e. contrast
+   normalisation grown from a network rather than a fixed DoG;
+2. oriented **line** simple cells (Gaussian-along × Mexican-hat-across, DC-free,
+   **half-wave rectified**) — the analogue of our `L = |Ce|`, but ON-only;
+3. end-stopping by **symmetric iso-orientation inhibition** along the cell's own axis:
+
+```
+C_θ(p) = [ S_θ(p) − β·( S_θ(p+Δ·u_θ) + S_θ(p−Δ·u_θ) ) ]₊ ,   readout at argmax_θ S_θ
+```
+
+A straight stroke fills both flanks and cancels; an end has one empty flank and
+fires. It is **symmetric** (both ends, corners, crossings) and **subtractive**,
+where our detector B is **directional** and a **min-gate**. His Stage-3 is the
+same "centre − displaced, rectified" skeleton as detector B —
+`min(E_θ(p), [E_θ(p−d·u) − E_θ(p+d·u)]₊)` — with three deliberate differences:
+symmetric vs directional, ON-only line channel vs polarity-invariant energy, and
+a contrast-normalising front end we don't have.
+
+### What was built and tested
+
+Added to `EndpointDiagnosticsPadded.jl` as a toggle (`endstop_sym`, β slider, an
+A/B panel row) so both detectors run on the same letter. Two design choices were
+forced by measurement, not taste:
+
+- **Energy, not `|Ce|`.** Run on the line channel `|Ce|` it fired **16** points on
+  a plain bar: `|Ce|` of a Gabor has oscillatory side-lobes that `abs` turns into
+  phantom ridges *parallel* to the stroke, and a symmetric end-stop happily fires
+  on them. Switching to the line bank's **oriented energy** `√(Ce²+Co²)` (the
+  phase-invariant envelope, no side-lobes) removed them (16 → 8). Both stay exactly
+  polarity-invariant (`max|Es − Es'| = 6.5e-5`).
+
+### The finding — β is scale-matched, and Ronan's own default fails here
+
+On a bar (sweep over `w_L`, `δ`, `β`), **β decides everything**:
+
+| β | true end `Es@(112,142)` | what fires |
+|---|---|---|
+| 0.7 (Ronan's default) | **0.0** — killed | only diagonal *skirt* artifacts |
+| ~0.5 | positive, and the global max **lands on an end** | ends survive, middle suppressed |
+| 0.3 | high everywhere | middle not suppressed → ends aren't local maxima |
+
+The reason β=0.7 annihilates the true ends is **structural, and it is our scale
+regime, not the mechanism**: our line kernel is large (`σ_T = 1.5·w_L = 12` at the
+default), so at a genuine end the *centre* energy is already on a gentle down-ramp
+while the *behind* flank `E(end−Δ)` is still full strength; `E(end) − β·behind`
+then goes negative and rectifies to 0. Ronan's sharply-peaked `hw≈5` Mexican-hat
+cell keeps the end at its peak while the flanks fall off fast, so it tolerates
+β=0.7 — and his recurrent front end suppresses the broad skirt that our large
+Gabor leaves around every stroke (its dominant orientation there is *diagonal*,
+where the skirt artifacts live). Lowering `w_L` widens the usable β range, exactly
+as this explanation predicts.
+
+This is the §3 constraint again, from the other side: **symmetric end-stopping
+wants a cell sharply peaked *relative to the stroke*, and at ~8 stroke-widths per
+letter with 13 px strokes our operators are deliberately too broad for it.** It is
+also a third confirmation of structural lesson (1) — *rectify first*: his
+subtraction detects a termination only because it sits between rectified/energy
+maps; the same subtraction on the raw (signed) response is a linear operator and
+marks nothing.
+
+At the working default (β=0.5) the symmetric detector is **markedly sparser than
+our min-gate** at equal threshold — EMNIST O 23→14, T 21→11, X 18→10, L 10→5,
+I 6→5. Whether that sparsity drops *spurious* fires or *real* ends is a visual,
+letter-by-letter judgement the A/B panels now support; it has not been scored.
+
+**Two things worth carrying forward regardless:** the *recurrent contrast
+normalisation* as a front end before our Gabors (it would suppress the broad
+energy skirt that defeats every gate here), and the *symmetric both-ends*
+subtraction as a cheap corner/crossing channel — with the caveat above that it
+must be paired with a filter sharply peaked relative to the stroke.
+
 ## Next
 
 1. **Test H1** — branch profile on `L` instead of `E`; check whether O's corner
@@ -285,3 +365,7 @@ component.
    mass) so the invariance is a tested property rather than a convention.
 3. Take seriously the §3 finding — ~8 stroke-widths per letter — as a constraint
    on how much "local context" any keypoint operator can have at this resolution.
+4. Try Ronan's **recurrent on/off normalisation** as a front end before the Gabor
+   bank, and re-run the §8 symmetric end-stop against it — the prediction is that
+   normalising away the broad energy skirt is what makes symmetric end-stopping
+   (and possibly our own gates) behave at this scale.
