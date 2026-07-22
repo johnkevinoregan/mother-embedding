@@ -49,12 +49,16 @@ The point of the notebook is to reproduce and document one specific finding:
 ### The encoding
 
 Each extremum is a node with a **K-value bin** (a curvature-type label) and,
-optionally, a **quadrant** (relative to the ink centroid — position *within* the
+optionally, a **quadrant** (relative to the |∇I|-weighted centroid — position *within* the
 letter). VSA operations: **bind** `⊙` = circular convolution, **bundle** = sum,
 **similarity** = cosine. Node symbol `= C[K-bin]` or `C[K-bin] ⊙ Q[quadrant]`.
 A letter's vector is the bundle either of its **nodes** (a *bag*) or of its **MST
 edges** (`bind(nodeᵢ, nodⱼ)` — the *topology*). Four combinations, scored by
 leave-one-out nearest-neighbour accuracy.
+
+Because `K`, the `|∇I|`-weighted centroid, and hence every quadrant are built only
+from squared/abs derivatives, the whole encoding is **exactly polarity-invariant**
+(verified: constellations and quadrant assignments are identical under `I → 1−I`).
 """
 
 # ╔═╡ a0000000-0000-0000-0000-00000000000a
@@ -160,11 +164,14 @@ begin
         pts
     end
 
-    # ---- ink centroid of the 224 field ----
+    # ---- |∇I|-weighted centroid: centre of the stroke *edges*. Polarity-invariant
+    # (∇I flips sign under inversion, |∇I| does not), unlike an ink (intensity) centroid.
     function centroid(img)
-        tot = 0f0; sx = 0f0; sy = 0f0
+        Ix, Iy, _, _, _ = jet(img, 3f0)                 # gradient at the finest scale
+        sx = 0f0; sy = 0f0; tot = 0f0
         for y in 1:IMG, x in 1:IMG
-            img[y, x] > 0.5f0 && (tot += 1; sx += x; sy += y)
+            w = sqrt(Ix[y, x]^2 + Iy[y, x]^2)           # |∇I|
+            sx += w*x; sy += w*y; tot += w
         end
         tot > 0 ? (sx/tot, sy/tot) : (Float32((IMG+1)/2), Float32((IMG+1)/2))
     end
@@ -297,8 +304,8 @@ reproduces the documented result:
   curvature extrema, on its own, does **not** separate letters.
 - **Coarse position is the strongest ingredient.** `nodes: K-bin ⊙ quadrant` — a bag
   of *positioned* typed keypoints, no graph — is the best row. Just knowing *which
-  quadrant* (relative to the ink centroid) each extremum sits in lifts the census by
-  ~11 points. This is the handoff's original "bind each keypoint to its
+  quadrant* (relative to the |∇I|-weighted centroid) each extremum sits in lifts the census by
+  ~8 points. This is the handoff's original "bind each keypoint to its
   object-relative position", now confirmed to beat the topology.
 - **Read the LOO column, not the gap.** The census has the *largest* raw within−across
   gap yet the *weakest* accuracy — when everything sits at cosine ≈ 0.8, the gap is not
