@@ -25,19 +25,19 @@ begin
 end
 
 # ╔═╡ a0000000-0000-0000-0000-000000000002
-# Reuse the exact curvature + extrema pipeline (and EMNIST loader) from the
-# GaussianCurvatureEMNIST notebook, so this is a true replication rather than a copy.
-# Gives us: em, curvature, local_extrema, upsample, embed, synth_img, IMG.
-include(joinpath(@__DIR__, "GaussianCurvatureEMNIST.jl"));
+begin
+    include(joinpath(@__DIR__, "..", "LoadEMNIST.jl"))   # plain module — safe to include
+    using .LoadEMNIST
+end
 
 # ╔═╡ a0000000-0000-0000-0000-000000000003
 md"""
 # Curvature-extrema constellations in FPE — position vs. pure topology
 
-Encodes each EMNIST letter as a set of **Gaussian-curvature extrema across scale**
-(from `GaussianCurvatureEMNIST.jl`), lifts that constellation into a single
-**FPE / HRR vector**, and asks the diagnosticity question: is a letter's vector
-closer to *other instances of the same letter* than to *different letters*?
+Encodes each EMNIST letter as a set of **Gaussian-curvature extrema across scale**,
+lifts that constellation into a single **FPE / HRR vector**, and asks the
+diagnosticity question: is a letter's vector closer to *other instances of the same
+letter* than to *different letters*?
 
 The point of the notebook is to reproduce and document one specific finding:
 
@@ -57,10 +57,93 @@ edges** (`bind(nodeᵢ, nodⱼ)` — the *topology*). Four combinations, scored 
 leave-one-out nearest-neighbour accuracy.
 """
 
+# ╔═╡ a0000000-0000-0000-0000-00000000000a
+begin
+    const IMG0=112; const PAD=56; const IMG=IMG0+2PAD   # 224 working field
+    const SCALES = Float32[3, 6, 12]                    # 3 scales (the § finding used these)
+end
+
+# ╔═╡ a0000000-0000-0000-0000-00000000000b
+# Gaussian curvature at scale σ — mirrors GaussianCurvatureEMNIST.jl (copied so this
+# notebook stays self-contained; including that *Pluto* notebook would clobber @bind).
+begin
+    function dog1d(σ)
+        r=max(1,ceil(Int,3.5σ)); xs=Float32.(-r:r)
+        g=exp.(-xs.^2 ./ (2σ^2)); g ./= sum(g)
+        g1=-(xs ./ σ^2).*g;              g1 .-= mean(g1)      # ∂ₓGσ  (DC-free)
+        g2=((xs.^2 .- σ^2) ./ σ^4).*g;   g2 .-= mean(g2)      # ∂ₓₓGσ (DC-free)
+        g, g1, g2
+    end
+    function conv_cols(A,k)
+        H,W=size(A); r=length(k)÷2; out=similar(A)
+        @inbounds for y in 1:H, x in 1:W
+            s=0f0; for j in -r:r; s+=A[y,clamp(x+j,1,W)]*k[j+r+1]; end; out[y,x]=s
+        end; out
+    end
+    function conv_rows(A,k)
+        H,W=size(A); r=length(k)÷2; out=similar(A)
+        @inbounds for y in 1:H, x in 1:W
+            s=0f0; for j in -r:r; s+=A[clamp(y+j,1,H),x]*k[j+r+1]; end; out[y,x]=s
+        end; out
+    end
+    function jet(img,σ)
+        g,g1,g2=dog1d(σ)
+        Cg1=conv_cols(img,g1); Cg=conv_cols(img,g); Cg2=conv_cols(img,g2)
+        Ix =conv_rows(Cg1,g);  Ixy=conv_rows(Cg1,g1)
+        Iy =conv_rows(Cg ,g1); Iyy=conv_rows(Cg ,g2)
+        Ixx=conv_rows(Cg2,g)
+        Ix,Iy,Ixx,Iyy,Ixy
+    end
+    function curvature(img,σ; quantity=:K, snorm=false)
+        Ix,Iy,Ixx,Iyy,Ixy=jet(img,σ)
+        detH=Ixx.*Iyy .- Ixy.^2
+        M = quantity==:detH ? detH : detH ./ (1f0 .+ Ix.^2 .+ Iy.^2).^2
+        snorm ? M .* Float32(σ)^4 : M
+    end
+end
+
+# ╔═╡ a0000000-0000-0000-0000-00000000000c
+# EMNIST upsample/embed + per-scale local extrema — also mirrors GaussianCurvatureEMNIST.jl.
+begin
+    @inline function bilinear(M,y,x)
+        H,W2=size(M); (y<1||x<1||y>H||x>W2)&&return 0f0
+        y0,x0=floor(Int,y),floor(Int,x); y1,x1=min(y0+1,H),min(x0+1,W2); fy,fx=y-y0,x-x0
+        (1-fy)*(1-fx)*M[y0,x0]+fy*(1-fx)*M[y1,x0]+(1-fy)*fx*M[y0,x1]+fy*fx*M[y1,x1]
+    end
+    function upsample(img)
+        H,W2=size(img); out=zeros(Float32,IMG0,IMG0)
+        for i in 1:IMG0,j in 1:IMG0
+            out[i,j]=bilinear(img,Float32(1+(i-1)*(H-1)/(IMG0-1)),Float32(1+(j-1)*(W2-1)/(IMG0-1)))
+        end
+        out
+    end
+    embed(letter)=(out=zeros(Float32,IMG,IMG); out[PAD+1:PAD+IMG0,PAD+1:PAD+IMG0].=letter; out)
+    function local_extrema(K; frac=0.30f0, r=8, topN=8, w=2)
+        m=maximum(abs,K); m==0f0 && return Tuple{Int,Int,Float32}[]
+        thr=frac*m; cand=Tuple{Int,Int,Float32}[]
+        for y in (w+1):(IMG-w), x in (w+1):(IMG-w)
+            v=K[y,x]; abs(v)<thr && continue
+            ismax=true; ismin=true
+            for dy in -w:w, dx in -w:w
+                (dy==0&&dx==0)&&continue; n=K[y+dy,x+dx]
+                n>=v && (ismax=false); n<=v && (ismin=false)
+            end
+            (ismax||ismin) && push!(cand,(y,x,v))
+        end
+        sort!(cand, by=p->-abs(p[3])); keep=Tuple{Int,Int,Float32}[]
+        for c in cand
+            any(hypot(c[1]-k[1],c[2]-k[2])<r for k in keep) && continue
+            push!(keep,c); length(keep)>=topN && break
+        end
+        keep
+    end
+end
+
+# ╔═╡ a0000000-0000-0000-0000-00000000000d
+em = load_emnist(n_images_to_load=8000, n_classes=47);
+
 # ╔═╡ a0000000-0000-0000-0000-000000000004
 begin
-    const SCALES = Float32[3, 6, 12]          # 3 scales (§ finding used these)
-
     # ---- FPE / HRR primitives ----
     bindv(a, b) = real(ifft(fft(a) .* fft(b)))     # binding = circular convolution
     unitv(v)    = (n = norm(v); n > 0 ? v ./ n : v)
@@ -104,7 +187,6 @@ begin
         E
     end
 
-    # quadrant of (x,y) about a centre (1..4)
     quadof(x, y, cx, cy) = (x >= cx ? 1 : 0) + (y >= cy ? 2 : 0) + 1
     md"*FPE primitives + constellation / centroid / MST / quadrant defined.*"
 end
@@ -124,7 +206,7 @@ random seed $(@bind seed Slider(1:1:20, default=1, show_value=true))
 
 # ╔═╡ a0000000-0000-0000-0000-000000000006
 # Heavy step: extract every instance's constellation. Depends only on letters /
-# instance count / scales, so the cheap encoding sliders below don't retrigger it.
+# instance count, so the cheap encoding sliders below don't retrigger it.
 data = let
     d = Tuple{String,Vector{NTuple{4,Float32}},Float32,Float32}[]
     for c in chars, i in 1:Ninst
@@ -181,17 +263,17 @@ results = let
     end
 
     lab = [c for (c, _, _, _) in data]
-    variants = (("nodes: K-bin only (census)",     false, false),
-                ("nodes: K-bin ⊙ quadrant",         false, true),
+    variants = (("nodes: K-bin only (census)",       false, false),
+                ("nodes: K-bin ⊙ quadrant",           false, true),
                 ("edges: K-bin only (pure topology)", true,  false),
-                ("edges: K-bin ⊙ quadrant",          true,  true))
+                ("edges: K-bin ⊙ quadrant",           true,  true))
     [(nm, score([gvec(pts, cx, cy, ue, up) for (_, pts, cx, cy) in data], lab)...)
      for (nm, ue, up) in variants]
 end;
 
 # ╔═╡ a0000000-0000-0000-0000-000000000008
 let
-    chance = round(100 / length(chars), digits=1)
+    chance = round(100 / max(length(chars),1), digits=1)
     hdr = "**$(length(chars)) letters** ($(join(chars, ", "))), $(Ninst) instances each " *
           "— chance = $(chance)% — DIM=$(DIM), bins=$(nbins), γ=$(gamma), seed=$(seed)\n\n" *
           "| encoding | within | across | gap | **LOO** |\n|:--|--:|--:|--:|--:|\n"
@@ -239,6 +321,10 @@ Recorded in `PROGRESS_2026-07-21.md` §7.
 # ╠═a0000000-0000-0000-0000-000000000001
 # ╠═a0000000-0000-0000-0000-000000000002
 # ╟─a0000000-0000-0000-0000-000000000003
+# ╠═a0000000-0000-0000-0000-00000000000a
+# ╠═a0000000-0000-0000-0000-00000000000b
+# ╠═a0000000-0000-0000-0000-00000000000c
+# ╠═a0000000-0000-0000-0000-00000000000d
 # ╠═a0000000-0000-0000-0000-000000000004
 # ╟─a0000000-0000-0000-0000-000000000005
 # ╠═a0000000-0000-0000-0000-000000000006
