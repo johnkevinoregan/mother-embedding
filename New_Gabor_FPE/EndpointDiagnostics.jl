@@ -269,7 +269,7 @@ end
 # ╔═╡ e0000000-0000-0000-0000-000000000009
 # ---- synthetic figures + EMNIST ----
 begin
-    function bar!(img,y0,x0,y1,x1,r)
+    function drawbar!(img,y0,x0,y1,x1,r)
         n=round(Int,hypot(y1-y0,x1-x0))*2
         for t in range(0,1,length=n)
             yc=y0+t*(y1-y0); xc=x0+t*(x1-x0)
@@ -290,11 +290,11 @@ begin
     end
     z()=zeros(Float32,IMG,IMG)
     function synth_img(name,r)
-        name=="bar"    && return bar!(z(),56,26,56,86,r)
-        name=="plus"   && return (i=z();bar!(i,26,56,86,56,r);bar!(i,56,26,56,86,r))
-        name=="T"      && return (i=z();bar!(i,36,26,36,86,r);bar!(i,36,56,86,56,r))
-        name=="X"      && return (i=z();bar!(i,26,26,86,86,r);bar!(i,26,86,86,26,r))
-        name=="L-shape"&& return (i=z();bar!(i,26,40,80,40,r);bar!(i,80,40,80,86,r))
+        name=="bar"    && return drawbar!(z(),56,26,56,86,r)
+        name=="plus"   && return (i=z();drawbar!(i,26,56,86,56,r);drawbar!(i,56,26,56,86,r))
+        name=="T"      && return (i=z();drawbar!(i,36,26,36,86,r);drawbar!(i,36,56,86,56,r))
+        name=="X"      && return (i=z();drawbar!(i,26,26,86,86,r);drawbar!(i,26,86,86,26,r))
+        name=="L-shape"&& return (i=z();drawbar!(i,26,40,80,40,r);drawbar!(i,80,40,80,86,r))
         return ring!(z(),56,56,28,r)          # "O (ring)"
     end
     const SYNTH=["bar","plus","T","X","L-shape","O (ring)"]
