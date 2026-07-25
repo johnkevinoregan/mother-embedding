@@ -16,6 +16,9 @@ first cannot work:
   circular harmonics = FPE with integer frequencies). **This is the current line
   of work.**
 
+A third subfolder, **`ExptsWithGlobalFourier/`**, asks the same questions with a
+Fourier rather than a Gabor front end — see its own README.
+
 See `PROGRESS_2026-07-21.md` for the latest writeup (and the earlier
 `PROGRESS_*.md` files for the history) — what's implemented, what's still to come,
 and the reasoning behind the changes.
