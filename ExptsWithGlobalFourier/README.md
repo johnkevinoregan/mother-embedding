@@ -60,9 +60,42 @@ DC removal, polarity):
 - **Not rotation-invariant** — rotating the letter rotates the whole `(v,u)` grid.
   Recovering that is what the ring/harmonic construction in `New_Gabor_FPE/` does.
 
-### Running
+## `TicTacToeFourierSignature.jl` + `TicTacToeSignature.md`
+
+The motivating question: tile the character with an **N×N grid** (tic-tac-toe) and
+ask whether the first two or three Fourier coefficients of each cell give a signature
+of *"vertical / horizontal / diagonal stroke", "blob", "loop"* in that area.
+
+Each cell is summarised by moments of its low-order power spectrum — ink `a₀`,
+structure `ac`, orientation tensor `E₂` (anisotropy + stroke angle), `E₄`, and the
+radial ring profile `e₁,e₂,e₃`. Sampling is selectable: the literal DFT lattice
+`(v,u)`, or the same integral on a polar `ω×θ` grid.
+
+**Findings (all measured; full detail in `TicTacToeSignature.md`):**
+
+- **Orientation: works.** Bar swept through 12 angles is read to **0.16°** with polar
+  sampling; the square DFT lattice is biased toward 0/45/90/135° by up to **3.5°**
+  (its own 4-fold symmetry leaking into the 2nd harmonic). `|E₂|` ≈ 0.51–0.57 for one
+  clean stroke, **0.000** for a plus, X, disc or ring.
+- **Crossings: `|E₄|` fails.** Single bar 0.18–0.23, plus 0.085, X 0.142 — a single
+  stroke rings the 4th harmonic *more* than a crossing does.
+- **Loop vs blob: only if the cell is sized to the loop.** Disc vs ring of equal outer
+  size gives `e₂/e₁` = 0.015 vs 1.33 (the `J₀` zero, as Bessel predicts), but the
+  ratio confounds hollowness with object-size-relative-to-cell: at N=1 the ordering
+  inverts, and on real EMNIST at 3×3 the loop score does not pick out `O`.
+- **The 9-cell signature is strongly diagnostic of letter identity** — 360 EMNIST
+  instances, 12 classes, LOO nearest-class-mean, chance 8.3 %:
+  **ink+orientation (27 numbers) = 76.1 %**, orientation alone (18) = 75.3 %, ink
+  alone = 56.7 %, no grid at all = 49.7 %, 4×4 = 77.8 %. The previous best descriptor
+  in this project (global shape harmonics) reached ≈ 61 %.
+
+So: the answer to the original question is *yes* for stroke orientation, *no* for
+loops — and the unplanned result is that the crude 3×3 orientation signature beats
+every local descriptor tried in this project so far.
+
+## Running
 
 ```bash
 cd /home/kevin/claude-code/mother-embedding
-julia --project=. -e 'using Pluto; Pluto.run(host="0.0.0.0", port=1235, launch_browser=false, notebook="ExptsWithGlobalFourier/LocalFourierPatches.jl")'
+julia --project=. -e 'using Pluto; Pluto.run(host="0.0.0.0", port=1235, launch_browser=false, notebook="ExptsWithGlobalFourier/TicTacToeFourierSignature.jl")'
 ```
