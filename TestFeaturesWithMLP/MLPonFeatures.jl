@@ -431,7 +431,7 @@ differences below ~0.5 points are not meaningful.**
 
 A full standalone write-up — defining Zernike moments, the Fourier grid, FPE, binding
 and bundling from scratch, with the interpretation — is in
-**`../README_MLP_FPE_Experiment.md`**.
+**`README_MLP_FPE_Experiment.md`** (this directory).
 
 **1. Depth doesn't help** (raw 156, 30 epochs): 1×256 **85.87** / 1×512 85.56 /
 2×512 85.29 / 3×512 85.03, all peaking at 86.6–86.8. The features have already done the

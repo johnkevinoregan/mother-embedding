@@ -5,7 +5,7 @@ repository, or that you already know what Zernike moments, Fractional Power Enco
 or Vector-Symbolic Architectures are. Every term is defined where it is first used, and
 every number quoted was measured by the runs described below.
 
-Date: 2026-07-26. Companion notebook: `ExptsWithZernike/MLPonFeatures.jl`.
+Date: 2026-07-26. Companion notebooks: `MLPonFeatures.jl` and `ConvComparison.jl`, in this directory.
 
 ---
 
@@ -372,7 +372,7 @@ corrects the earlier claim.
 
 Everything above uses a network with **no convolution at all**. Since convolution is the
 standard tool for images, a matched convolutional row was added afterwards
-(`ExptsWithZernike/ConvComparison.jl`):
+(`ConvComparison.jl`, in this directory):
 
 ```
 28×28 image → Conv 11×11, stride 6, 32 kernels, ReLU → 3×3×32 = 288 → Dense 256 ReLU → 47
@@ -576,14 +576,14 @@ order of magnitude — here, `D = 256` classifies as well as `D = 1024`, while n
 
 ## 9. Reproducing
 
-`ExptsWithZernike/MLPonFeatures.jl` is a Pluto notebook implementing all of the above
+`MLPonFeatures.jl` is a Pluto notebook implementing all of the above
 with the arms, code sizes and bandwidths on sliders. Feature extraction over the full
 131,600 images takes about 105 s; individual training runs range from 12 s (raw
 features) to ~20 min (the widest codes).
 
 ```bash
 cd mother-embedding
-julia --project=. -t 4 -e 'using Pluto; Pluto.run(notebook="ExptsWithZernike/MLPonFeatures.jl")'
+julia --project=. -t 4 -e 'using Pluto; Pluto.run(notebook="TestFeaturesWithMLP/MLPonFeatures.jl")'
 ```
 
 The `-t 4` matters: the FPE encoders are threaded, and are slow without it.

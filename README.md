@@ -21,6 +21,14 @@ its own README: **`ExptsWithGlobalFourier/`** (local and per-region Fourier
 descriptions) and **`ExptsWithZernike/`** (one global Zernike-moment description of
 the whole character).
 
+**`TestFeaturesWithMLP/`** then scores the features those two produce with a real
+classifier instead of a deliberately weak one — a plain fully-connected MLP trained
+the way EMNIST normally is, on the official train/test split — and compares feeding it
+the raw feature values against embedding them in FPE codes. Its
+`README_MLP_FPE_Experiment.md` is **self-contained**: it defines Zernike moments, the
+Fourier grid, FPE, binding and bundling from scratch, so it can be read without any of
+the above.
+
 See `PROGRESS_2026-07-21.md` for the latest writeup (and the earlier
 `PROGRESS_*.md` files for the history) — what's implemented, what's still to come,
 and the reasoning behind the changes.
