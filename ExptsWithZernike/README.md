@@ -139,6 +139,39 @@ Why it was predictable: Zernike's free invariance is rotation about a centre and
 translation-invariant per cell and not rotation-invariant. Each is blind exactly where
 the other sees.
 
+## `AllClassesDiagnosticity.jl`
+
+Every other number in this project is measured on the same **12 uppercase letters**
+inherited from `New_Gabor_FPE/KeyPointDiagnosticity.md`. This notebook re-runs the same
+two descriptors on the **full EMNIST-balanced 47-class set** (10 digits, 26 uppercase,
+11 lowercase), chance **2.13 %**. Class set, instances/class, `n_max`, grid size and
+sampling are all on sliders.
+
+| descriptor | 47 classes | *12 classes* |
+|:--|--:|--:|
+| Z — global Zernike | 55.5 % (η² 57.4 %) | *76.4 % (77.5 %)* |
+| F — Fourier 3×3 | 58.2 % (η² 60.4 %) | *74.2 % (77.2 %)* |
+| **Z + F** | **62.5 % (η² 65.3 %)** | ***82.8 % (84.2 %)*** |
+| oracle ceiling | 68.4 % | *85.3 %* |
+
+- **The ranking of the two blocks flips.** Zernike leads on 12 uppercase letters; the
+  Fourier grid leads on all 47 (58.2 vs 55.5, and 60.4 vs 57.4 weighted). Digits and
+  lowercase add classes that differ by *where* strokes are rather than by global shape,
+  which is what a spatial grid is for. **Spatial layout scales with class count better
+  than global shape does.**
+- **Complementarity survives but shrinks**: +4.3 points from concatenation vs +6.4 at
+  12 classes. "Neither correct" more than doubles (14.7 % → 31.6 %), so more of the
+  problem is simply beyond both descriptors. In information terms the harder task is
+  handled better though — 62.5 % is **29× chance**, against 10× on the 12-class set.
+- **η²-weighting matters more here** (+2.8 points vs +1.4): with 47 class means
+  estimated from 29 examples each, the equal-weighted nearest-mean classifier dilutes
+  more easily.
+- **A quarter of the remaining error is the label set.** Top confusions are `F`→`f`,
+  `0`→`O`, `2`→`Z`, `q`→`9`, `1`→`I`, `L`→`1` — pairs that are the same handwritten
+  shape. Merging visually identical classes: 65.3 % → **74.0 %**; **123 of 489 errors
+  (25 %)** are inside a homoglyph group. Case-insensitive scoring alone recovers only
+  ~2 points, so this is the digit↔letter collisions, not upper/lower.
+
 ## Running
 
 ```bash
