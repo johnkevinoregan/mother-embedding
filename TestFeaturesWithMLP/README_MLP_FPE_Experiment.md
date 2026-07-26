@@ -540,6 +540,69 @@ order of magnitude — here, `D = 256` classifies as well as `D = 1024`, while n
 
 ---
 
+## 7.7 Why does everything stop at ~86 %?
+
+Every arm above lands between 82 % and 86.5 %, whichever representation is used, and
+even a 16-kernel convolution is only a couple of points behind a 32-kernel one. That
+clustering demanded an explanation, so three further diagnostics were run
+(`CeilingDiagnostics.jl`). The answer is mostly **the dataset**, not the models.
+
+| model | strict | homoglyphs merged | gain | share of errors |
+|:--|--:|--:|--:|--:|
+| **156 hand features** | **86.43 %** | **92.53 %** | +6.10 | 45 % |
+| **small CNN** (2 conv, stride 1, pooling) | 86.46 % | **92.70 %** | +6.24 | 46 % |
+| conv 11×11 s6 ×32, learned | 84.56 % | 90.80 % | +6.23 | 40 % |
+| pixels 784, no conv | 83.65 % | 89.91 % | +6.26 | 38 % |
+| conv ×64, frozen random | 80.48 % | 86.71 % | +6.23 | 32 % |
+| conv ×32, frozen random | 78.62 % | 84.88 % | +6.27 | 29 % |
+| conv ×16, frozen random | 73.19 % | 79.55 % | +6.36 | 24 % |
+| conv ×8, frozen random | 63.44 % | 69.82 % | +6.38 | 17 % |
+
+"Merged" treats each of `0`/`O`, `1`/`I`/`L`, `2`/`Z`, `5`/`S`, `9`/`g`/`q` as a single
+class — characters that are genuinely the **same handwritten shape**, where the label
+asks for a distinction the ink does not contain.
+
+**(i) Nearly half the best model's error is undecidable labels.** Merging lifts the
+feature arm from **86.43 % to 92.53 %**: 45 % of what remained was homoglyph confusion.
+
+**(ii) The homoglyph error is the same absolute size for every model.** Look down the
+`gain` column: **+6.10 to +6.38** across models spanning **63 % to 86 %** accuracy, four
+architectures, learned and frozen alike. A model at 63 % makes as many `0`-vs-`O`
+mistakes as one at 86 %. That is what a genuine task ceiling looks like — every model
+fails on the *same* images, and improving a model only reduces the other kind of error.
+It also explains the clustering directly: once the decidable error is mostly gone,
+everything sits just above a shared ~6.2-point floor.
+
+**(iii) The convolution really is learning — a prediction of mine that was wrong.** I
+expected freezing the kernels at random initialisation to cost little, on the
+random-features argument that a strong head compensates for an arbitrary basis, and that
+this would explain why the filters look unstructured. Measured: learned-32 reaches
+**84.56 %** against frozen-random-32's **78.62 %**, and frozen-random is still below
+learned-32 even at 64 kernels (80.48 %). Learning the kernels is worth ~6 points. The
+filters are unstructured *to the eye* but functionally doing real work; they never
+resemble textbook edge detectors because with stride 6 there are only 9 positions per
+image, no pooling to reward translation tolerance, and no second convolution that would
+need clean oriented edges as its input.
+
+**(iv) A proper CNN buys ~1.3 points, not the 5 I guessed.** A conventional stride-1 CNN
+with max-pooling reaches **87.76 % at its best epoch** and 86.46 % at epoch 15 — against
+the features' 86.43 %. The final-epoch figures are *statistically identical* (0.03 apart
+against a 0.25 % standard error). It converges very fast (84.22 % after one epoch, peak
+at epoch 4) then drifts down: ordinary overfitting on a 15-epoch budget with no
+augmentation or schedule. Published ≈ 91 % convolutional results are not contradicted —
+they need exactly the machinery excluded here to keep the arms comparable. What this
+establishes is narrower: **the ~86 % plateau is not an artefact of avoiding convolution.**
+
+**Taken together:** of the ~13.6 % error the best model makes, roughly **6.2 points are
+undecidable** and only ~7.4 points are addressable at all. Within that margin, four quite
+different representations span barely 3 points. The features look good less because they
+approach some limit of shape description than because the task leaves little room to
+separate good descriptions from very good ones.
+
+**Practical consequence.** For comparing *representations*, this dataset is close to
+exhausted. Quote the homoglyph-merged number, which has more headroom and is less
+dominated by the floor — or move to a task whose labels are decidable from the ink.
+
 ## 8. Summary of conclusions
 
 1. **The 156 hand-designed features are genuinely good**: 86.4 % on 47-way EMNIST,
@@ -559,6 +622,13 @@ order of magnitude — here, `D = 256` classifies as well as `D = 1024`, while n
    algebraic composability, a 0.6-point cost is a bargain.
 6. **Recoverability and discriminability are different capacities.** A bundle too narrow
    for its contents to be read back at all can still be classified almost perfectly.
+
+7. **Most of the remaining error is the dataset, not the models.** Merging the classes
+   that are the same handwritten shape lifts the best arm from 86.4 % to **92.5 %** — 45 %
+   of its error was undecidable — and the absolute size of that error is **the same
+   (+6.1 to +6.4 points) for every model from 63 % to 86 % accuracy**. A conventional
+   stride-1 CNN with pooling reaches only 87.8 % at best on the same budget, so the ~86 %
+   plateau is a property of EMNIST-Balanced, not of avoiding convolution.
 
 ### What this does not show
 
