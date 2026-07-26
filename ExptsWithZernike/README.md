@@ -66,6 +66,44 @@ of, simply cutting the image into nine boxes and measuring stroke orientation in
 Spatial partitioning is worth about as much as a better global basis, and the two are
 complementary rather than competing.
 
+## `TicTacToeZernike.jl`
+
+The grid counterpart: an N×N grid (3×3 default) over the character, each cell
+described by Zernike moments on **its own disc** — the direct Zernike answer to
+`ExptsWithGlobalFourier/TicTacToeFourierSignature.jl`. Per cell: ink `a₀`, structure
+`ac`, orientation `O₂` (pooled `m=2`), crossing `f₄` (`m=4` power share), symmetric
+content `m₀`, and `loop = −Re A₄₀/(|A₂₀|+|A₄₀|)`.
+
+**Better features, worse classification — and not for the reason you'd guess.**
+
+- **Orientation to 0.24°** from `−arg(A₂₂)/2` (0.64° pooled), vs 3.48° for the square
+  DFT lattice. Zernike's angular basis *is* `e^{imθ}`, so no lattice bias.
+- **`f₄` detects crossings, where the Fourier `|E₄|` failed**: plus 0.699, X 0.689 vs a
+  single bar 0.187 — a 3.6× separation. (Fourier had a single bar at 0.179 *beating* a
+  plus at 0.085.)
+- **Loops are read off the *sign* of `A₄₀`**: rings +0.75/+0.81, disc −0.29, bar −0.45 —
+  and robust to ring thickness, where the Fourier `e₂/e₁` flipped its verdict. On real
+  EMNIST, `O`-vs-rest AUC **0.839** at 1×1 in the *right* direction (Fourier managed
+  0.80 but sign-inverted), decaying to 0.627 at 2×2 and 0.545 at 3×3 — the loop must
+  fit inside a cell.
+- **But it classifies at only ~66 %** (3×3: 64.4–65.6 %, 4×4: 66.9 %) against 76.1 % for
+  the Fourier grid and 76.4 % for global Zernike.
+- **The cause is a position/orientation confound, not the hard disc edge.** Giving the
+  *Fourier* descriptor a hard disc window costs nothing (74.7 → 73.9 %), so truncation
+  is not it. Zernike moments are taken **about the disc centre**, so position leaks
+  into shape: an isotropic blob — no orientation at all — slid off-centre reports its
+  **position angle** (30°→31.9°, 60°→58.1°, 90°→90.0°, 120°→121.9°). The Fourier cell
+  descriptor is immune because it is built from `|F|²`, which discards phase. Across
+  749 inked EMNIST cells the two orientation estimates differ by a median **43.3°**
+  (45° = chance), despite agreeing to <1° on a clean centred bar.
+- This retroactively explains why fitting the disc was worth 8 points in
+  `ZernikeCharacterMoments.jl`: fitting **centres the object**, which is exactly the
+  condition Zernike needs. A grid cell cannot.
+
+The transferable lesson: **tiling space wants a translation-invariant cell descriptor**
+(Fourier power spectrum), **describing one centred object wants a rotation-invariant
+one** (Zernike). Using either for the other's job costs about 10 points.
+
 ## Running
 
 ```bash
