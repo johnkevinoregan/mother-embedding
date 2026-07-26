@@ -29,9 +29,13 @@ the raw feature values against embedding them in FPE codes. Its
 Fourier grid, FPE, binding and bundling from scratch, so it can be read without any of
 the above.
 
-See `PROGRESS_2026-07-21.md` for the latest writeup (and the earlier
+See `PROGRESS_2026-07-26.md` for the latest writeup (and the earlier
 `PROGRESS_*.md` files for the history) — what's implemented, what's still to come,
-and the reasoning behind the changes.
+and the reasoning behind the changes. Its §9 is worth reading before trusting any
+older accuracy comparison: the leave-one-out nearest-class-mean protocol used
+throughout the earlier work turns out to understate features by ~24 points and, in one
+recorded case, to have manufactured a qualitative conclusion that a stronger
+classifier does not reproduce.
 
 ## Requirements
 
