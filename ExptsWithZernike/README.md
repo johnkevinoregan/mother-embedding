@@ -124,10 +124,13 @@ sampling choice barely matters). The previous best anywhere in this project was 
   Z alone. Uninformative columns actively hurt the equal-weighted nearest-mean
   classifier, so the real +6.4 is complementarity.
 - **The two fail on different images**: both correct 65.3 %, only Zernike 11.1 %, only
-  Fourier 8.9 %, neither 14.7 %. An oracle picking the right block would reach 85.3 %;
-  the concatenation gets 82.8 %, capturing 72 % of that headroom (91 % of the images
-  Zernike misses and Fourier catches). Little is left for a smarter fusion rule — the
-  ceiling is the 14.7 % *both* miss.
+  Fourier 8.9 %, neither 14.7 %. A magic per-image *chooser* would reach 85.3 % — the
+  **best-of-two selection bound** — and the concatenation gets 82.8 %. That bound does
+  not constrain concatenation, though: selecting between two classifiers can never fix
+  an image both get wrong, whereas a joint feature space can. Measured: of the 53
+  images neither block gets right, the concatenation recovers 6 (10 with η² weighting),
+  while losing 15 that one block had. What actually limits the pair is the 14.7 % that
+  *both* miss.
 - **Per class:** `E` 66.7 (Z) / 76.7 (F) → **93.3 %**; `K` 76.7 / 63.3 → **86.7 %**.
   `O` is the exception where Fourier alone (96.7 %) beats the pair (90.0 %). `L` stays
   weak (36.7 / 50.0 → 56.7 %).
@@ -152,7 +155,7 @@ sampling are all on sliders.
 | Z — global Zernike | 55.5 % (η² 57.4 %) | *76.4 % (77.5 %)* |
 | F — Fourier 3×3 | 58.2 % (η² 60.4 %) | *74.2 % (77.2 %)* |
 | **Z + F** | **62.5 % (η² 65.3 %)** | ***82.8 % (84.2 %)*** |
-| oracle ceiling | 68.4 % | *85.3 %* |
+| best-of-two selection bound | 68.4 % | *85.3 %* |
 
 - **The ranking of the two blocks flips.** Zernike leads on 12 uppercase letters; the
   Fourier grid leads on all 47 (58.2 vs 55.5, and 60.4 vs 57.4 weighted). Digits and
@@ -184,7 +187,8 @@ classification, 30 instances per original class throughout:
 *(LOO / η²-weighted; homoglyph groups are `0/O`, `1/I/L`, `2/Z`, `5/S`, `9/g/q`)*
 
 - Merging the five homoglyph groups is worth **+5.3 points** (62.5 → 67.8, 65.3 → 70.6
-  weighted); "neither correct" falls 31.6 → 27.5 % and the oracle rises to 72.5 %.
+  weighted); "neither correct" falls 31.6 → 27.5 % and the best-of-two selection bound rises to
+  72.5 %.
 - **Build the groups disjointly.** Listing confusable pairs and taking the transitive
   closure is wrong: `6≡G`, `G≡g`, `9≡g` chains `6` to `9` and collapses `6/9/G/Q/g/q`
   into one class. The notebook asserts disjointness.

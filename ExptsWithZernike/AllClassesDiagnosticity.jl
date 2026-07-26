@@ -59,7 +59,7 @@ The two descriptors, unchanged from `CombinedZernikeFourier.jl`:
 **Three things change at 47 classes** (details in the Notes): the ranking of the two
 blocks **flips**, their complementarity **survives but shrinks**, and about a quarter
 of all remaining errors turn out to be **confusions between glyphs that are genuinely
-the same shape** (`0`/`O`, `1`/`I`/`L`, `F`/`f`, `9`/`q`).
+the same shape** (`0`/`O`, `1`/`I`/`L`, `2`/`Z`, `9`/`q`).
 """
 
 # ╔═╡ 90000000-0000-0000-0000-000000000005
@@ -315,10 +315,10 @@ let
     p1 = bar(["both","only Z","only F","neither"], 100 .*[both,onlyZ,onlyF,neither];
              c=[:seagreen,:steelblue,:goldenrod,:firebrick], label="", ylabel="% of images",
              title="error overlap", titlefontsize=9, guidefontsize=8, tickfontsize=8, grid=false)
-    lv=["Z","F","Z+F","Z+F (η²)","oracle"]
+    lv=["Z","F","Z+F","Z+F (η²)","best-of-two"]
     vals=100 .*[mean(hZ),mean(hF),mean(hC),mean(hW),mean(hZ.|hF)]
     p2 = bar(lv, vals; c=[:steelblue,:goldenrod,:seagreen,:darkgreen,:grey], label="",
-             ylabel="LOO accuracy (%)", title="what the combination recovers",
+             ylabel="LOO accuracy (%)", title="what the combination recovers  (grey = selection bound, not a ceiling)",
              titlefontsize=9, guidefontsize=8, tickfontsize=8, grid=false, ylims=(0,100))
     for (i,v) in enumerate(vals); annotate!(p2,i,v+3,text(@sprintf("%.1f",v),7)); end
     hline!(p2,[100/length(sel)]; lc=:red, ls=:dash, label="chance")
@@ -441,7 +441,7 @@ sampling, 9 features per cell (81 numbers).
 | Z — global Zernike | 55.5 % (η² 57.4 %) | *76.4 % (77.5 %)* |
 | F — Fourier 3×3 | 58.2 % (η² 60.4 %) | *74.2 % (77.2 %)* |
 | **Z + F** | **62.5 % (η² 65.3 %)** | ***82.8 % (84.2 %)*** |
-| oracle ceiling | 68.4 % | *85.3 %* |
+| best-of-two selection bound | 68.4 % | *85.3 %* |
 | chance | 2.13 % | *8.33 %* |
 
 Z+F at 62.5 % is **29× chance** here versus 10× on the 12-class set, so in
@@ -461,7 +461,10 @@ the better block (58.2 → 62.5) against **+6.4** at 12 classes. The overlap exp
 both correct 45.2 %, only Z 10.2 %, only F 13.0 %, **neither 31.6 %**. That
 "neither" share more than doubles from the 12-class 14.7 %, so a much larger part of the
 problem is simply beyond both descriptors, and the exploitable disagreement (23.2 %,
-vs 20.0 % before) is a smaller share of what is left. The oracle ceiling is 68.4 %.
+vs 20.0 % before) is a smaller share of what is left. The best-of-two selection
+bound is 68.4 % — and as at 12 classes, concatenation is not held to it: of the **445**
+images neither block gets right it recovers **28** (**51** with η² weighting), while
+losing 112 that one block had.
 
 **4. η²-weighting matters more here** — +2.8 points (62.5 → 65.3) versus +1.4 on the
 12-class set. With 47 class means to estimate from 29 examples each, the equal-weighted
@@ -488,7 +491,7 @@ Re-running the whole diagnostic with the labels **merged before classification**
 
 Merging the five homoglyph groups — `0/O`, `1/I/L`, `2/Z`, `5/S`, `9/g/q` — lifts Z+F
 by **+5.3 points** (62.5 → 67.8, and 65.3 → 70.6 weighted). "Neither correct" falls from
-31.6 % to 27.5 % and the oracle ceiling rises to 72.5 %.
+31.6 % to 27.5 % and the best-of-two selection bound rises to 72.5 %.
 
 **A caution about building the groups.** The obvious implementation — list the
 confusable pairs and take the transitive closure — is wrong. Asserting `6≡G`, `G≡g`

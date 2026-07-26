@@ -287,8 +287,14 @@ end
 md"""
 ### Why it works: the two descriptors fail on different images
 
-Every image is one of four cases. **"exactly one correct"** is the headroom a
-combination can exploit; the oracle bar is what a perfect chooser would reach.
+Every image is one of four cases. **"exactly one correct"** is the disagreement a
+combination can exploit.
+
+The grey **best-of-two** bar is what a magic per-image *chooser* would score — always
+picking whichever block happens to be right. It is a ceiling on **selecting between**
+the blocks, and a useful yardstick, but **not** a ceiling on concatenation:
+concatenation builds a joint feature space rather than picking, so it can get an image
+right that neither block gets alone. Measured below — it does exactly that.
 """
 
 # ╔═╡ 90000000-0000-0000-0000-000000000010
@@ -298,10 +304,10 @@ let
     p1 = bar(["both\ncorrect","only Z","only F","neither"], 100 .*[both,onlyZ,onlyF,neither];
              c=[:seagreen,:steelblue,:goldenrod,:firebrick], label="", ylabel="% of images",
              title="error overlap", titlefontsize=9, guidefontsize=8, tickfontsize=7, grid=false)
-    lv = ["Z alone","F alone","Z+F","Z+F (η²)","oracle"]
+    lv = ["Z alone","F alone","Z+F","Z+F (η²)","best-of-two"]
     vals = 100 .*[mean(hZ), mean(hF), mean(hC), mean(hCw), mean(hZ .| hF)]
     p2 = bar(lv, vals; c=[:steelblue,:goldenrod,:seagreen,:darkgreen,:grey], label="",
-             ylabel="LOO accuracy (%)", title="what the combination recovers",
+             ylabel="LOO accuracy (%)", title="what the combination recovers  (grey = selection bound, not a ceiling)",
              titlefontsize=9, guidefontsize=8, tickfontsize=7, xrotation=20, grid=false,
              ylims=(0,100))
     for (i,v) in enumerate(vals); annotate!(p2, i, v+3, text(@sprintf("%.1f",v), 7)); end
@@ -310,14 +316,14 @@ end
 
 # ╔═╡ 90000000-0000-0000-0000-000000000011
 let
-    onlyF = .!hZ .& hF; onlyZ = hZ .& .!hF
+    onlyF = .!hZ .& hF; onlyZ = hZ .& .!hF; neither = .!hZ .& .!hF
     rF = sum(hC .& onlyF); rZ = sum(hC .& onlyZ)
-    best = max(mean(hZ), mean(hF)); oracle = mean(hZ .| hF)
-    head = 100*(mean(hC) - best)/max(oracle - best, 1e-9)
+    esc = sum(hC .& neither); escw = sum(hCw .& neither); lost = sum((hZ .| hF) .& .!hC)
     a = @sprintf("Of the **%d** images block Z gets wrong but block F gets right, the concatenation recovers **%d (%.0f %%)**; ", sum(onlyF), rF, 100rF/max(sum(onlyF),1))
     b = @sprintf("of the **%d** the other way round it recovers **%d (%.0f %%)**. ", sum(onlyZ), rZ, 100rZ/max(sum(onlyZ),1))
-    c = @sprintf("Oracle ceiling **%.1f %%**, concatenation reaches **%.1f %%** — it captures **%.0f %%** of the available headroom.", 100oracle, 100mean(hC), head)
-    Markdown.parse(a * b * c)
+    c = @sprintf("It also **escapes the best-of-two bound**: of the **%d** images *neither* block classifies correctly, concatenation gets **%d** right (**%d** with η² weighting) — impossible for any rule that merely picks one block. ", sum(neither), esc, escw)
+    d = @sprintf("It loses **%d** that at least one block had. Net: %.1f %% vs the %.1f %% selection bound.", lost, 100mean(hC), 100mean(hZ .| hF))
+    Markdown.parse(a * b * c * d)
 end
 
 # ╔═╡ 90000000-0000-0000-0000-000000000012
@@ -371,13 +377,23 @@ the equal-weighted nearest-mean classifier, exactly as
 | only Fourier correct | 8.9 % |
 | neither correct | 14.7 % |
 
-**20.0 %** of images are got right by exactly one of the two. An oracle that always
-picked the right block would score **85.3 %**; the concatenation reaches **82.8 %**,
-i.e. it captures **72 %** of the 8.9-point gap between the better block and that
-ceiling. Broken down by direction: of the 32 images Zernike misses and Fourier catches
-it recovers **29 (91 %)**, and of the 40 the other way round **28 (70 %)**. So a
-smarter fusion rule has at most ~2.5 points left to win, and the real ceiling is set by
-the **14.7 %** that *both* descriptors miss.
+**20.0 %** of images are got right by exactly one of the two. A magic per-image
+*chooser* — always picking whichever block is right — would score **85.3 %**; call this
+the **best-of-two selection bound**. The concatenation reaches **82.8 %**.
+
+**That bound does not apply to concatenation**, and it is worth being precise about
+why. Selecting between two classifiers can never fix an image both get wrong.
+Concatenating their *features* can, because the joint space is not the union of the two
+decisions. Measured: of the **53** images neither block classifies correctly,
+concatenation gets **6** right (**10** with η² weighting), while losing **15** that at
+least one block had. So the 85.3 % is a yardstick for how much the two disagree, not a
+ceiling — the η²-weighted 84.2 % is already within 1.1 points of it and is not
+forbidden from passing it.
+
+Broken down by direction: of the 32 images Zernike misses and Fourier catches, the
+concatenation recovers **29 (91 %)**; of the 40 the other way round, **28 (70 %)**.
+What genuinely limits the pair is the **14.7 %** that *both* descriptors miss and the
+joint space mostly cannot recover either.
 
 **4. Per class, the two are visibly complementary.** `E` goes 66.7 % (Z) / 76.7 % (F)
 → **93.3 %** combined; `K` 76.7 / 63.3 → **86.7 %**; `X` 73.3 / 66.7 → **80.0 %**.
