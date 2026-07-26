@@ -119,7 +119,7 @@ existing pattern.
 | `b0000044` | code | test shape generators (§4 below) |
 | `b0000045` | code | results table over all test shapes (Markdown.parse, like `b0000023`) |
 | `b0000046` | md | "angular spectrum → class; radial profile → filled/hollow" |
-| `b0000047` | code | figure: 3×N grid — image / `|Mₙ|/M₀` bars / `M₀(r)` line |
+| `b0000047` | code | figure: 3×N grid — image / `\|Mₙ\|/M₀` bars / `M₀(r)` line |
 | `b0000048` | md | rotation-covariance section heading |
 | `b0000049` | code | rotation test (§5 below) |
 | `b0000050` | md | FPE log-polar section — periodic α / non-periodic log r |

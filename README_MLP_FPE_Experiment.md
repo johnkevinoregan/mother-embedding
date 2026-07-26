@@ -153,10 +153,10 @@ summarise the pattern of energy:
 | feature | what it is | what it means |
 |:--|:--|:--|
 | `a₀` | the `F(0,0)` coefficient | how much **ink** is in this cell |
-| `ac` | `√Σ|F|²` over all non-zero orders | how much **structure** is in this cell |
-| `Re E₂`, `Im E₂` | `E₂ = Σ|F|² e^{2iθ} / Σ|F|²`, where `θ` is the direction of each coefficient in the `(v,u)` plane | the **orientation** of the dominant stroke, encoded as a 2-vector |
-| `|E₂|` | magnitude of the above | **how oriented** the cell is: ~0.5 for one clean stroke, 0.0 for a crossing or a blob |
-| `|E₄|` | the same construction with `e^{4iθ}` | intended to detect two strokes at ~90°; measured to work poorly |
+| `ac` | `√Σ\|F\|²` over all non-zero orders | how much **structure** is in this cell |
+| `Re E₂`, `Im E₂` | `E₂ = Σ\|F\|² e^{2iθ} / Σ\|F\|²`, where `θ` is the direction of each coefficient in the `(v,u)` plane | the **orientation** of the dominant stroke, encoded as a 2-vector |
+| `\|E₂\|` | magnitude of the above | **how oriented** the cell is: ~0.5 for one clean stroke, 0.0 for a crossing or a blob |
+| `\|E₄\|` | the same construction with `e^{4iθ}` | intended to detect two strokes at ~90°; measured to work poorly |
 | `e₁, e₂, e₃` | fraction of energy at radius 1, 2, 3 in the `(v,u)` plane | the **radial profile** — coarse vs. fine structure in the cell |
 
 `E₂` deserves a note because the same idea recurs later. Orientation is a quantity that

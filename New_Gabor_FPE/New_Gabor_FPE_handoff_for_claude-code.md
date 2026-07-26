@@ -114,7 +114,7 @@ just `cₙ = (1/K) Σ_φ R(φ)·e^{-inφ}` with `R` written out inline. Piece by
 |---|---|
 | `(y,x)` | the point being described. `cₙ` is computed at **every pixel** → a dense complex-valued map per `n`. |
 | `Σ_φ` | sum over `K` ray directions `φ = 0, 2π/K, …` sampling the full circle. `K=96` in the notebook. **`φ` runs 0…2π** (a *direction*), unlike `θ` which runs 0…π (an *orientation*). |
-| `E[·]` | the Gabor energy stack, indexed `E[θ, y, x]` = `|Gabor_θ * image|`. Phase-invariant (modulus of the quadrature pair). |
+| `E[·]` | the Gabor energy stack, indexed `E[θ, y, x]` = `\|Gabor_θ * image\|`. Phase-invariant (modulus of the quadrature pair). |
 | `φ mod π` | **the orientation channel to look in.** A ray heading in direction `φ` is locally a line segment whose *orientation* is `φ mod π`. Rays east (`φ=0`) and west (`φ=π`) are both horizontal → same channel. This is the projection that loses the direction information… |
 | `(y + d·sin φ, x + d·cos φ)` | …**and this is what puts it back.** Sample not at `(y,x)` but at the point a distance `d` away *in direction `φ`*. East and west now read different pixels. The `d`-offset is doing all the work of turning a mod-π quantity into a mod-2π one. |
 | `exp(-i n φ)` | the Fourier kernel: project `R(φ)` onto the `n`-th circular harmonic. |
