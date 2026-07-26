@@ -192,7 +192,8 @@ begin
                 l,gs=Flux.withgradient(m->Flux.logitcrossentropy(m(Xtr_t[:,idx]),Ytr[:,idx]), model)
                 Flux.update!(opt,model,gs[1]); tot+=l; nb+=1
             end
-            push!(hist.loss,tot/nb); push!(hist.test,acc(Xte,yte))
+            # NB: Xte_t, the function's own 784×N argument — not the global 4-D `Xte`
+            push!(hist.loss,tot/nb); push!(hist.test,acc(Xte_t,yte))
         end
         model, hist
     end
