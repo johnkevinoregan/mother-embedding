@@ -425,16 +425,50 @@ The best cell is the one that least resembles an FPE code at all: the narrowest
 bandwidth and the smallest code, i.e. the setting closest to just passing the number
 through.
 
-This is a clean negative result, and in hindsight it is the expected one. Random Fourier
-features are valuable when you need a *fixed* nonlinear expansion because your model
-cannot learn one — a kernel machine, a linear readout. An MLP's first layer *is* a
-learned nonlinear expansion. Replacing a scalar by a random sinusoidal basis destroys
-the monotone ordering that first layer could have exploited, and hands it 8–32× more
-parameters to overfit with. The encoding is solving a problem the network does not have.
+This is a clean negative result, and in hindsight it is the expected one.
+
+To be precise about what the encoding does: the scalar is **not** replaced by anything
+random. It is re-expressed through a bank of sinusoids whose *frequencies* were drawn at
+random but are then fixed — `x_j ↦ [cos(θ_jk x_j), sin(θ_jk x_j)]_k` is a deterministic,
+one-to-one map of the scalar onto a curve in `d_feat` dimensions. No information about
+`x_j` is thrown away by the map itself.
+
+What *is* given up is the **form in which the information is presented to the first
+layer**, and there are two concrete costs:
+
+- **A linear dependence on a feature stops being expressible in one weight.** In the raw
+  coding the first layer computes `w · x`, so "this class tends to have a large value of
+  feature `j`" costs exactly one parameter and is exactly linear in `x_j`. In the FPE
+  coding, any function of `x_j` must be synthesised as a sum of sinusoids,
+  `Σ_k (a_k cos θ_jk x_j + b_k sin θ_jk x_j)` — a random-frequency trigonometric
+  polynomial. That can approximate a great many functions, but a simple ramp in `x_j` now
+  needs many coefficients cancelling against each other rather than one weight.
+- **Similarity saturates, so long-range magnitude information is discarded.** The
+  induced kernel `exp(−σφ²(x−y)²/2)` falls to ~0 once `|x−y|` exceeds a few `1/σφ`. Beyond
+  that range *all* pairs of values look equally dissimilar: the code can no longer
+  distinguish "somewhat above average" from "far above average". The raw scalar carries
+  that distinction for free.
+
+Both costs get worse in exactly the directions the measurements move: larger `σφ` shrinks
+the range over which values remain comparable, and larger `d_feat` multiplies the
+parameters needed to synthesise a given dependence — which is what the table shows,
+monotonically in both.
+
+The underlying point is that random Fourier features are valuable when you need a *fixed*
+nonlinear expansion because your model cannot learn one — a kernel machine, or a linear
+readout. An MLP's first layer already *is* a learned nonlinear expansion. Supplying a
+random one in front of it adds nothing the network could not have learned, while costing
+it direct linear access to each feature and handing it 8–32× more parameters to overfit
+with. The encoding is solving a problem this model does not have.
 
 ### 7.4 BUNDLE-FPE: the Vector-Symbolic coding
 
-| `σφ` | `D`=256 (512 in) | `D`=512 (1,024 in) | `D`=1024 (2,048 in) | `D`=2048 (4,096 in) |
+Column headers give the bundle width `D` and, in brackets, the resulting number of
+**inputs to the network** — which is `2D`, because the bundle is a complex vector fed in
+as its real and imaginary parts. Unlike the concat table, this does not grow with the
+number of features: all 156 are superposed into the same `D`.
+
+| `σφ` | `D`=256 (512 inputs) | `D`=512 (1,024 inputs) | `D`=1024 (2,048 inputs) | `D`=2048 (4,096 inputs) |
 |--:|--:|--:|--:|--:|
 | 0.5 | 85.63 % / 85.75 | 85.75 % / 85.75 | **85.79 %** / 85.79 | 84.00 % / 85.04 |
 | 1.0 | 84.98 % / 85.15 | 84.98 % / 85.14 | 85.00 % / 85.37 | 84.21 % / 84.63 |
