@@ -261,7 +261,8 @@ md"""
 ### Reference row: the same head with no convolution
 
 For a like-for-like comparison in this same session, the raw 784 pixels through the
-identical 1×256 head.
+identical 1×256 head. If the conv arm above has already been run at the same epoch
+count, its curve is overlaid so the two can be read against each other directly.
 
 run: $(@bind go_ref CheckBox(default=false))
 """
@@ -273,8 +274,23 @@ else
     let
         P_tr = reshape(Xtr, 784, :); P_te = reshape(Xte, 784, :)
         t0=time(); _, h = train_mlp(P_tr, ytr, P_te, yte; hidden=[256], epochs=nep)
-        Markdown.parse(@sprintf("**pixels 784, no convolution, 1×256** · test **%.2f %%** (best %.2f %%) · %.0f s",
-                                100h.test[end], 100maximum(h.test), time()-t0))
+        global REF_HIST = h
+        p = plot(1:nep, 100 .*h.test; lw=2, marker=:square, ms=3, c=:goldenrod,
+                 label="pixels 784, no conv", xlabel="epoch", ylabel="test accuracy (%)",
+                 legend=:bottomright, title="convolution vs none, identical head",
+                 titlefontsize=9, size=(760,340))
+        # overlay the conv curve when it has been run at the same epoch count
+        if (@isdefined CONV_HIST) && length(CONV_HIST.test) == nep
+            plot!(p, 1:nep, 100 .*CONV_HIST.test; lw=2, marker=:circle, ms=3,
+                  c=:steelblue, label="conv $(ksz)×$(ksz), stride $(kst), $(nker) kernels")
+        end
+        Markdown.parse(@sprintf("**pixels 784, no convolution, 1×256** · test **%.2f %%** (best %.2f %%) · %.0f s%s",
+                        100h.test[end], 100maximum(h.test), time()-t0,
+                        (@isdefined CONV_HIST) && length(CONV_HIST.test)==nep ?
+                          @sprintf(" — conv arm reached **%.2f %%**, a gap of **%+.2f** points",
+                                   100CONV_HIST.test[end], 100*(CONV_HIST.test[end]-h.test[end])) :
+                          " — run the conv arm above to overlay it")),
+        p
     end
 end
 
