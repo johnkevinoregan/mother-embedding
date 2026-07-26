@@ -104,6 +104,41 @@ The transferable lesson: **tiling space wants a translation-invariant cell descr
 (Fourier power spectrum), **describing one centred object wants a rotation-invariant
 one** (Zernike). Using either for the other's job costs about 10 points.
 
+## `CombinedZernikeFourier.jl`
+
+Tests the prediction from `TicTacToeZernike.jl` §6 — that global Zernike and the
+Fourier 3×3 grid are complementary — by concatenating them. **They are, and the gain
+is large.**
+
+| descriptor | numbers | LOO | η²-weighted |
+|:--|--:|--:|--:|
+| Z — global Zernike (`n≤8`, fitted disc, `\|A\|`+Re/Im) | 75 | 76.4 % | 77.5 % |
+| F — Fourier 3×3 (all 9 features per cell) | 81 | 74.2 % | 77.2 % |
+| **Z + F concatenated** | **156** | **82.8 %** | **84.2 %** |
+
+**+6.4 points** over the better block alone (84.4 % with polar sampling for F, so the
+sampling choice barely matters). The previous best anywhere in this project was ≈ 61 %.
+
+- **Not a dimensionality artifact.** Shuffling block F's rows — same columns, same
+  marginals, correspondence destroyed — gives 69.2 / 71.4 / 71.7 %, i.e. *below* block
+  Z alone. Uninformative columns actively hurt the equal-weighted nearest-mean
+  classifier, so the real +6.4 is complementarity.
+- **The two fail on different images**: both correct 65.3 %, only Zernike 11.1 %, only
+  Fourier 8.9 %, neither 14.7 %. An oracle picking the right block would reach 85.3 %;
+  the concatenation gets 82.8 %, capturing 72 % of that headroom (91 % of the images
+  Zernike misses and Fourier catches). Little is left for a smarter fusion rule — the
+  ceiling is the 14.7 % *both* miss.
+- **Per class:** `E` 66.7 (Z) / 76.7 (F) → **93.3 %**; `K` 76.7 / 63.3 → **86.7 %**.
+  `O` is the exception where Fourier alone (96.7 %) beats the pair (90.0 %). `L` stays
+  weak (36.7 / 50.0 → 56.7 %).
+- **Weighting is a minor effect**: η² weighting adds ~1.4 points; per-block rebalancing
+  matters only when the blocks are lopsided (with the 27-number F subset, 80.6 → 82.5 %).
+
+Why it was predictable: Zernike's free invariance is rotation about a centre and it is
+*not* translation-invariant; the Fourier cell descriptor is built from `|F|²` and so is
+translation-invariant per cell and not rotation-invariant. Each is blind exactly where
+the other sees.
+
 ## Running
 
 ```bash

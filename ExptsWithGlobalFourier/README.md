@@ -93,6 +93,11 @@ So: the answer to the original question is *yes* for stroke orientation, *no* fo
 loops — and the unplanned result is that the crude 3×3 orientation signature beats
 every local descriptor tried in this project so far.
 
+**Follow-up:** `../ExptsWithZernike/CombinedZernikeFourier.jl` concatenates this 3×3
+grid with global Zernike moments and reaches **82.8 % (84.2 % η²-weighted)** — the two
+are complementary because this descriptor is translation-invariant per cell while
+Zernike is rotation-invariant about a centre, so they fail on different letters.
+
 ## Running
 
 ```bash
