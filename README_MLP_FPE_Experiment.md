@@ -368,6 +368,49 @@ was largely an artefact of the weak classifier's inability to exploit F's featur
 its own, not a property of the representations. This is recorded here because it
 corrects the earlier claim.
 
+### 7.2b One convolution layer, for comparison
+
+Everything above uses a network with **no convolution at all**. Since convolution is the
+standard tool for images, a matched convolutional row was added afterwards
+(`ExptsWithZernike/ConvComparison.jl`):
+
+```
+28×28 image → Conv 11×11, stride 6, 32 kernels, ReLU → 3×3×32 = 288 → Dense 256 ReLU → 47
+```
+
+One convolution layer: 32 learnable 11×11 kernels slid with stride 6, so consecutive
+placements overlap by about half. On a 28×28 image that gives a **3×3 grid of
+positions** — deliberately, because that is a *learned* counterpart of the hand-designed
+3×3 "tic-tac-toe" grid of §4.2, with 32 learned kernels per cell instead of 9 designed
+Fourier numbers. Everything after the convolution — head, optimiser, batch size, epochs —
+is identical to every other arm. All three rows were run in one session:
+
+| arm | features into the head | total params | final | best |
+|:--|--:|--:|--:|--:|
+| **conv 11×11, stride 6, 32 kernels** | 288 | 89,967 | **84.56 %** | 84.85 % |
+| pixels 784, no convolution | 784 | 213,551 | 83.65 % | 83.95 % |
+| **156 hand-designed features** | 156 | 52,271 | **86.43 %** | 86.71 % |
+
+**Convolution helps over raw pixels, but only by ~0.9 points** (3.6 standard errors) —
+a single stride-6 layer with a 3×3 output is a weak convolutional model, with no pooling,
+no second stage and little translation robustness.
+
+**The hand-designed features still win by 1.9 points** (7.5 standard errors), using
+**156 numbers against 288** and **52 k parameters against 90 k**. The comparison is
+close to apples-to-apples — both descriptions impose a 3×3 spatial layout and hand the
+classifier a per-cell summary; only the origin of the summaries differs. What the
+designed features have that one 11×11 kernel cannot express is explicit **scale and
+invariance structure**: the Zernike block describes the character as a centred whole with
+known rotation behaviour, and the Fourier block's per-cell orientation tensor is built to
+be translation-invariant *within* each cell. A single convolution has to discover any
+such structure from data, from 9 spatial positions, with no depth to build it in.
+
+**This is a floor for convolution, not a ceiling.** A second layer, pooling, or more
+kernels would likely close and reverse the gap — that is what the ≈ 91 % published
+convolutional results are. The narrow claim is: *at matched depth, head and training
+budget*, the designed features beat a single learned convolution layer. That says the
+features carry real structure; it does not say convolution is inferior.
+
 ### 7.3 CONCAT-FPE: giving each feature its own code
 
 | `σφ` | `d_feat` = 8 (1,248 inputs) | `d_feat` = 32 (4,992 inputs) |
@@ -466,7 +509,9 @@ order of magnitude — here, `D = 256` classifies as well as `D = 1024`, while n
 ## 8. Summary of conclusions
 
 1. **The 156 hand-designed features are genuinely good**: 86.4 % on 47-way EMNIST,
-   beating a 784-pixel raw-image MLP (83.7 %) trained identically, at a fifth the size.
+   beating a 784-pixel raw-image MLP (83.7 %) trained identically, at a fifth the size —
+   and also beating a matched single convolution layer (84.6 %) that gets 288 learned
+   features and 1.7× the parameters.
 2. **They are shallow-friendly.** One hidden layer of 256 units is as good as three of
    512; the features have already done the nonlinear work.
 3. **Weak classifiers give badly misleading readings.** The same features score 62.5 %
