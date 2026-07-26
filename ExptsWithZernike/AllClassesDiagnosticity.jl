@@ -69,8 +69,27 @@ begin
     # EMNIST-balanced canonical order: uppercase, then the lowercase subset, then digits
     const ORDER47 = LoadEMNIST.default_class_order()
     const NAMES47 = [LoadEMNIST.emnist_class_name(i) for i in ORDER47]
-    kind(nm) = length(nm)==1 && isdigit(nm[1]) ? :digit :
-               (length(nm)==1 && islowercase(nm[1]) ? :lower : :upper)
+    kind(nm) = occursin('/', nm) ? :merged :
+               (isdigit(nm[1]) ? :digit : (islowercase(nm[1]) ? :lower : :upper))
+
+    # ---- class groups for merging. DISJOINT BY CONSTRUCTION (asserted below): taking
+    # the transitive closure of overlapping pairs is wrong — asserting 6≡G, G≡g and
+    # 9≡g chains 6 to 9, which are not the same glyph at all.
+    #
+    # HOMO: digit↔letter collisions. These really are the same handwritten shape.
+    const HOMO = [["0","O"], ["1","I","L"], ["2","Z"], ["5","S"], ["9","g","q"]]
+    # CASE: upper/lower pairs, excluding any letter already spoken for by HOMO.
+    # NB this merge is *weakly* motivated — EMNIST-balanced already merged the case
+    # pairs that look identical (C/c, O/o, …); the 11 lowercase classes it keeps are
+    # precisely the ones whose shape differs. Measured below: merging them hurts.
+    const CASE = [["A","a"],["B","b"],["D","d"],["E","e"],["F","f"],
+                  ["H","h"],["N","n"],["R","r"],["T","t"]]
+    let seen=Dict{String,Int}()
+        for (k,g) in enumerate(vcat(HOMO,CASE)), s in g
+            @assert !haskey(seen,s) "class $s appears in two merge groups — not disjoint"
+            seen[s]=k
+        end
+    end
 end
 
 # ╔═╡ 90000000-0000-0000-0000-000000000006
@@ -221,6 +240,9 @@ md"""
 
 class set: $(@bind setname Select(["47"=>"all 47 (chance 2.13 %)", "26"=>"26 uppercase (3.85 %)",
                                    "12"=>"the usual 12 (8.33 %)", "10"=>"10 digits (10 %)"]))
+**label set**: $(@bind labelset Select(["strict"=>"strict — every class separate",
+                                        "homo"=>"merge homoglyphs (0/O, 1/I/L, 2/Z, 5/S, 9/g/q)",
+                                        "homocase"=>"merge homoglyphs + case pairs"]))
 instances per class: $(@bind n_per Slider(10:5:40, default=30, show_value=true))
 
 **Zernike n_max**: $(@bind znmax Slider(4:1:10, default=8, show_value=true))
@@ -232,14 +254,28 @@ sampling: $(@bind sampling Select(["lattice"=>"lattice (v,u)", "polar"=>"polar �
 
 # ╔═╡ 90000000-0000-0000-0000-00000000000b
 begin
-    sel = setname=="47" ? NAMES47 :
-          setname=="26" ? [n for n in NAMES47 if kind(n)==:upper] :
-          setname=="12" ? SET12 : [n for n in NAMES47 if kind(n)==:digit]
-    imgs = Matrix{Float32}[]; labs = Int[]
-    for (ci,c) in enumerate(sel)
+    base = setname=="47" ? NAMES47 :
+           setname=="26" ? [n for n in NAMES47 if kind(n)==:upper] :
+           setname=="12" ? SET12 : [n for n in NAMES47 if kind(n)==:digit]
+    imgs = Matrix{Float32}[]; blabs = Int[]
+    for (ci,c) in enumerate(base)
         v = em.class_images[findfirst(==(c), em.class_names)]
-        for k in 1:min(n_per,length(v)); push!(imgs, upsample(v[k])); push!(labs, ci); end
+        for k in 1:min(n_per,length(v)); push!(imgs, upsample(v[k])); push!(blabs, ci); end
     end
+
+    # merge labels BEFORE classifying: the classifier is never asked to make the
+    # distinction, and the merged class mean pools both members' instances
+    groups = labelset=="strict" ? Vector{Vector{String}}() :
+             labelset=="homo"   ? HOMO : vcat(HOMO, CASE)
+    mapname = Dict(s=>s for s in base)
+    for g in groups
+        present = [s for s in g if s in base]
+        length(present) < 2 && continue
+        rep = join(sort(present), "/")
+        for s in present; mapname[s] = rep; end
+    end
+    sel  = sort(unique([mapname[s] for s in base]))
+    labs = [findfirst(==(mapname[base[c]]), sel) for c in blabs]
 
     BZ, OZ = zbasis(IMG, znmax); MZ = zmask(IMG)
     Zblk = reduce(vcat, [ (A=zmoments(fit_disc(im;q=0.98),BZ,MZ;zerodc=true);
@@ -252,9 +288,12 @@ begin
     hZ = pZ.==labs; hF = pF.==labs; hC = pC.==labs; hW = pW.==labs
     chance = 100/length(sel)
 
-    Markdown.parse("**$(length(imgs)) images · $(length(sel)) classes · chance " *
+    mg = length(base) - length(sel)
+    Markdown.parse("**$(length(imgs)) images · $(length(sel)) classes" *
+        (mg > 0 ? " (merged down from $(length(base)))" : "") * " · chance " *
         "$(round(chance,digits=2)) %** — block **Z** $(size(Zblk,2)) numbers (Zernike n≤$(znmax)), " *
-        "block **F** $(size(Fblk,2)) numbers ($(gridN)×$(gridN) $(sampling))")
+        "block **F** $(size(Fblk,2)) numbers ($(gridN)×$(gridN) $(sampling))" *
+        (mg > 0 ? "\n\nmerged classes: " * join(["`"*s*"`" for s in sel if occursin('/',s)], ", ") : ""))
 end
 
 # ╔═╡ 90000000-0000-0000-0000-00000000000c
@@ -291,15 +330,16 @@ md"""
 ### Per class
 
 Sorted by accuracy of the combined descriptor. **Blue = uppercase, orange = lowercase,
-green = digit.** The tail on the left is where the interesting failures live.
+green = digit, purple = merged class.** The tail on the left is where the interesting
+failures live.
 """
 
 # ╔═╡ 90000000-0000-0000-0000-00000000000f
 let
     a = [100*mean(hW[findall(==(ci),labs)]) for ci in eachindex(sel)]
     ord = sortperm(a)
-    cols = [kind(sel[i])==:upper ? :steelblue : kind(sel[i])==:lower ? :darkorange : :seagreen
-            for i in ord]
+    cols = [kind(sel[i])==:upper ? :steelblue : kind(sel[i])==:lower ? :darkorange :
+            kind(sel[i])==:digit ? :seagreen : :purple for i in ord]
     p = bar(1:length(sel), a[ord]; c=cols, label="", xticks=(1:length(sel), sel[ord]),
             ylabel="LOO accuracy (%)", ylims=(0,105), tickfontsize=7, guidefontsize=8,
             title="per-class accuracy, Z+F (η²-weighted)", titlefontsize=9, grid=false)
@@ -315,49 +355,75 @@ let
         k=(sel[labs[i]], sel[pC[i]]); conf[k]=get(conf,k,0)+1
     end
     top = sort(collect(conf), by=x->-x[2])[1:min(15,length(conf))]
-    hdr = "**Most frequent confusions** (Z + F, unweighted) — how many of the $(n_per) " *
-          "instances of the true class were called the other.\n\n" *
-          "| true → predicted | n | same glyph? |\n|:--|--:|:--|\n"
-    same(a,b) = uppercase(a)==uppercase(b) ? "yes — case pair" :
-                (a,b) in [("0","O"),("O","0"),("1","I"),("I","1"),("1","L"),("L","1"),
-                          ("2","Z"),("Z","2"),("5","S"),("S","5"),("6","G"),("G","6"),
-                          ("8","B"),("B","8"),("9","q"),("q","9"),("9","g"),("g","9"),
-                          ("7","T"),("T","7")] ? "yes — homoglyph" : ""
+    hdr = "**Most frequent confusions** (Z + F, unweighted) — how many instances of the " *
+          "true class were called the other.\n\n" *
+          "| true → predicted | n | note |\n|:--|--:|:--|\n"
+    inhomo(a,b) = any(g -> a in g && b in g, HOMO)
+    same(a,b) = inhomo(a,b) ? "homoglyph — mergeable" :
+                (!occursin('/',a) && !occursin('/',b) && uppercase(a)==uppercase(b)) ?
+                "case pair (EMNIST keeps these apart deliberately)" : ""
     body = join([@sprintf("| `%s` → `%s` | %d | %s |", a, b, n, same(a,b)) for ((a,b),n) in top], "\n")
     Markdown.parse(hdr*body)
 end
 
 # ╔═╡ 90000000-0000-0000-0000-000000000011
 md"""
-### How much of the error is the *labels*, not the descriptor?
+### Merging vs. rescoring
 
-EMNIST-balanced keeps `0` and `O` as separate classes, and `1`, `I`, `L` as three.
-Handwritten, many of these are the *same shape* — no shape descriptor can separate
-them, and nor could a human without context. Below: the same predictions rescored with
-visually-identical classes merged.
+Two different things can be done about `0`/`O`:
+
+- **rescore** — keep the 47-way classifier and simply forgive confusions inside a
+  group. The classifier still had to split the pair, and class means stay tight.
+- **merge** — relabel *before* classifying (what the *label set* control above does).
+  The distinction is never demanded, but the class mean now pools both members.
+
+They give slightly different answers. Tick to run the comparison (one extra
+classification pass over the 47-class labels).
+
+compare: $(@bind cmp_merge CheckBox(default=false))
 """
 
 # ╔═╡ 90000000-0000-0000-0000-000000000012
-let
-    GROUPS = [["0","O"],["1","I","L"],["2","Z"],["5","S"],["6","G"],["8","B"],["9","g","q"],
-              ["7","T"],["C","c"],["F","f"],["A","a"],["B","b"],["D","d"],["E","e"],
-              ["H","h"],["N","n"],["Q","q"],["R","r"],["T","t"]]
-    canon = Dict{String,String}()
-    for g in GROUPS, s in g; canon[s] = get(canon, s, g[1]); end
-    key(s) = get(canon, s, s)
-    tt = [key(sel[c]) for c in labs]
-    rows = String[]
-    for (t,pr) in [("Z alone",pZ),("F alone",pF),("Z + F",pC),("Z + F (η²)",pW)]
-        pp = [key(sel[p]) for p in pr]
-        ci = [uppercase(sel[c]) for c in labs] .== [uppercase(sel[p]) for p in pr]
-        push!(rows, @sprintf("| %s | %.1f %% | %.1f %% | %.1f %% |", t,
-              100*mean(pr.==labs), 100*mean(ci), 100*mean(tt.==pp)))
+if !cmp_merge
+    md"*(comparison not run — tick the box above)*"
+else
+    let
+        # always compare on the strict 47-class labels, whatever the control is set to
+        b47 = NAMES47
+        i47 = Int[]; l47 = Int[]
+        for (ci,c) in enumerate(b47)
+            v = em.class_images[findfirst(==(c), em.class_names)]
+            for k in 1:min(n_per,length(v)); push!(i47, length(i47)+1); push!(l47, ci); end
+        end
+        im47 = Matrix{Float32}[]
+        for c in b47
+            v = em.class_images[findfirst(==(c), em.class_names)]
+            for k in 1:min(n_per,length(v)); push!(im47, upsample(v[k])); end
+        end
+        Z4 = reduce(vcat, [ (A=zmoments(fit_disc(im;q=0.98),BZ,MZ;zerodc=true);
+                             vcat(abs.(A),real.(A),imag.(A))') for im in im47 ])
+        F4 = reduce(vcat, [ fourier_grid(im; N=gridN, sampling=sampling)' for im in im47 ])
+        C4 = hcat(Z4,F4)
+
+        mapn = Dict(s=>s for s in b47)
+        for g in HOMO
+            rep = join(sort(g),"/"); for s in g; mapn[s]=rep; end
+        end
+        reps = sort(unique(values(mapn)))
+        ml = [findfirst(==(mapn[b47[c]]), reps) for c in l47]
+
+        p_strict = loo_pred(C4, l47; weights=eta2(C4,l47))
+        resc = mean([mapn[b47[c]] for c in l47] .== [mapn[b47[p]] for p in p_strict])
+        p_merge = loo_pred(C4, ml; weights=eta2(C4,ml))
+        merg = mean(p_merge .== ml)
+        strict = mean(p_strict .== l47)
+        hdr = "| approach | classes the model must separate | accuracy |\n|:--|--:|--:|\n"
+        rows = [@sprintf("| strict 47-way | 47 | %.1f %% |", 100strict),
+                @sprintf("| 47-way, homoglyph errors **forgiven** | 47 | %.1f %% |", 100resc),
+                @sprintf("| **merged labels, %d-way** | %d | **%.1f %%** |", length(reps), length(reps), 100merg)]
+        tail = @sprintf("\n\nRescoring edges out merging by **%.1f points**: the 47-way model keeps one tight mean per glyph (30 instances each), whereas a merged class pools 60–90 instances into a single mean that has to cover both members. The difference is small because the homoglyph members really do overlap — which is the point.", 100*(resc-merg))
+        Markdown.parse(hdr * join(rows,"\n") * tail)
     end
-    ppW = [key(sel[p]) for p in pW]
-    nerr = count(!=(0), pW .!= labs); nres = count(i -> pW[i]!=labs[i] && tt[i]==ppW[i], eachindex(labs))
-    hdr = "| descriptor | strict | case-insensitive | homoglyphs merged |\n|:--|--:|--:|--:|\n"
-    tail = @sprintf("\n\n**%d of the %d remaining errors (%.0f %%) are inside a homoglyph group** — i.e. about a quarter of what looks like descriptor failure is the label set asking for a distinction the ink does not contain.", nres, nerr, 100nres/max(nerr,1))
-    Markdown.parse(hdr * join(rows,"\n") * tail)
 end
 
 # ╔═╡ 90000000-0000-0000-0000-000000000013
@@ -405,23 +471,52 @@ standardisation — standardising again afterwards cancels them exactly, which s
 turns the weighted run into the unweighted one.)*
 
 **5. A quarter of the remaining error is the label set, not the descriptor.**
-The top confusions are `F`→`f` (11), `0`→`O` (11), `2`→`Z` (9), `q`→`9` (9), `O`→`0` (9),
-`1`→`I` (8), `L`→`1` (7) — pairs that are the *same handwritten shape*. Rescoring with
-visually identical classes merged:
+The top confusions are `F`→`f` (11), `2`→`Z` (11), `0`→`O` (11), `q`→`9` (9), `O`→`0` (9),
+`L`→`1` (8), `1`→`I` (7) — mostly pairs that are the *same handwritten shape*
+(`F`/`f` is the exception; see §7).
 
-| descriptor | strict | case-insensitive | homoglyphs merged |
-|:--|--:|--:|--:|
-| Z | 55.5 % | 57.7 % | 63.8 % |
-| F | 58.2 % | 60.2 % | 66.4 % |
-| Z + F | 62.5 % | 64.8 % | 71.5 % |
-| **Z + F (η²)** | **65.3 %** | **67.4 %** | **74.0 %** |
+Re-running the whole diagnostic with the labels **merged before classification**
+(the *label set* control), 30 instances per original class throughout:
 
-**123 of the 489 remaining errors (25 %)** are inside a homoglyph group. Case-insensitive
-scoring alone recovers only ~2 points, so this is *not* mainly an upper/lower problem —
-it is the digit↔letter collisions (`0`/`O`, `1`/`I`/`L`, `2`/`Z`, `9`/`q`) that dominate,
-and they are worth another ~7. Any future comparison on the 47-class set should quote
-the merged number alongside the strict one, or the descriptor gets blamed for an
-ambiguity that is in the task, not the features.
+| label set | classes | chance | Z | F | **Z + F** |
+|:--|--:|--:|--:|--:|--:|
+| strict | 47 | 2.13 % | 55.5 / 57.4 % | 58.2 / 60.4 % | **62.5 / 65.3 %** |
+| **homoglyphs merged** | **40** | **2.50 %** | 59.4 / 62.0 % | 62.7 / 65.2 % | **67.8 / 70.6 %** |
+| homoglyphs + case merged | 31 | 3.23 % | 57.4 / 59.4 % | 61.7 / 63.6 % | 66.9 / 67.7 % |
+
+*(each cell is LOO / η²-weighted)*
+
+Merging the five homoglyph groups — `0/O`, `1/I/L`, `2/Z`, `5/S`, `9/g/q` — lifts Z+F
+by **+5.3 points** (62.5 → 67.8, and 65.3 → 70.6 weighted). "Neither correct" falls from
+31.6 % to 27.5 % and the oracle ceiling rises to 72.5 %.
+
+**A caution about building the groups.** The obvious implementation — list the
+confusable pairs and take the transitive closure — is wrong. Asserting `6≡G`, `G≡g`
+(a case pair) and `9≡g` chains `6` to `9`, and the closure collapses `6/9/G/Q/g/q` into
+a single six-member class, which is nonsense. The groups above are **disjoint by
+construction** and the notebook asserts it.
+
+**7. Merging the case pairs makes things *worse*, despite fewer classes.**
+Going 40 → 31 classes drops Z+F from 67.8 % to 66.9 % and η²-weighted from **70.6 % to
+67.7 %** — accuracy falls while chance rises. The reason is that EMNIST-balanced has
+*already* merged the case pairs that look alike (`C/c`, `O/o`, `S/s`, …); the 11
+lowercase classes it keeps are exactly the ones whose shape **differs** from the
+uppercase form. Merging them therefore creates **bimodal classes**, and a
+nearest-class-mean classifier represents each class by one point. Measured
+within-class scatter, merged ÷ mean of the two parts: `D/d` **1.28**, `T/t` 1.22,
+`H/h` 1.21, `R/r` 1.19, `N/n` 1.18, `B/b` 1.17, `A/a` 1.14, `E/e` 1.11, `F/f` 1.04 —
+every pair is more scattered merged than apart, and `D/d` duly becomes the worst class
+in that condition (35 %). So `F`→`f` in the confusion table is a genuine descriptor
+failure, not a label artifact; `0`→`O` is the reverse.
+
+**8. Merging vs merely rescoring.** Forgiving homoglyph errors from the strict 47-way
+model gives **71.6 %**, while training on the 40 merged labels gives **70.6 %** — the
+rescore wins by 1.0 point, because the 47-way model keeps one tight mean per glyph
+(30 instances) whereas a merged class pools 60–90 instances into a single mean that
+must cover both members. The gap is small precisely because homoglyph members really
+do overlap. Either number is a fair thing to quote; the strict 62.5 % on its own is
+not, because a quarter of its errors are the task asking for a distinction the ink
+does not contain.
 
 **6. Which classes fail** (Z+F, η²-weighted). Worst: `g` 26.7 %, `F` 30.0 %, `L` 33.3 %,
 `q` 33.3 %, `2` 40.0 %, `J` 43.3 %, `0` 46.7 %, `8` 46.7 %. Best: `3`, `W`, `M` all

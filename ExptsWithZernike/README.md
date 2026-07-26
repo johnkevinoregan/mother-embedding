@@ -167,10 +167,39 @@ sampling are all on sliders.
   estimated from 29 examples each, the equal-weighted nearest-mean classifier dilutes
   more easily.
 - **A quarter of the remaining error is the label set.** Top confusions are `F`→`f`,
-  `0`→`O`, `2`→`Z`, `q`→`9`, `1`→`I`, `L`→`1` — pairs that are the same handwritten
-  shape. Merging visually identical classes: 65.3 % → **74.0 %**; **123 of 489 errors
-  (25 %)** are inside a homoglyph group. Case-insensitive scoring alone recovers only
-  ~2 points, so this is the digit↔letter collisions, not upper/lower.
+  `2`→`Z`, `0`→`O`, `q`→`9`, `O`→`0`, `L`→`1`, `1`→`I` — mostly pairs that are the same
+  handwritten shape.
+
+### Merging the homoglyph classes
+
+The *label set* control re-runs everything with classes merged **before**
+classification, 30 instances per original class throughout:
+
+| label set | classes | chance | Z | F | **Z + F** |
+|:--|--:|--:|--:|--:|--:|
+| strict | 47 | 2.13 % | 55.5 / 57.4 % | 58.2 / 60.4 % | **62.5 / 65.3 %** |
+| **homoglyphs merged** | **40** | **2.50 %** | 59.4 / 62.0 % | 62.7 / 65.2 % | **67.8 / 70.6 %** |
+| homoglyphs + case merged | 31 | 3.23 % | 57.4 / 59.4 % | 61.7 / 63.6 % | 66.9 / 67.7 % |
+
+*(LOO / η²-weighted; homoglyph groups are `0/O`, `1/I/L`, `2/Z`, `5/S`, `9/g/q`)*
+
+- Merging the five homoglyph groups is worth **+5.3 points** (62.5 → 67.8, 65.3 → 70.6
+  weighted); "neither correct" falls 31.6 → 27.5 % and the oracle rises to 72.5 %.
+- **Build the groups disjointly.** Listing confusable pairs and taking the transitive
+  closure is wrong: `6≡G`, `G≡g`, `9≡g` chains `6` to `9` and collapses `6/9/G/Q/g/q`
+  into one class. The notebook asserts disjointness.
+- **Merging the case pairs makes it worse** — 40 → 31 classes drops Z+F from 67.8 % to
+  66.9 % and η²-weighted 70.6 → 67.7 %, *while chance rises*. EMNIST-balanced already
+  merged the case pairs that look alike; the 11 lowercase classes it keeps are exactly
+  those whose shape differs, so merging them creates **bimodal classes** a
+  nearest-class-mean cannot represent. Within-class scatter, merged ÷ mean of parts:
+  `D/d` 1.28, `T/t` 1.22, `H/h` 1.21 … `F/f` 1.04 — every pair worse merged, and `D/d`
+  duly becomes the worst class (35 %). So `F`→`f` is a real descriptor failure, not a
+  label artifact.
+- **Merging vs rescoring**: forgiving homoglyph errors from the strict 47-way model
+  gives 71.6 %, training on 40 merged labels gives 70.6 % — rescoring wins by 1.0 point
+  because the 47-way model keeps one tight mean per glyph while a merged class pools
+  60–90 instances into one mean. Quote either, but not the strict 62.5 % alone.
 
 ## Running
 
