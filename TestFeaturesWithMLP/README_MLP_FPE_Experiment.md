@@ -773,6 +773,55 @@ label**. Shared and per-image both are, and both teach something. Per-class is n
 changes the task rather than probing the model, and the ~100 % it produces measures
 nothing about representation quality.
 
+## 7.10 Z vs F on their own, cleanly: merged classes, no DC term
+
+The comparisons above mix several things together. This one isolates the two feature
+blocks under the fairest conditions available:
+
+- **homoglyph classes merged** (47 → 40, chance 2.50 %), so the undecidable pairs of
+  §7.7 stop dominating the error;
+- **the DC term `a₀` dropped from every Fourier patch**, leaving 8 features each, so the
+  Fourier block is DC-free like the Zernike block already is (`A₀₀ = 0` by construction);
+- and a **multi-scale variant, F 3×3+2**, adding two centred patches to the nine grid
+  cells: one **75 px** and one **111 px** (essentially the whole 112 field). Scales
+  49 / 75 / 112.
+
+*(A patch the same size as a grid cell centred on the image would duplicate cell (2,2)
+exactly — the 3×3 grid's centre cell already sits at (56, 56) — so the extra patches are
+at genuinely different scales.)*
+
+![Z vs F3×3 vs F3×3+2](figures/F3x3plus2.png)
+
+| features | n | final | best |
+|:--|--:|--:|--:|
+| Z (Zernike, DC-free) | 75 | 90.24 % | 90.24 % |
+| F 3×3, no DC | 72 | 91.94 % | 92.14 % |
+| **F 3×3+2 (75, 112), no DC** | 88 | **92.30 %** | 92.40 % |
+| Z + F 3×3+2, no DC | 163 | 92.47 % | 92.74 % |
+
+**F beats Z by 1.7 points at essentially equal feature count** (72 vs 75) — the same
+ranking as on the full 47-class set (§6 of the Zernike README), now measured without the
+homoglyph noise and without either block enjoying a DC advantage.
+
+**The two extra scales help, but barely.** F 3×3 → F 3×3+2 gains **+0.36** points against
+a standard error of ~0.2 % at this accuracy, i.e. under 2 SE. Adding a 75 px centred
+patch and a whole-image patch to nine 49 px patches buys very little, which says the 3×3
+grid was already capturing most of what a scale pyramid would contribute.
+
+**Zernike still adds almost nothing on top of Fourier**: 92.47 vs 92.30, **+0.17**, well
+inside noise. That is the third protocol to give this answer (§7.2 under an MLP on 47
+strict classes, and here under merged classes with DC removed), and it stands against the
++6.4 points the weak classifier reported in §7.5.
+
+**Dropping the DC term costs essentially nothing.** The nine per-cell ink values are not
+load-bearing once orientation is present — consistent with §7.8, where per-cell ink alone
+scored only 33.7 % while the full scrambled feature set reached 75 %.
+
+One thing visible only in the curves: **Z is not merely lower but slower.** It starts at
+83.8 % against F's 88.6 % and is still climbing at epoch 15, whereas both F variants
+flatten by epoch 5. Part of Z's deficit may be optimisation rather than representation,
+and a longer budget would likely close some of it.
+
 ## 8. Summary of conclusions
 
 1. **The 156 hand-designed features are genuinely good**: 86.4 % on 47-way EMNIST,
