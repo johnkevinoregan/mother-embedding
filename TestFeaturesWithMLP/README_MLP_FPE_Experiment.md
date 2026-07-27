@@ -691,6 +691,88 @@ the hand features' scrambled curve **plateaus flat by epoch 8** and stays there,
 the convnets' scrambled curves recover much closer to their originals. That asymmetry —
 adaptable versus frozen — is visible in the shapes, not just the final numbers.
 
+## 7.9 Three ways to scramble, and what each one destroys
+
+§7.8 used **one** permutation shared by every image. Two variants isolate what that
+shared map was actually providing, and together the three regimes separate three things
+that are easy to conflate: *information content*, *a shared coordinate system*, and
+*spatial adjacency*.
+
+| regime | what it is | what it destroys |
+|:--|:--|:--|
+| **shared** | one fixed map, every image | adjacency only |
+| **per-image** | a fresh map for every image | adjacency **and** the shared coordinate system |
+| **per-class** | one map per class, same for all its instances | adjacency — but **encodes the label in the input** |
+
+All three are bijections on each image, so none removes information from any *individual*
+image. Full split, 15 epochs.
+
+![the three permutation regimes](figures/permutation_regimes_bars.png)
+
+![accuracy vs epoch under each regime](figures/permutation_regimes.png)
+
+| arm | original | shared | per-image | per-class |
+|:--|--:|--:|--:|--:|
+| linear 784→47 | 69.29 % | — | — | **100.00 %** |
+| pixel MLP 784 | 83.65 % | 83.73 % | **4.00 %** | 99.99 % |
+| conv 11×11 s6 ×32 | 84.56 % | 82.49 % | **3.97 %** | 99.94 % |
+| small CNN 3×3+pool | 86.46 % | 80.00 % | **4.71 %** | — |
+
+*(chance 2.13 %; the homoglyph-merged ceiling from §7.7 is 92.5 %)*
+
+### (i) Per-image scrambling destroys almost everything — 4 %, near chance
+
+Give every image its **own** permutation and all three architectures collapse to
+**~4 %**, barely above the 2.13 % floor, and **converge to the same value**. That
+convergence is the point: with no shared coordinate system, no architectural prior has
+anything left to be right or wrong about, so a CNN, a coarse convolution and a plain MLP
+become indistinguishable.
+
+What survives is only what is *permutation-invariant*: total ink and the intensity
+histogram. On near-binary EMNIST that is essentially "how much ink", which separates an
+`I` from an `M` a little and almost nothing else — hence 4 % rather than 2.13 %.
+
+**This is what makes §7.8 interpretable.** The shared-permutation result (83.7 % for the
+MLP) is not evidence that images contain some "non-local" structure that survived
+scrambling. It is evidence that **a fixed relabelling of coordinates is just a different,
+equally valid coordinate system**, and a large nonlinear model can learn any coordinate
+system given enough data — *provided train and test agree on it*. Remove that agreement
+and everything goes.
+
+### (ii) Per-class scrambling makes the task trivial — 100 %, and that is a warning
+
+Give each **class** its own permutation and accuracy goes to **100.00 % for a bare
+linear classifier**, from epoch 1. No hidden layer, no convolution.
+
+The mechanism is that **the permutation becomes the label**. About half of EMNIST's 784
+pixels are background in essentially every image; under `P_c` those always-zero pixels
+land on a class-specific set of output positions. The classifier only has to notice
+*which* positions are dark, and it never looks at the letter at all. Quantified by the
+cosine similarity between class-mean images:
+
+| | mean | max |
+|:--|--:|--:|
+| original | 0.762 | **0.982** |
+| per-class permuted | 0.409 | **0.538** |
+
+The 0.982 in the original data is a pair of classes whose average images are nearly
+identical — the homoglyph pair that caps everything in §7.7. After per-class permutation
+the *worst* pair sits at 0.538. Nothing about the letters became more distinguishable;
+the **coordinate systems** did, and the classifier reads those instead.
+
+**The diagnostic to remember:** 100 % sails past the **92.5 %** homoglyph-merged ceiling.
+Since ~45 % of the residual error at 86 % is genuinely undecidable shapes (§7.7), no
+honest shape representation can exceed that ceiling. **Exceeding it is proof of leakage,
+not of a better model.** This is the same failure mode as a dataset where each class was
+photographed with a different camera.
+
+### (iii) The methodological rule
+
+A permutation test is informative only when the permutation is **independent of the
+label**. Shared and per-image both are, and both teach something. Per-class is not — it
+changes the task rather than probing the model, and the ~100 % it produces measures
+nothing about representation quality.
+
 ## 8. Summary of conclusions
 
 1. **The 156 hand-designed features are genuinely good**: 86.4 % on 47-way EMNIST,
@@ -717,7 +799,15 @@ adaptable versus frozen — is visible in the shapes, not just the final numbers
    (+6.1 to +6.4 points) for every model from 63 % to 86 % accuracy**. A conventional
    stride-1 CNN with pooling reaches only 87.8 % at best on the same budget, so the ~86 %
    plateau is a property of EMNIST-Balanced, not of avoiding convolution.
-8. **The features' geometry is worth ~5× a coarse convolution's locality prior.**
+8. **Three scrambling regimes separate three different things** (§7.9). A *shared*
+   permutation destroys adjacency only, and the plain MLP is unaffected. A *per-image*
+   permutation also destroys the shared coordinate system, and everything collapses to
+   **~4 %** — all architectures converging, because no prior has anything left to be
+   right about. A *per-class* permutation encodes the label in the input, and a bare
+   linear classifier reaches **100 %** — which, by exceeding the 92.5 % undecidability
+   ceiling, is a proof of leakage rather than of quality. A permutation test is
+   informative only when the permutation is independent of the label.
+9. **The features' geometry is worth ~5× a coarse convolution's locality prior.**
    Scrambling the pixels with one fixed permutation costs the hand features **11.5
    points**, a proper CNN **6.5**, the 11×11 stride-6 convolution **2.1**, and the pixel
    MLP **nothing at all** (it is exactly equivariant to input permutation). In both
