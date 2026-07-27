@@ -603,6 +603,94 @@ separate good descriptions from very good ones.
 exhausted. Quote the homoglyph-merged number, which has more headroom and is less
 dominated by the floor — or move to a task whose labels are decidable from the ink.
 
+## 7.8 Scrambling the pixels: how much of this is the geometry?
+
+A sharper way to ask what the features are worth. Draw **one fixed random permutation of
+the 784 pixel positions** and apply **the same map to every training and test image**,
+before any feature extraction. This is a **bijection** — no information is destroyed and
+the images remain perfectly classifiable in principle. The only thing lost is **spatial
+adjacency**: pixels that were neighbours are scattered.
+
+Each architecture then reveals how much it was relying on that adjacency. Full official
+split, 15 epochs, permutation seed 42; both notebooks have this on a checkbox.
+
+![accuracy vs epoch under a fixed pixel permutation](figures/permutation_curves.png)
+
+| arm | original | scrambled | cost | edge over pixel MLP: before → after |
+|:--|--:|--:|--:|:--|
+| **156 hand features** | 86.44 % | **74.95 %** | **−11.5** | +2.79 → **−8.78** |
+| small CNN (3×3 stride 1 + max-pool) | 86.46 % | 80.00 % | **−6.5** | +2.81 → **−3.73** |
+| conv 11×11 stride 6 ×32 | 84.56 % | 82.49 % | **−2.1** | +0.91 → **−1.24** |
+| pixels 784, no convolution | 83.65 % | 83.73 % | **0.0** | — |
+
+### (i) The pixel MLP is exactly unaffected — and this is provable, not lucky
+
+Its first layer computes `Wx`. Permuting the input by `P` gives `W(Px) = (WP)x`, and
+since `W` is initialised i.i.d., `WP` has exactly the same distribution as `W`. The model
+class is **exactly equivariant** to input permutation, so only seed noise can move.
+Measured: 83.65 % → 83.73 %, and the two curves lie on top of each other at *every*
+epoch (0.751/0.754, 0.801/0.803, 0.811/0.814, …), which is what makes it convincing
+rather than coincidental.
+
+### (ii) The cost column is a ladder, ordered by how much locality is actually used
+
+The small CNN applies its first kernel at **784 positions** and pools 2×2
+neighbourhoods, so scrambling costs it **three times** what it costs the 11×11 stride-6
+arm, which has only **9 positions** and therefore barely exploits weight sharing at all.
+
+That retro-explains two earlier observations that looked odd in isolation (§7.7): the
+11×11 arm's learned kernels look visually unstructured, and learned-32 beat
+*frozen-random*-32 by only ~6 points. That arm is closer to a structured random
+projection than to a real convnet, and the permutation test is what exposes it.
+
+### (iii) In every convolutional case the prior flips sign
+
+Look at the last column. On scrambled pixels **both convnets end up worse than the plain
+MLP on the same data**. The convolutional inductive bias is not merely neutralised — it
+becomes an **active handicap**, because the network spends capacity enforcing a
+constraint that is now false. That is the "destruction" one expects; it simply does not
+appear as a collapse toward chance.
+
+### (iv) Nothing collapses to chance, for a reason worth understanding
+
+Weight sharing constrains the *parameterisation*; it does not make the outputs redundant.
+Position `p` reads a fixed coordinate set `S_p`, and applying the **same** `w_k` to
+**different** `S_p` yields genuinely different linear functionals. So 288 distinct
+projections exist regardless of whether any repeating feature does — and a
+74 k-parameter head on 288 ReLU features is a strong classifier whatever the projection
+is. This is the same reason a *frozen random* convolution scores 78.6 % (§7.7).
+
+The identical argument explains the hand features' floor. **A Zernike moment is a linear
+functional of the image**: `A_nm = Σ_pixels f(pixel)·basis(pixel)`. Permute the pixels and
+you get a *different* linear functional — still a linear projection. So the scrambled
+features are 156 fixed nonlinear features built on fixed linear projections: precisely a
+random-feature extractor. That predicts the number quantitatively — 288 frozen random
+outputs give 78.6 %, these 156 outputs give 75.0 %.
+
+Per block, scrambled: Zernike alone **69.3 %**, Fourier alone **68.7 %**, per-cell ink
+`a₀` alone **33.7 %**. So the survivor is emphatically *not* a regional ink census — ink
+is the weakest part. It is the moments acting as generic projections.
+
+### (v) The headline: designed geometry is worth ~5× a coarse convolution
+
+**−11.5 points for the hand features against −2.1 for the 11×11 convolution**, and −6.5
+for a proper CNN. The features lose most because they are the only arm that **cannot
+adapt**: the convnets simply re-learn kernels suited to scrambled data, and the MLP is
+equivariant, but Zernike and Fourier are frozen in a geometry that no longer exists and
+the head can only re-weight them.
+
+This is a much sharper statement of §7.2b's finding than "the features beat a
+convolution by 1.9 points". It says *how much real spatial structure each encodes*.
+
+### (vi) What the curves add over the endpoints
+
+Every scrambled run **starts lower and climbs more slowly** — the scrambled 11×11 conv
+starts at 70 % against 77 %. So part of the cost is **optimisation difficulty**, not
+purely a representational limit, and a longer budget would likely close some of it. But
+the hand features' scrambled curve **plateaus flat by epoch 8** and stays there, whereas
+the convnets' scrambled curves recover much closer to their originals. That asymmetry —
+adaptable versus frozen — is visible in the shapes, not just the final numbers.
+
 ## 8. Summary of conclusions
 
 1. **The 156 hand-designed features are genuinely good**: 86.4 % on 47-way EMNIST,
@@ -629,6 +717,14 @@ dominated by the floor — or move to a task whose labels are decidable from the
    (+6.1 to +6.4 points) for every model from 63 % to 86 % accuracy**. A conventional
    stride-1 CNN with pooling reaches only 87.8 % at best on the same budget, so the ~86 %
    plateau is a property of EMNIST-Balanced, not of avoiding convolution.
+8. **The features' geometry is worth ~5× a coarse convolution's locality prior.**
+   Scrambling the pixels with one fixed permutation costs the hand features **11.5
+   points**, a proper CNN **6.5**, the 11×11 stride-6 convolution **2.1**, and the pixel
+   MLP **nothing at all** (it is exactly equivariant to input permutation). In both
+   convolutional cases the prior *flips sign* — on scrambled pixels the convnets are
+   worse than the plain MLP. Nothing falls to chance, because a fixed projection into a
+   few hundred dimensions plus a trained head is a strong baseline whatever the
+   projection is.
 
 ### What this does not show
 
@@ -641,6 +737,11 @@ dominated by the floor — or move to a task whose labels are decidable from the
   present. It does not test the case FPE is really for — variable-length, variable-content
   structures — where the fixed width becomes a genuine advantage rather than a
   constraint the raw coding does not have to satisfy.
+- The permutation test (§7.8) uses a single permutation seed. The mechanism is
+  deterministic enough that the numbers should be stable, but this was not checked
+  across seeds. It is also adversarial to the hand-designed features *by construction*,
+  which is the point — it isolates their geometric content — but it is not a claim about
+  performance on any realistic input.
 
 ---
 
