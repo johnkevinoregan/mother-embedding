@@ -165,10 +165,24 @@ end
 # ╔═╡ 90000000-0000-0000-0000-000000000008
 # ---- one conv layer + the standard head ----
 begin
-    # Every run records its curve here, keyed by (arm, permuted?), so the original and
+    # Every run records its curve here, keyed by (arm, scrambled?), so the original and
     # permuted versions of an arm can be overlaid after running both.
     const CURVES = Dict{Tuple{String,Bool},Vector{Float64}}()
     remember!(arm, permuted, curve) = (CURVES[(arm, permuted)] = collect(curve))
+
+    # Measured elsewhere, on the full split at 15 epochs, permutation seed 42, so the
+    # whole comparison can be drawn in one figure without re-running those arms here:
+    #   small CNN  — the CeilingDiagnostics.jl architecture (3×3 stride 1 + max-pool)
+    #   156 hand features — MLPonFeatures.jl (Zernike + Fourier grid)
+    const REFERENCE_CURVES = Dict(
+      ("small CNN 3×3+pool", false) => [0.842,0.865,0.871,0.878,0.876,0.873,0.877,0.870,
+                                        0.874,0.871,0.868,0.867,0.865,0.866,0.865],
+      ("small CNN 3×3+pool", true ) => [0.748,0.786,0.801,0.811,0.812,0.808,0.807,0.808,
+                                        0.801,0.808,0.800,0.798,0.799,0.801,0.800],
+      ("156 hand features", false) => [0.841,0.856,0.861,0.860,0.864,0.864,0.866,0.863,
+                                       0.865,0.867,0.867,0.861,0.868,0.864,0.864],
+      ("156 hand features", true ) => [0.654,0.699,0.713,0.727,0.736,0.738,0.743,0.744,
+                                       0.744,0.746,0.750,0.747,0.751,0.748,0.750])
 
     """
     `k` kernel size, `s` stride, `nk` number of learnable kernels, `pad` padding.
@@ -342,23 +356,46 @@ md"""
 
 Each run above is recorded here, keyed by arm and by whether the pixels were permuted,
 so you can tick **permute pixels** and re-run to overlay the two directly. Solid =
-original, dashed = permuted.
+original, dashed = scrambled.
+
+Two arms measured elsewhere are shown as **reference curves** (thin, no markers) so the
+whole comparison sits in one figure: the **small CNN** from `CeilingDiagnostics.jl`'s
+architecture (3×3 stride-1 convolutions with pooling) and the **156 hand features** from
+`MLPonFeatures.jl`. Both were run on the full split at 15 epochs, seed 42 — tick
+*show reference arms* to include them.
+
+show reference arms: $(@bind show_ref CheckBox(default=true))
 """
 
 # ╔═╡ 90000000-0000-0000-0000-000000000011
-if isempty(CURVES)
-    md"*(no runs recorded yet — tick a **run** box above)*"
+if isempty(CURVES) && !show_ref
+    md"*(no runs recorded yet — tick a **run** box above, or show the reference arms)*"
 else
     let
-        p = plot(xlabel="epoch", ylabel="test accuracy (%)", legend=:bottomright,
-                 ylims=(0,95), title="accuracy vs epoch, all recorded runs",
-                 titlefontsize=9, size=(880,400))
-        pal = Dict{String,Symbol}(); cols = [:goldenrod,:steelblue,:seagreen,:purple,:firebrick]
-        for ((arm,pm),c) in sort(collect(CURVES), by=x->(x[1][1], x[1][2]))
-            haskey(pal,arm) || (pal[arm] = cols[(length(pal) % length(cols))+1])
-            plot!(p, 1:length(c), 100 .*c; lw=2, c=pal[arm],
-                  ls=(pm ? :dash : :solid), marker=(pm ? :square : :circle), ms=3,
-                  label="$(arm) — $(pm ? "permuted" : "original")")
+        # y-range fitted to the data: a 0–100 axis squashes every difference that matters
+        allc = vcat(collect(values(CURVES)), show_ref ? collect(values(REFERENCE_CURVES)) : Vector{Float64}[])
+        lo = max(0, floor(100*minimum(minimum.(allc))/2)*2 - 2)
+        hi = min(100, ceil(100*maximum(maximum.(allc))/2)*2 + 2)
+        p = plot(xlabel="epoch", ylabel="test accuracy (%)", legend=:outerright,
+                 ylims=(lo,hi), grid=true, gridalpha=0.25, legendfontsize=8,
+                 title="accuracy vs epoch — solid = original, dashed = scrambled",
+                 titlefontsize=10, size=(1000,450), left_margin=4Plots.mm)
+        pal = Dict("pixels 784, no conv"=>:goldenrod, "small CNN 3×3+pool"=>:seagreen,
+                   "156 hand features"=>:firebrick)
+        cols = [:steelblue,:purple,:darkorange,:teal]
+        colour(arm) = get!(pal, arm, cols[(length(pal) % length(cols))+1])
+
+        if show_ref
+            for ((arm,pm),c) in sort(collect(REFERENCE_CURVES), by=x->(x[1][1],x[1][2]))
+                plot!(p, 1:length(c), 100 .*c; lw=1.4, c=colour(arm), alpha=0.75,
+                      ls=(pm ? :dash : :solid),
+                      label="$(arm) — $(pm ? "scrambled" : "original") (ref)")
+            end
+        end
+        for ((arm,pm),c) in sort(collect(CURVES), by=x->(x[1][1],x[1][2]))
+            plot!(p, 1:length(c), 100 .*c; lw=2.5, c=colour(arm),
+                  ls=(pm ? :dash : :solid), marker=(pm ? :square : :circle), ms=3.5,
+                  label="$(arm) — $(pm ? "scrambled" : "original")")
         end
         p
     end
@@ -417,11 +454,29 @@ Tick **permute pixels**: one fixed random permutation of the 784 positions, the 
 for every train and test image. A bijection — no information destroyed, only adjacency.
 Full split, seed 42, alongside the hand-designed features from `MLPonFeatures.jl`:
 
-| arm | original | permuted | cost of scrambling |
-|:--|--:|--:|--:|
-| 156 hand features | 86.44 % | 74.95 % | **−11.5** |
-| **conv 11×11 s6 ×32** | **84.56 %** | **82.49 %** | **−2.1** |
-| pixels 784, no conv | 83.65 % | 83.73 % | **0.0** |
+![accuracy vs epoch under a fixed pixel permutation](figures/permutation_curves.png)
+
+| arm | original | scrambled | cost | edge over pixel MLP: before → after |
+|:--|--:|--:|--:|:--|
+| 156 hand features | 86.44 % | 74.95 % | **−11.5** | +2.79 → **−8.78** |
+| small CNN 3×3 s1 + pool | 86.46 % | 80.00 % | **−6.5** | +2.81 → **−3.73** |
+| **conv 11×11 s6 ×32** | **84.56 %** | **82.49 %** | **−2.1** | +0.91 → **−1.24** |
+| pixels 784, no conv | 83.65 % | 83.73 % | **0.0** | — |
+
+**The cost column is a ladder, ordered by how much locality each architecture actually
+uses.** The small CNN applies its first kernel at 784 positions and pools 2×2
+neighbourhoods, so scrambling costs it three times what it costs the 9-position 11×11
+arm. In every convolutional case the prior **flips sign**: on scrambled pixels both
+convnets end up *worse than the plain MLP on the same data*, so the inductive bias is not
+merely neutralised, it becomes a handicap.
+
+Three things visible in the curves but not in the table: the two pixel-MLP curves lie on
+top of each other at **every** epoch, not just the last (that is the equivariance argument
+made visible); every scrambled run starts lower *and* climbs more slowly, so part of the
+cost is optimisation difficulty rather than a representational limit; and the hand
+features' scrambled curve plateaus flat by epoch 8, whereas the convnets' scrambled
+curves recover much closer to their originals — the convnets re-learn kernels for the
+scrambled data, the fixed features cannot re-learn anything.
 
 The pixel MLP is **exactly unaffected** — its first layer computes `Wx`, so permuting by
 `P` gives `W(Px) = (WP)x`, and with `W` initialised i.i.d. the model class is exactly
