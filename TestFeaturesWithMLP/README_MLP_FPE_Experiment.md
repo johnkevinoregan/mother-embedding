@@ -822,6 +822,122 @@ One thing visible only in the curves: **Z is not merely lower but slower.** It s
 flatten by epoch 5. Part of Z's deficit may be optimisation rather than representation,
 and a longer budget would likely close some of it.
 
+## 7.11 Sample efficiency: how many examples does each approach need?
+
+Every result above uses all 112,800 training images. This section asks a different
+question: **when training data is scarce, does a hand-designed representation beat a
+learned one?** The prior reason to expect yes is that the Zernike and Fourier extractors
+have **no learned parameters at all** — they consume zero training examples — whereas a
+convolutional network must discover its kernels from whatever data it is given.
+
+**Protocol.** Draw `k` training images per merged class *once* per seed and reuse exactly
+that subset for every gradient step. All arms in a given seed train on the **identical**
+images, so arm-to-arm differences are not sampling noise. Scored on the full official
+18,800-image test set, never subsampled. 40 homoglyph-merged classes (chance 2.50 %).
+**No augmentation for any arm.**
+
+Training budget is a **fixed 4,000 Adam steps at batch 32 for every arm and every `k`**,
+not a fixed number of epochs. Epoch-matching would hand `k=100` ten times the gradient
+updates of `k=10`, confounding sample size with optimisation budget. Feature
+standardisation is fit on the `k`-subset alone — using full-train statistics would leak
+exactly the information being withheld.
+
+| arm | params |
+|:--|--:|
+| F 3×3+2 no-DC (88) → 256 → 40 | 33,064 |
+| F 3×3+2 no-DC (88) → 256 → 128 → 40 | 60,456 |
+| small CNN (2 conv + pool), raw 28×28 | 833,960 |
+
+![few-shot sample efficiency](figures/fewshot_sample_efficiency.png)
+
+Test accuracy (%), mean ± sd over 5 seeds, best-eval:
+
+| k | images | F → 256 → 40 | F → 256 → 128 → 40 | small CNN | paired gap |
+|--:|--:|--:|--:|--:|--:|
+| 10 | 400 | **69.42 ± 1.22** | 69.03 ± 1.31 | 61.74 ± 2.57 | **+7.68 ± 1.61** |
+| 20 | 800 | **76.80 ± 0.75** | 76.60 ± 0.76 | 71.12 ± 0.63 | **+5.68 ± 0.50** |
+| 50 | 2,000 | 82.87 ± 0.24 | **82.90 ± 0.50** | 81.38 ± 0.63 | **+1.49 ± 0.47** |
+| 100 | 4,000 | 85.60 ± 0.24 | 85.57 ± 0.19 | **86.00 ± 0.21** | **−0.39 ± 0.33** |
+
+The last column is the **per-seed paired difference** (features minus CNN on the same
+subset). Its sd is much tighter than either arm's own spread — ±1.61 against ±2.57 at
+`k=10` — which is the paired design earning its keep. All five seeds agree on sign at
+`k` = 10, 20 and 50.
+
+### (i) The designed features win a large head start, and then lose it
+
+**+7.7 points at 10 examples per class**, a 20 % relative reduction in error, from a model
+with **25× fewer parameters**. By `k=100` — 4,000 images, 3.5 % of the full set — the
+advantage is gone and slightly reversed, and at full data the CNN wins by 0.4
+(92.70 vs 92.30, §7.7 and §7.10).
+
+### (ii) Stated as data rather than accuracy, the advantage is much more modest
+
+How much data does the CNN need to reach what the features achieve? By log-linear
+interpolation:
+
+| features at | CNN needs | multiplier |
+|:--|:--|--:|
+| `k=10` (69.4 %) | `k ≈ 17.6` | **1.76×** |
+| `k=20` (76.8 %) | `k ≈ 33.2` | **1.66×** |
+| `k=50` (82.9 %) | `k ≈ 62.5` | **1.25×** |
+
+So the features are worth **under a doubling of the training set**, and that is being
+spent down as `k` grows. Both framings are honest and they differ because the curves are
+steep here: a large vertical gap corresponds to a small horizontal one. *"Much more
+sample efficient"* is well supported in the accuracy framing and only mildly so in the
+data framing, and this README prefers the second as the more conservative claim.
+
+### (iii) Better intercept, worse slope — and there is a mechanism
+
+Accuracy gained per doubling of training data:
+
+| range | features | small CNN | ratio |
+|:--|--:|--:|--:|
+| 10 → 20 | +7.38 | +9.38 | 1.27× |
+| 20 → 50 | +4.59 | +7.76 | 1.69× |
+| 50 → 100 | +2.73 | +4.62 | 1.69× |
+
+The CNN converts data into accuracy **1.3–1.7× faster at every point in the range**. The
+curves are converging, not parallel-shifted — which is exactly why the gap closes. Beyond
+`k=100` they run parallel again: from `k=100` to full data both gain about 6.4 points.
+
+The mechanism is straightforward. The feature extractor is **frozen**: it cannot improve
+with more data, so all learning happens in a 33 k head reading 88 fixed numbers. The CNN
+improves its representation *and* its head. Additional data is therefore worth strictly
+more to the CNN, and the only question is how large a head start the designed prior buys.
+
+### (iv) The low-data penalty is variance as much as mean
+
+At `k=10` the CNN's seed-to-seed sd is **2.57** against the features' **1.22**. A model
+that must learn its own representation is not merely worse on 400 images, it is **twice as
+unreliable** — which particular 400 images you drew matters far more. For a practitioner
+choosing an approach under data scarcity, that is arguably the more useful number.
+
+### (v) The extra hidden layer buys nothing and costs stability
+
+The 256 → 128 arm is within noise at every `k`, and slightly *negative* at `k=10`. At
+`k=100` its final accuracy is **83.94 ± 3.10** against a best of **85.57 ± 0.19** — it
+peaks and then degrades, while the shallow arm holds flat. The extra layer contributed
+only an overfitting mode. This is consistent with §7.1, where one hidden layer of 256 was
+already as good as three of 512 on the full dataset.
+
+### (vi) What this does not show
+
+**No arm was given data augmentation**, and that is the single largest caveat. Augmentation
+is the standard remedy in precisely this regime, and it would help the CNN *asymmetrically*:
+small translations, rotations and rescalings are exactly the invariances the Zernike and
+Fourier features have built in analytically, and augmentation is how one hands those to a
+CNN for free. The crossover would very likely move well below `k=100`, and the `k=10` gap
+shrink substantially. As measured, the comparison is *designed invariances versus
+invariances learned from raw pixels alone* — a fair question, but not the only one.
+
+Also: the learning curves are **flat from about step 500** in every cell (see below), so
+4,000 steps was a generous budget for all arms and none of these gaps is an optimisation
+artefact. They are representational.
+
+![few-shot learning curves](figures/fewshot_curves.png)
+
 ## 8. Summary of conclusions
 
 1. **The 156 hand-designed features are genuinely good**: 86.4 % on 47-way EMNIST,
@@ -864,6 +980,15 @@ and a longer budget would likely close some of it.
    worse than the plain MLP. Nothing falls to chance, because a fixed projection into a
    few hundred dimensions plus a trained head is a strong baseline whatever the
    projection is.
+
+10. **The designed features are more sample-efficient, but by less than the accuracy gap
+    suggests** (§7.11). At 10 examples per class they beat a small CNN by **7.7 points**
+    with 25× fewer parameters — but expressed as data that is only a **1.76×** advantage,
+    it shrinks to 1.25× by 50 examples, and the CNN overtakes at about **100 per class**
+    (3.5 % of the dataset). The features win on *intercept*, the CNN on *slope*: it
+    converts data into accuracy 1.3–1.7× faster throughout, because a frozen extractor
+    cannot improve with data while a learned one can. No arm had augmentation, which
+    would help the CNN asymmetrically.
 
 ### What this does not show
 

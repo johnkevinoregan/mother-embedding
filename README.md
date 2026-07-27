@@ -29,6 +29,14 @@ the raw feature values against embedding them in FPE codes. Its
 Fourier grid, FPE, binding and bundling from scratch, so it can be read without any of
 the above.
 
+Its §7.11 asks the question the rest of the repo does not: **how much training data does
+a designed representation save?** Because the Zernike and Fourier extractors have no
+learned parameters, they start far ahead — **+7.7 points over a small CNN at 10 examples
+per class**, with 25× fewer parameters — but the advantage decays and the CNN overtakes at
+about 100 examples per class (3.5 % of EMNIST). Expressed as data rather than accuracy the
+saving is under 2×, and no arm was given augmentation, which would favour the CNN. Run it
+with `FewShotComparison.jl`.
+
 See `PROGRESS_2026-07-26.md` for the latest writeup (and the earlier
 `PROGRESS_*.md` files for the history) — what's implemented, what's still to come,
 and the reasoning behind the changes. Its §9 is worth reading before trusting any
