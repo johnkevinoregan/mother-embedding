@@ -105,6 +105,30 @@ split for anything you intend to quote.
 
 train images per class: $(@bind ntr Slider(100:100:2400, default=2400, show_value=true))
 test images per class: $(@bind nte Slider(50:50:400, default=400, show_value=true))
+
+### Optional: scramble the pixels
+
+**permute pixels**: $(@bind do_perm CheckBox(default=false)) · permutation seed: $(@bind perm_seed Slider(1:100, default=42, show_value=true))
+
+Draws **one fixed random permutation of the 784 pixel positions** and applies **the same
+map to every training and test image**. No information is destroyed — it is a bijection,
+and the images remain perfectly classifiable in principle. What is destroyed is
+**spatial adjacency**: pixels that were neighbours are scattered.
+
+This separates the two architectures cleanly:
+
+- The **fully-connected** arm should be **unaffected**. Its first layer computes `Wx`,
+  and permuting the input by `P` gives `W(Px) = (WP)x`. Since `W` is initialised i.i.d.,
+  `WP` has the same distribution as `W` — the model class is *exactly equivariant* to
+  input permutation, so only seed noise should change.
+- The **convolutional** arm should be badly hurt, because its two priors — locality and
+  weight sharing — are exactly what permutation invalidates. Each 11×11 kernel now sees
+  121 scattered pixels, and the same 121 weights are applied to 9 unrelated scattered
+  sets.
+
+It should not fall to chance, though: the head still receives 288 ReLU features of *some*
+fixed projection, and a frozen *random* convolution is worth ~78 % on this task
+(`CeilingDiagnostics.jl`). Measured outcome in the Notes.
 """
 
 # ╔═╡ 90000000-0000-0000-0000-000000000007
@@ -122,16 +146,30 @@ begin
     te_imgs, yte = load_split(joinpath(SRC_DIR,"emnist-balanced-test-images-idx3-ubyte"),
                               joinpath(SRC_DIR,"emnist-balanced-test-labels-idx1-ubyte"), nte)
     # Flux wants WHCN
-    Xtr = reshape(tr_imgs, 28, 28, 1, size(tr_imgs,3))
-    Xte = reshape(te_imgs, 28, 28, 1, size(te_imgs,3))
+    Xtr0 = reshape(tr_imgs, 28, 28, 1, size(tr_imgs,3))
+    Xte0 = reshape(te_imgs, 28, 28, 1, size(te_imgs,3))
+
+    # one fixed permutation of the 784 pixel positions, applied identically to every
+    # image in both splits — a bijection, so no information is lost, only adjacency
+    PERM = randperm(MersenneTwister(perm_seed), 784)
+    scramble(X4) = (n=size(X4,4); reshape(reshape(X4,784,n)[PERM,:], 28,28,1,n))
+    Xtr = do_perm ? scramble(Xtr0) : Xtr0
+    Xte = do_perm ? scramble(Xte0) : Xte0
+
     Markdown.parse("**$(length(ytr)) train / $(length(yte)) test** · " *
                    "tensors `$(size(Xtr))` and `$(size(Xte))` · chance " *
-                   "**$(round(100/NCLASS,digits=2)) %**")
+                   "**$(round(100/NCLASS,digits=2)) %**" *
+                   (do_perm ? " · ⚠️ **pixels permuted** (seed $(perm_seed), same map for train and test)" : ""))
 end
 
 # ╔═╡ 90000000-0000-0000-0000-000000000008
 # ---- one conv layer + the standard head ----
 begin
+    # Every run records its curve here, keyed by (arm, permuted?), so the original and
+    # permuted versions of an arm can be overlaid after running both.
+    const CURVES = Dict{Tuple{String,Bool},Vector{Float64}}()
+    remember!(arm, permuted, curve) = (CURVES[(arm, permuted)] = collect(curve))
+
     """
     `k` kernel size, `s` stride, `nk` number of learnable kernels, `pad` padding.
     Everything after the convolution is identical to the other arms: flatten, one
@@ -221,12 +259,15 @@ else
         model, h, out, flat, np = train_conv(Xtr, ytr, Xte, yte;
                                              k=ksz, s=kst, nk=nker, pad=kpad, epochs=nep)
         global CONV_HIST = h; global CONV_MODEL = model
-        Markdown.parse(@sprintf("**%d×%d kernels, stride %d, %d of them, pad %d** → %d×%d×%d = **%d conv features**, %d params · **test %.2f %%** (best %.2f %%) · %.0f s",
+        remember!("conv $(ksz)×$(ksz) ×$(nker)", do_perm, h.test)
+        Markdown.parse(@sprintf("**%d×%d kernels, stride %d, %d of them, pad %d** → %d×%d×%d = **%d conv features**, %d params%s · **test %.2f %%** (best %.2f %%) · %.0f s",
                         ksz,ksz,kst,nker,kpad,out,out,nker,flat,np,
+                        do_perm ? " · **pixels permuted**" : "",
                         100h.test[end], 100maximum(h.test), time()-t0)),
         plot(1:nep, 100 .*h.test; lw=2, marker=:circle, ms=3, label="conv, test",
              xlabel="epoch", ylabel="accuracy (%)", legend=:bottomright,
-             title="one conv layer on 28×28 pixels", titlefontsize=9, size=(760,320))
+             title="one conv layer on 28×28 pixels" * (do_perm ? " (permuted)" : ""),
+             titlefontsize=9, size=(760,320))
     end
 end
 
@@ -275,6 +316,7 @@ else
         P_tr = reshape(Xtr, 784, :); P_te = reshape(Xte, 784, :)
         t0=time(); _, h = train_mlp(P_tr, ytr, P_te, yte; hidden=[256], epochs=nep)
         global REF_HIST = h
+        remember!("pixels 784, no conv", do_perm, h.test)
         p = plot(1:nep, 100 .*h.test; lw=2, marker=:square, ms=3, c=:goldenrod,
                  label="pixels 784, no conv", xlabel="epoch", ylabel="test accuracy (%)",
                  legend=:bottomright, title="convolution vs none, identical head",
@@ -290,6 +332,34 @@ else
                           @sprintf(" — conv arm reached **%.2f %%**, a gap of **%+.2f** points",
                                    100CONV_HIST.test[end], 100*(CONV_HIST.test[end]-h.test[end])) :
                           " — run the conv arm above to overlay it")),
+        p
+    end
+end
+
+# ╔═╡ 90000000-0000-0000-0000-000000000010
+md"""
+### Every curve run so far
+
+Each run above is recorded here, keyed by arm and by whether the pixels were permuted,
+so you can tick **permute pixels** and re-run to overlay the two directly. Solid =
+original, dashed = permuted.
+"""
+
+# ╔═╡ 90000000-0000-0000-0000-000000000011
+if isempty(CURVES)
+    md"*(no runs recorded yet — tick a **run** box above)*"
+else
+    let
+        p = plot(xlabel="epoch", ylabel="test accuracy (%)", legend=:bottomright,
+                 ylims=(0,95), title="accuracy vs epoch, all recorded runs",
+                 titlefontsize=9, size=(880,400))
+        pal = Dict{String,Symbol}(); cols = [:goldenrod,:steelblue,:seagreen,:purple,:firebrick]
+        for ((arm,pm),c) in sort(collect(CURVES), by=x->(x[1][1], x[1][2]))
+            haskey(pal,arm) || (pal[arm] = cols[(length(pal) % length(cols))+1])
+            plot!(p, 1:length(c), 100 .*c; lw=2, c=pal[arm],
+                  ls=(pm ? :dash : :solid), marker=(pm ? :square : :circle), ms=3,
+                  label="$(arm) — $(pm ? "permuted" : "original")")
+        end
         p
     end
 end
@@ -341,6 +411,48 @@ structure, not that convolution is inferior.
 parameters (52 k) and gets the best accuracy; the pixel arm uses the most (214 k, almost
 all in the 784→256 first layer) and does worst. The conv arm sits between on both counts.
 
+**5. Scrambling the pixels: what the convolution was actually buying.**
+
+Tick **permute pixels**: one fixed random permutation of the 784 positions, the same map
+for every train and test image. A bijection — no information destroyed, only adjacency.
+Full split, seed 42, alongside the hand-designed features from `MLPonFeatures.jl`:
+
+| arm | original | permuted | cost of scrambling |
+|:--|--:|--:|--:|
+| 156 hand features | 86.44 % | 74.95 % | **−11.5** |
+| **conv 11×11 s6 ×32** | **84.56 %** | **82.49 %** | **−2.1** |
+| pixels 784, no conv | 83.65 % | 83.73 % | **0.0** |
+
+The pixel MLP is **exactly unaffected** — its first layer computes `Wx`, so permuting by
+`P` gives `W(Px) = (WP)x`, and with `W` initialised i.i.d. the model class is exactly
+equivariant. Only seed noise moves, and the curves track epoch by epoch.
+
+**The convolution loses only 2.1 points — but read it as a sign change, not a small
+loss.** Its edge over the plain MLP goes from **+0.91** (original) to **−1.24**
+(permuted): on scrambled pixels the convolutional prior is now an active *handicap*
+rather than a help. That swing is the whole of what locality was buying, and it is small
+because **this architecture was barely exploiting locality**. With 11×11 kernels at
+stride 6 there are only **9 positions**, so weight sharing is a very weak constraint and
+each output is largely a fixed projection of a 121-pixel subset. Permuting changes which
+pixels are in the subset, not the structure.
+
+That retro-explains two things that looked odd in isolation: the learned kernels being
+visually unstructured (§ the kernel figure), and learned-32 beating frozen-random-32 by
+only ~6 points. This arm is closer to a structured random projection than to a real
+convnet.
+
+**Why nothing collapses to chance.** Weight sharing constrains the *parameterisation*, it
+does not make the outputs redundant: position `p` reads a fixed coordinate set `S_p`, and
+applying the same `w_k` to different `S_p` gives genuinely different linear functionals.
+So you always get 288 distinct projections, and a 74k-parameter head on 288 ReLU features
+is a strong classifier whatever the projection is — which is exactly why a *frozen random*
+convolution scores 78.6 %.
+
+**Contrast with the hand-designed features**, which lose **11.5** points. They cannot
+adapt: they are frozen in a geometry that no longer exists, whereas the convolution simply
+re-learns kernels for the scrambled data. So the designed geometry contributes about
+**five times** more usable spatial structure than one coarse convolution layer does.
+
 ### Caveats
 
 - One seed per configuration; differences under ~0.5 points should not be read.
@@ -368,4 +480,6 @@ all in the 784→256 first layer) and does worst. The conv arm sits between on b
 # ╠═90000000-0000-0000-0000-00000000000c
 # ╠═90000000-0000-0000-0000-00000000000d
 # ╠═90000000-0000-0000-0000-00000000000e
+# ╟─90000000-0000-0000-0000-000000000010
+# ╠═90000000-0000-0000-0000-000000000011
 # ╟─90000000-0000-0000-0000-00000000000f

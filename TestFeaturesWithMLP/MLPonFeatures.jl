@@ -323,6 +323,25 @@ you work on a subsample first. **Use the full split for any number you intend to
 
 train images per class: $(@bind ntr Slider(100:100:2400, default=400, show_value=true))
 test images per class: $(@bind nte Slider(50:50:400, default=400, show_value=true))
+
+### Optional: scramble the pixels
+
+**permute pixels**: $(@bind do_perm CheckBox(default=false)) · permutation seed: $(@bind perm_seed Slider(1:100, default=42, show_value=true))
+
+Draws **one fixed random permutation of the 784 pixel positions** and applies **the same
+map to every training and test image**, at 28×28, *before* the upsample and feature
+extraction. It is a bijection, so no information is destroyed — only **spatial
+adjacency**.
+
+This is a direct test of how much of these features' value is the **geometry** rather
+than merely being 156 summary numbers. Both blocks are pure geometry: a Zernike moment
+integrates the image against basis functions defined by distance and angle from a
+centre, and the Fourier grid tiles space and measures per-cell orientation. Scramble the
+pixels and `ρ`, `θ`, "cell", and "orientation" all refer to nothing.
+
+Unlike a convolution, the features **cannot adapt** — they are frozen in a geometry that
+no longer exists, and the MLP head can only re-weight them. Measured outcome in the
+Notes; the same option exists in `ConvComparison.jl` for the pixel and convolution arms.
 """
 
 # ╔═╡ 90000000-0000-0000-0000-00000000000a
@@ -339,12 +358,20 @@ begin
                               joinpath(EMNIST_DIR,"emnist-balanced-train-labels-idx1-ubyte"), ntr)
     te_imgs, yte = load_split(joinpath(SRC_DIR,"emnist-balanced-test-images-idx3-ubyte"),
                               joinpath(SRC_DIR,"emnist-balanced-test-labels-idx1-ubyte"), nte)
-    Ztr,Ftr,Ptr = extract_features(tr_imgs)
-    Zte,Fte,Pte = extract_features(te_imgs)
+    # one fixed permutation of the 784 pixel positions, applied identically to every
+    # image in both splits, BEFORE upsampling and feature extraction
+    PERM = randperm(MersenneTwister(perm_seed), 784)
+    scramble(I3) = (n=size(I3,3); reshape(reshape(I3,784,n)[PERM,:], 28,28,n))
+    tr_use = do_perm ? scramble(tr_imgs) : tr_imgs
+    te_use = do_perm ? scramble(te_imgs) : te_imgs
+
+    Ztr,Ftr,Ptr = extract_features(tr_use)
+    Zte,Fte,Pte = extract_features(te_use)
     RAWtr, RAWte = standardise(hcat(Ztr,Ftr), hcat(Zte,Fte))
     Markdown.parse("**$(length(ytr)) train / $(length(yte)) test images** · " *
         "features **$(size(RAWtr,2))** (Z $(size(Ztr,2)) + F $(size(Ftr,2))) · " *
-        "pixels **784** · chance **$(round(100/NCLASS,digits=2)) %**")
+        "pixels **784** · chance **$(round(100/NCLASS,digits=2)) %**" *
+        (do_perm ? " · ⚠️ **pixels permuted** (seed $(perm_seed), same map for train and test)" : ""))
 end
 
 # ╔═╡ 90000000-0000-0000-0000-00000000000b
@@ -511,6 +538,42 @@ and those survive crosstalk that destroys per-item readback.
 Sized for readback you'd want `D ≈ 4096`; sized for a discriminative readout `D = 256`
 does the same job — an order of magnitude of over-provisioning if you apply the wrong
 rule.
+
+**7. How much of this is the geometry? Scramble the pixels and find out.**
+
+Tick **permute pixels** above: one fixed random permutation of the 784 positions, the
+same map for every train and test image, applied before the upsample. A bijection — no
+information lost, only adjacency. Measured on the full split (seed 42), against the same
+test run in `ConvComparison.jl`:
+
+| arm | original | permuted | cost of scrambling |
+|:--|--:|--:|--:|
+| **156 hand features** | **86.44 %** | **74.95 %** | **−11.5** |
+| conv 11×11 s6 ×32 | 84.56 % | 82.49 % | −2.1 |
+| pixels 784, no conv | 83.65 % | 83.73 % | **0.0** |
+
+The pixel MLP is **exactly unaffected**, as it must be: its first layer computes `Wx`, so
+permuting by `P` gives `W(Px) = (WP)x`, and since `W` is i.i.d.-initialised, `WP` has the
+same distribution. The model class is exactly equivariant to input permutation; only seed
+noise moves. The epoch-by-epoch curves confirm it (0.751/0.754, 0.801/0.803, …).
+
+**The geometry in these features is worth 11.5 points** — against 2.1 for the convolution
+layer's locality prior. That is a sharper statement of what §2 was reaching for than "the
+features beat pixels by 2.8 points": the designed spatial structure contributes roughly
+five times more than one coarse learned convolution does.
+
+**But it does not fall to chance, and the reason is worth understanding.** A Zernike
+moment is a *linear functional* of the image, `A_nm = Σ_pixels f(pixel)·basis(pixel)`.
+Permute the pixels and you get a *different* linear functional — still a linear projection
+of the original image. Same for the per-cell DFT coefficients. So the scrambled features
+are 156 fixed nonlinear features built on fixed linear projections: precisely a
+random-feature extractor. That predicts the number quantitatively — a frozen *random*
+convolution with 288 outputs scores 78.6 % (`CeilingDiagnostics.jl`), and these 156
+outputs score 75.0 %. Different constructions, same regime, ordered by output count.
+
+Per block, permuted: Zernike alone **69.3 %**, Fourier alone **68.7 %**, per-cell ink `a₀`
+alone **33.7 %**. So the survivor is *not* a regional ink census — ink is the weakest part.
+It is the moments acting as generic projections.
 
 **What this doesn't show:** only one classifier family (a convnet on pixels would beat
 everything here); a coarse 3×4 sweep with one seed per cell; and a bundle where all 156
