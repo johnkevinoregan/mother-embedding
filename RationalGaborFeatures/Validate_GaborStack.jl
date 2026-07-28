@@ -16,6 +16,19 @@ macro bind(def, element)
     #! format: on
 end
 
+# ╔═╡ a1000000-0000-0000-0000-000000000002
+begin
+    using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
+    using Printf, Statistics, Plots, FFTW
+    include(joinpath(@__DIR__, "GaborStack.module.jl"))
+    include(joinpath(@__DIR__, "Stimuli.module.jl"))
+    using .GaborStack, .Stimuli
+    "Outside Pluto a bound variable is `missing`; fall back to the default."
+    val(x, d) = ismissing(x) ? d : x
+    gr()
+    md"*setup loaded*"
+end
+
 # ╔═╡ a1000000-0000-0000-0000-000000000001
 md"""
 # Validating the log-Gabor front end
@@ -38,19 +51,6 @@ It caught two real bugs that no accuracy number would have surfaced:
 
 Nothing here imports EMNIST.
 """
-
-# ╔═╡ a1000000-0000-0000-0000-000000000002
-begin
-    using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
-    using Printf, Statistics, Plots, FFTW
-    include(joinpath(@__DIR__, "GaborStack.module.jl"))
-    include(joinpath(@__DIR__, "Stimuli.module.jl"))
-    using .GaborStack, .Stimuli
-    "Outside Pluto a bound variable is `missing`; fall back to the default."
-    val(x, d) = ismissing(x) ? d : x
-    gr()
-    md"*setup loaded*"
-end
 
 # ╔═╡ a1000000-0000-0000-0000-000000000003
 md"""

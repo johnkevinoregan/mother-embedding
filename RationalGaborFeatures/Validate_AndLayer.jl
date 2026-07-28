@@ -16,6 +16,19 @@ macro bind(def, element)
     #! format: on
 end
 
+# ╔═╡ b1000000-0000-0000-0000-000000000002
+begin
+    using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
+    using Printf, Statistics, Plots
+    include(joinpath(@__DIR__, "GaborStack.module.jl"))
+    include(joinpath(@__DIR__, "AndLayer.module.jl"))
+    include(joinpath(@__DIR__, "Stimuli.module.jl"))
+    using .GaborStack, .AndLayer, .Stimuli
+    val(x, d) = ismissing(x) ? d : x
+    gr()
+    md"*setup loaded*"
+end
+
 # ╔═╡ b1000000-0000-0000-0000-000000000001
 md"""
 # The AND layer — conjunction *before* pooling
@@ -38,19 +51,6 @@ provably cannot separate?*
 
 The baseline was recorded in Phase 2 and is **not adjustable here**.
 """
-
-# ╔═╡ b1000000-0000-0000-0000-000000000002
-begin
-    using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
-    using Printf, Statistics, Plots
-    include(joinpath(@__DIR__, "GaborStack.module.jl"))
-    include(joinpath(@__DIR__, "AndLayer.module.jl"))
-    include(joinpath(@__DIR__, "Stimuli.module.jl"))
-    using .GaborStack, .AndLayer, .Stimuli
-    val(x, d) = ismissing(x) ? d : x
-    gr()
-    md"*setup loaded*"
-end
 
 # ╔═╡ b1000000-0000-0000-0000-000000000003
 begin
