@@ -237,9 +237,16 @@ error made repeatedly in this project — over-predicting that a representationa
 will pay off — and the confusion analysis, which felt like hard evidence, made it worse
 rather than better.
 
+## Results
+
+**See [`RESULTS.md`](RESULTS.md)** for Phases 5–6 in full: the EMNIST replication, the
+AND-layer null and the three independent lines that establish it, the augmentation control
+(the strongest positive result — augmentation buys a CNN 9–13 points and these features
+nothing), the blur investigation, and three corrections to earlier claims in this file.
+
 ## Status
 
-Phases 0–5a complete. The front end is validated, faster than the old one, and **+1.4
+Phases 0–6 complete. The front end is validated, faster than the old one, and **+1.4
 points better** — but its distinctive contribution, the conjunction layer, is redundant on
 EMNIST rather than useful.
 

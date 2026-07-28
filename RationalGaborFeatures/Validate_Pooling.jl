@@ -16,6 +16,20 @@ macro bind(def, element)
     #! format: on
 end
 
+# ╔═╡ c1000000-0000-0000-0000-000000000002
+begin
+    using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
+    using Printf, Statistics, Random, Plots
+    include(joinpath(@__DIR__, "GaborStack.module.jl"))
+    include(joinpath(@__DIR__, "AndLayer.module.jl"))
+    include(joinpath(@__DIR__, "Stimuli.module.jl"))
+    include(joinpath(@__DIR__, "Pooling.module.jl"))
+    using .GaborStack, .AndLayer, .Stimuli, .Pooling
+    val(x, d) = ismissing(x) ? d : x
+    gr()
+    md"*setup loaded*"
+end
+
 # ╔═╡ c1000000-0000-0000-0000-000000000001
 md"""
 # Pooling and feature assembly
@@ -37,20 +51,6 @@ already happened.
 So the gate here is the property pooling is *for*: translation tolerance, measured rather
 than assumed.
 """
-
-# ╔═╡ c1000000-0000-0000-0000-000000000002
-begin
-    using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
-    using Printf, Statistics, Random, Plots
-    include(joinpath(@__DIR__, "GaborStack.module.jl"))
-    include(joinpath(@__DIR__, "AndLayer.module.jl"))
-    include(joinpath(@__DIR__, "Stimuli.module.jl"))
-    include(joinpath(@__DIR__, "Pooling.module.jl"))
-    using .GaborStack, .AndLayer, .Stimuli, .Pooling
-    val(x, d) = ismissing(x) ? d : x
-    gr()
-    md"*setup loaded*"
-end
 
 # ╔═╡ c1000000-0000-0000-0000-000000000003
 begin

@@ -49,7 +49,10 @@ classifier does not reproduce.
 (dense log-Gabor oriented energy, exactly polarity-invariant, with an ablatable layer of
 pointwise conjunctions applied *before* spatial pooling). Its scale ladder is derived from
 the data rather than hard-coded, so it is meant to be pointed at datasets other than
-EMNIST. See its own README.
+EMNIST. See its own `README.md` for the design and `RESULTS.md` for what happened when it
+met data — including the control that had been missing since §7.11 was written:
+**augmentation buys a small CNN 9–13 points and buys these features nothing**, which is
+direct evidence they carry the invariances rather than merely outperforming.
 
 ## `.module.jl` versus `.jl`
 
