@@ -119,7 +119,100 @@ in any output:
   every `@view E[:,:,that]` type-unstable — another 8× on top. `scale_channels` now
   annotates its return type.
 
+## Phase 5a — EMNIST
+
+`Phase5a_EMNIST.jl`, full official split, 40 homoglyph-merged classes, the section 7.10
+classifier unchanged (`Dense(n=>256,relu) → Dense(256=>40)`, Adam 1e-3, batch 128, 15
+epochs, seed 1).
+
+**The reference arm came first**, and it landed exactly: the old F3×3+2 no-DC features,
+re-extracted and re-trained in this harness, give **92.30 %** against the 92.30 % recorded
+in section 7.10. The harness is sound, so the rest of the table can be read.
+
+| arm | n | final | best |
+|:--|--:|--:|--:|
+| reference — old F3×3+2 no-DC | 88 | 92.31 % | 92.42 % |
+| new: `orient` + `lowpass` | 144 | **93.71 %** | 93.78 % |
+| + `A1` | 171 | 93.78 % | 93.78 % |
+| + `A1` + `A2` | 198 | 93.71 % | 93.71 % |
+
+![Phase 5a curves](figures/phase5a_curves.png)
+
+**The new front end is worth +1.40 points** over the old features — about 8 standard errors,
+so real. That gain comes from the bank itself: a scale ladder placed on the measured
+spectrum, more orientations, correct padding.
+
+**The AND layer adds nothing: +0.07 for A₁, and −0.12 once A₂ joins it.** This is the
+layer the whole design argument was built around, and on this task it does not pay.
+
+### …but not because it fails to compute anything
+
+Each block trained alone:
+
+| block alone | n | accuracy |
+|:--|--:|--:|
+| `orient` | 135 | 93.59 % |
+| **`A1` + `A2`** | **54** | **88.45 %** |
+| `A2` | 27 | 78.27 % |
+| `A1` | 27 | 75.63 % |
+| `lowpass` | 9 | 62.15 % |
+
+**54 conjunction features alone reach 88.45 %.** They are strongly informative — they are
+simply *redundant* with what the pooled orientation statistics already carry. Not absent:
+redundant.
+
+That is the outcome the theory should have predicted, and did, before a confusion analysis
+talked us out of it. At a fixed spatial resolution the orientation profile is fully
+described by its harmonics, and products of energies are functions of that same profile;
+the non-commutation of multiply and pool only buys something when there is sub-cell
+structure the covariance can see *and* the classes actually depend on it. On EMNIST the
+second condition fails.
+
+### The targeted check agrees
+
+Errors on the pairs the confusion analysis said A₁ should fix:
+
+| pair | old | new | new + AND |
+|:--|--:|--:|--:|
+| **F / f** | 251 | 265 | 257 |
+| 0 / D | 37 | 32 | 28 |
+| T / t | 34 | 27 | 33 |
+| 4 / Y | 30 | 27 | 26 |
+| U / V | 26 | 26 | 27 |
+| C / e | 20 | 14 | 19 |
+| X / Y | 10 | 6 | 7 |
+| K / h | 9 | 4 | 6 |
+| **total** | **417** | **401** | **403** |
+
+`F`/`f` — 17 % of all remaining error, and the motivating case — is **not** improved. Total
+errors fall from 1,448 to 1,176, but junction-pair errors stay flat, so they *rise* as a
+share of the total from 28.8 % to 34.1 %. The new bank fixes non-junction errors and leaves
+the junction errors exactly where they were.
+
+### A prediction that was wrong
+
+Original estimate: **+0 to +0.5**, on the grounds that the task does not reward i2D
+structure. Revised to **+0.5 to +1.5** after the confusion analysis showed the residual
+errors were junction-distinguishable. Measured: **−0.12**.
+
+The revision was the mistake. "Distinguishable in principle" is not "this feature adds
+something", because the information was already present in another form. This is the same
+error made repeatedly in this project — over-predicting that a representational addition
+will pay off — and the confusion analysis, which felt like hard evidence, made it worse
+rather than better.
+
 ## Status
 
-Phases 0–4 complete and gated (6 + 6 + 5 checks). Next: Phase 5a — reproduce the existing
-92.30 % before believing any improvement — then the ablation.
+Phases 0–5a complete. The front end is validated, faster than the old one, and **+1.4
+points better** — but its distinctive contribution, the conjunction layer, is redundant on
+EMNIST rather than useful.
+
+Open, in the order that would settle the most:
+
+1. **Is it the pooling?** A₁ is a point property read out over 37 px cells. A finer grid for
+   the A blocks alone would separate "the conjunction is redundant" from "3×3 pooling
+   destroys it". One re-extraction, ~9 minutes.
+2. **The shuffled-block control** is now moot for A₁/A₂ (there is no gain to attribute) but
+   still wanted for the +1.40, which is 56 extra columns as well as a better bank.
+3. **A task that requires i2D structure.** The negative result here is about EMNIST, not
+   about the layer: `A1+A2` alone at 88.45 % from 54 numbers says the signal is real.
