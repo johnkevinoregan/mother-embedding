@@ -259,22 +259,45 @@ end
 
 # ╔═╡ b1000000-0000-0000-0000-000000000012
 md"""
-## Junction order — not a gate, but the interesting result
+## Junction order — a claim that did NOT survive checking
 
-A₁ was built to detect co-location. It turns out to order junctions **by ray count**,
-unprompted. That is the `F`/`f` distinction directly: `F` has a 3-ray T-junction where `f`
-has a 4-ray X-crossing, and `F`/`f` is **17.3 % of all remaining error** on merged-class
-EMNIST.
+This section first reported that A₁ "orders junctions by ray count": straight 6.3e4 <
+L-corner 9.5e4 < T 1.15e5 < X 1.58e5. **That was an artefact of total ink.** The four
+stimuli contain 980 / 1052 / 1359 / 1708 inked pixels, and ΣA₁ tracks that almost exactly.
+
+Normalised by total energy the ordering breaks: **L-corner (0.0415) outranks T-junction
+(0.0391)**. And with ink held constant, a T and an X give 1.15e5 against 1.16e5 —
+indistinguishable.
+
+**A₁ cannot count rays, and the theory says it must not.** It is built on the orientation
+profile, which is **π-periodic**, whereas ray count is a **2π** property: a T (stem +
+crossbar) and an X (+ crossing) have the *same* orientation content, {0°, 90°}. What A₁
+genuinely separates is one orientation (0.029) from orientations *meeting* (0.039–0.044) —
+i2D-ness, not junction order.
+
+This matters beyond bookkeeping. `F` has a 3-ray T where `f` has a 4-ray X, so **A₁ was
+structurally the wrong operator for the case that motivated it**, which is consistent with
+its moving only 8 of 251 `F`/`f` errors on EMNIST. The operator for ray *count* is `c₀`
+from the ray transform in `New_Gabor_FPE/`, which is 2π by construction because its
+`d`-offset makes east and west read different pixels.
 """
 
 # ╔═╡ b1000000-0000-0000-0000-000000000013
 let
     cases = [("straight (2)", barstim(N, 0.0)), ("L-corner (2, meeting)", corner(N, π/2)),
              ("T-junction (3)", tee(N)), ("X-crossing (4)", cross_bars(N))]
-    vals = [sum(and_maps(E(im), bank.meta; forms=(:A1,))[1]) for (_, im) in cases]
-    Plots.bar(vals; xticks=(1:4, [nm for (nm, _) in cases]), legend=false, ylabel="Σ A₁",
-              title="A₁ increases monotonically with ray count", titlefontsize=9,
-              c=:steelblue, size=(700, 290), bottom_margin=6Plots.mm)
+    raw = Float64[]; norm = Float64[]; ink = Int[]
+    for (_, im) in cases
+        Es = E(im); A, _ = and_maps(Es, bank.meta; forms=(:A1,))
+        push!(raw, sum(A)); push!(norm, sum(A)/sum(Es)); push!(ink, count(>(0.5f0), im))
+    end
+    p1 = Plots.bar(raw; xticks=(1:4, [nm for (nm,_) in cases]), legend=false, ylabel="Σ A₁",
+                   title="raw ΣA₁ — but ink is $(join(ink, " / "))", titlefontsize=8,
+                   c=:grey, bottom_margin=6Plots.mm)
+    p2 = Plots.bar(norm; xticks=(1:4, [nm for (nm,_) in cases]), legend=false,
+                   ylabel="Σ A₁ / Σ E", c=:steelblue, bottom_margin=6Plots.mm,
+                   title="normalised — the ray-count ordering disappears", titlefontsize=8)
+    plot(p1, p2; layout=(1,2), size=(950, 300))
 end
 
 # ╔═╡ b1000000-0000-0000-0000-000000000014

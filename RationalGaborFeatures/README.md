@@ -63,6 +63,9 @@ Squeeze-and-Excitation gate, which multiplies whole channels by scalars derived 
 
 ## Measured
 
+All on synthetic stimuli with known ground truth. **These are the *dense* maps** — see the
+caveat below, which matters.
+
 | | |
 |:--|--:|
 | A₁ at a junction, crossing vs separated bars | 10.3× / 7.1× / **17.6×** |
@@ -70,11 +73,35 @@ Squeeze-and-Excitation gate, which multiplies whole channels by scalars derived 
 | …while pooled orientation energy | 1.00 → **0.97** |
 | A₂ end/interior, finest scale | **10.4×** |
 | A₂ end/flank · end/blob | 4.4× · 4.8× |
-| A₁ by ray count (straight/L/T/X) | 6.3e4 / 9.5e4 / 1.15e5 / **1.58e5** |
 
-The last row was not designed for: A₁ orders junctions by ray count unprompted, which is
-the `F`/`f` distinction directly (3-ray T versus 4-ray X) — and `F`/`f` is **17.3 % of all
-remaining error** on merged-class EMNIST.
+### Two corrections to earlier versions of this file
+
+**A₁ does *not* order junctions by ray count.** An earlier version reported straight 6.3e4
+< L 9.5e4 < T 1.15e5 < X 1.58e5 as an unprompted result. That tracks **total ink**
+(980 / 1052 / 1359 / 1708 px). Normalised by energy the ordering breaks — L-corner 0.0415
+outranks T-junction 0.0391 — and with ink held constant a T and an X give 1.15e5 against
+1.16e5.
+
+The theory says it must be so: A₁ is built on the orientation profile, which is
+**π-periodic**, and ray count is a **2π** property. A T and an X have identical orientation
+content, {0°, 90°}. What A₁ separates is one orientation (0.029) from orientations
+*meeting* (0.039–0.044) — **i2D-ness, not junction order**. Since `F` has a 3-ray T and `f`
+a 4-ray X, **A₁ was structurally the wrong operator for the case that motivated it.** The
+operator for ray count is `c₀` from the ray transform in `New_Gabor_FPE/`, which is 2π by
+construction because its `d`-offset makes east and west read different pixels.
+
+**The numbers above are dense-map contrasts; the classifier sees pooled ones.** Pooling at
+3×3 costs about 4×:
+
+| | dense | **pooled (what the MLP sees)** |
+|:--|--:|--:|
+| A₁, junction vs separated | 17.6× | **4.9×** |
+| A₂, end vs interior | 10.4× | **2.6×** |
+
+Still a real contrast, but the gates were validating the *operator* rather than the
+*feature*. Blur turns out to be nearly irrelevant by comparison: at EMNIST's measured edge
+profile (49 % mid-tone ink, 8.2 px transition) the pooled A₁ contrast is **5.0×**, i.e.
+unchanged from sharp-edged stimuli.
 
 ## Pooling comes last
 
@@ -157,9 +184,18 @@ Each block trained alone:
 | `A1` | 27 | 75.63 % |
 | `lowpass` | 9 | 62.15 % |
 
-**54 conjunction features alone reach 88.45 %.** They are strongly informative — they are
-simply *redundant* with what the pooled orientation statistics already carry. Not absent:
-redundant.
+**54 conjunction features alone reach 88.45 %.** They are strongly informative, so the
+right word is **correlated**, not redundant. Phase 3 proves A₁ and orient compute different
+things — on stimuli where pooled orientation gives cos 0.97, A₁ separates by 4.9× pooled.
+What Phase 5a measures is only that A's *marginal* contribution given orient is ~0 on this
+data, which is a much weaker statement than "A is a function of orient".
+
+Three things could each produce that, and aggregate accuracy cannot separate them: high
+correlation across EMNIST specifically; the decisive configurations being rare; or A being
+a noisier estimate of a partly shared signal. Note the ceiling — `F`/`f` is 17.3 % of
+*errors* but only **1.3 % of test items**, so perfectly solving it caps the gain at +1.34
+points, and a partial improvement on a 1.3 % subset against a 0.19 % standard error is
+unmeasurable in aggregate. Adding A did in fact remove **8 of 251** `F`/`f` errors.
 
 That is the outcome the theory should have predicted, and did, before a confusion analysis
 talked us out of it. At a fixed spatial resolution the orientation profile is fully
@@ -214,5 +250,12 @@ Open, in the order that would settle the most:
    destroys it". One re-extraction, ~9 minutes.
 2. **The shuffled-block control** is now moot for A₁/A₂ (there is no gain to attribute) but
    still wanted for the +1.40, which is 56 extra columns as well as a better bank.
-3. **A task that requires i2D structure.** The negative result here is about EMNIST, not
-   about the layer: `A1+A2` alone at 88.45 % from 54 numbers says the signal is real.
+3. **A binary `F`-vs-`f` probe**, run three ways — orient alone, A₁+A₂ alone, ray harmonics
+   — stripping out the 40-class dilution. If A alone beats orient alone on that pair, the
+   information is different and useful and merely drowned by averaging.
+4. **`c₀` from the ray transform.** A₁ is π-periodic and provably cannot count rays, which
+   is precisely what `F`/`f` requires. The ray transform in `New_Gabor_FPE/` gets 2π
+   structure from a spatial offset and is **linear in the energy field** — a simpler
+   operator that captures what the bilinear one cannot.
+5. **A task that requires i2D structure.** The negative is about EMNIST, not the layer:
+   `A1+A2` alone at 88.45 % from 54 numbers says the signal is real.
