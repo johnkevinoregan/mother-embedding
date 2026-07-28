@@ -13,39 +13,10 @@
 
 using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 include(joinpath(@__DIR__, "GaborStack.jl"))
-using .GaborStack, Printf, Statistics
+include(joinpath(@__DIR__, "Stimuli.jl"))
+using .GaborStack, .Stimuli, Printf, Statistics
 
 const N = 112
-
-# ---------------------------------------------------------------- stimuli
-"Anti-aliased bar of width `w`, length `len`, at orientation `θ`, centred at `(cy,cx)`."
-function bar(N, θ; w=13.0, len=70.0, cy=(N+1)/2, cx=(N+1)/2)
-    I = zeros(Float32, N, N)
-    s, c = sin(θ), cos(θ)
-    @inbounds for y in 1:N, x in 1:N
-        dy = y - cy; dx = x - cx
-        t =  dx*c + dy*s          # along the bar
-        n = -dx*s + dy*c          # across it
-        (abs(t) <= len/2 && abs(n) <= w/2) && (I[y, x] = 1f0)
-    end
-    I
-end
-
-"Two bars meeting at the centre with an angle `α` between them (L-corner when α=π/2)."
-function corner(N, α; w=13.0, len=40.0)
-    I = zeros(Float32, N, N); c = (N+1)/2
-    for (θ, off) in ((0.0, len/2), (α, len/2))
-        I .= max.(I, bar(N, θ; w=w, len=len, cy=c + off*sin(θ), cx=c + off*cos(θ)))
-    end
-    I
-end
-
-"Two parallel bars separated by `gap` px — the negative control for co-location."
-function two_bars(N, θ, gap; w=13.0, len=70.0)
-    c = (N+1)/2; s, cs = sin(θ), cos(θ)
-    max.(bar(N, θ; w=w, len=len, cy=c - gap/2*cs, cx=c + gap/2*s),
-         bar(N, θ+π/2; w=w, len=len, cy=c + gap/2*cs, cx=c - gap/2*s))
-end
 
 # ---------------------------------------------------------------- bank
 # Three scales, not four. The usable band is ρ ∈ [2, 7] — only 1.81 octaves — so four
@@ -64,9 +35,13 @@ H, W, border = field_for((N, N), LADDER; n_orient=NORI, beta=BETAS)
 bank = make_bank((H, W), LADDER; imwidth=N, n_orient=NORI, beta=BETAS)
 ORI  = [(i, m) for (i, m) in enumerate(bank.meta) if m.kind === :oriented]
 
-"Both spatial extents per scale — the larger sets the padding and the pooling scale."
-extents(i) = (sigma_x(LAMS[i], BETAS[i]),
-              sigma_along(LADDER[i], (π / NORI[i]) / 1.5, N))
+"Both spatial extents per scale — the larger sets the padding and the pooling scale.
+σ_φ is read from the bank rather than recomputed; duplicating it is how the AND layer's
+probe offsets silently kept stale values when the bank's angular tuning changed."
+function extents(i)
+    m = first(m for m in bank.meta if m.kind === :oriented && m.rho0 ≈ LADDER[i])
+    (sigma_x(LAMS[i], BETAS[i]), sigma_along(LADDER[i], m.sigma_phi, N))
+end
 idx_of(ρ) = [i for (i, m) in enumerate(bank.meta) if m.kind === :oriented && m.rho0 ≈ ρ]
 
 @printf("field %d×%d (border %d, FFT-friendly)   bank: %d filters = %d oriented + lowpass\n",
@@ -142,10 +117,6 @@ check("padding invariance, oriented channels (< 1e-3)", rel_ori < 1e-3,
 # (Gaussian-windowed grating), not a bare grating: a square-windowed grating's edges
 # dump broadband energy at low frequency, which hands every trial to the coarsest
 # filter regardless of λ. (Measured: bare gratings put λ=16 at the ρ=2 channel.)
-gabor_patch(N, λ, θ; σ=22.0) = (c = (N+1)/2;
-    Float32[exp(-((y-c)^2 + (x-c)^2)/(2σ^2)) *
-            cos(2π*((x-c)*cos(θ) + (y-c)*sin(θ))/λ) for y in 1:N, x in 1:N])
-
 # Criterion is each filter's own TUNING CURVE, not argmax across filters: the bank is
 # deliberately overcomplete (4 scales over 1.81 octaves, i.e. 0.6 octaves apart, with
 # 2-octave bandwidth), so adjacent channels overlap heavily by design and "which scale
@@ -167,7 +138,7 @@ check("each filter peaks at its own λ (criterion: within ⅓ octave)", all(tune
 
 # ---- 6. localisation, PER SCALE ---------------------------------------------
 # Must be judged against each scale's own extent. A single fixed mask fails trivially,
-# since σ ranges from 7.6 to 34 px across the bank.
+# since the two extents differ per scale and neither is small.
 fracs = Float64[]
 for (si, ρ) in enumerate(LADDER)
     sx, sa = extents(si)
@@ -183,8 +154,8 @@ check("energy localised on the bar, per scale (> 0.75)", minimum(fracs) > 0.75,
 # |E₄|-style pooled statistics CANNOT tell a corner from two disjoint strokes.
 # This is not a bug — it is the measurement that motivates the AND layer, recorded
 # here so the AND's benefit is measured against a known baseline.
-Ecor = energy_stack(corner(N, π/2), bank)
-Esep = energy_stack(two_bars(N, 0.0, 45.0), bank)
+Ecor = energy_stack(corner(N, π/2; len=40.0), bank)
+Esep = energy_stack(two_bars(N, 70.0), bank)
 poolstat(E) = [sum(@view E[:, :, i]) for (i, _) in ORI]
 a, b = poolstat(Ecor), poolstat(Esep)
 cosim = sum(a .* b) / (sqrt(sum(abs2, a)) * sqrt(sum(abs2, b)))

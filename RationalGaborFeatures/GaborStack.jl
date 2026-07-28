@@ -166,7 +166,7 @@ Takes the same bank parameters as [`make_bank`] so the two cannot drift apart.
 there is no reason not to round.
 """
 function field_for(imsize::Tuple{Int,Int}, rho0s::AbstractVector;
-                   n_orient=8, beta=2.0, k::Real=3, dtheta_on_sigma::Real=1.5,
+                   n_orient=8, beta=2.0, k::Real=3, dtheta_on_sigma::Real=0.75,
                    fft_friendly::Bool=true)
     ns = length(rho0s)
     norients = n_orient isa Number ? fill(Int(n_orient), ns) : collect(Int.(n_orient))
@@ -208,6 +208,11 @@ Build the frequency-domain bank on a `fieldsize` grid.
 * `family` — `:log_gabor` (zero DC exactly) or `:gabor` (linear-frequency Gaussian).
 * `lowpass` — append an isotropic low-pass channel below the lowest scale. On many
   datasets this band carries most of the energy, and a bandpass bank misses it.
+* `dtheta_on_sigma` — angular spacing ÷ angular σ. This, **not** the orientation count,
+  controls spatial elongation: `σ_along = W/(2πρ₀σ_φ)` and `σ_φ = (π/n)/dtheta_on_sigma`,
+  so `n` cancels out of the angular *coverage* and only sets resolution. Kovesi's usual
+  1.5 gives σ_along = 34 px at ρ₀=2 on a 112-px image — longer than most strokes, so no
+  stroke ever looks uniform and end-stopping cannot work. 0.75 halves it.
 * `normalize` — scale each filter to unit **RMS** over the frequency grid, which
   approximates the continuous integral `∫|G|²df` and is therefore independent of the
   padded field size. Normalising by the raw `sum(G²)` instead makes every response
@@ -217,7 +222,7 @@ Build the frequency-domain bank on a `fieldsize` grid.
 function make_bank(fieldsize::Tuple{Int,Int}, rho0s::AbstractVector;
                    imwidth::Int, n_orient=8, beta=2.0, family::Symbol=:log_gabor,
                    lowpass::Bool=true, normalize::Bool=true,
-                   dtheta_on_sigma::Real=1.5)
+                   dtheta_on_sigma::Real=0.75)
     family in (:log_gabor, :gabor) || error("family must be :log_gabor or :gabor")
     H, W = fieldsize
     ns = length(rho0s)
@@ -262,7 +267,8 @@ function make_bank(fieldsize::Tuple{Int,Int}, rho0s::AbstractVector;
                 nrm = sqrt(sum(abs2, G) / (H * W)); nrm > 0 && (G ./= Float32(nrm))
             end
             push!(filters, G)
-            push!(meta, (rho0=rho0, lambda=imwidth / rho0, theta=θ0, beta=β, kind=:oriented))
+            push!(meta, (rho0=rho0, lambda=imwidth / rho0, theta=θ0, beta=β,
+                         sigma_phi=σφ, imwidth=imwidth, kind=:oriented))
         end
     end
 
@@ -277,7 +283,8 @@ function make_bank(fieldsize::Tuple{Int,Int}, rho0s::AbstractVector;
             nrm = sqrt(sum(abs2, G) / (H * W)); nrm > 0 && (G ./= Float32(nrm))
         end
         push!(filters, G)
-        push!(meta, (rho0=rho_lp, lambda=imwidth / rho_lp, theta=NaN, beta=NaN, kind=:lowpass))
+        push!(meta, (rho0=rho_lp, lambda=imwidth / rho_lp, theta=NaN, beta=NaN,
+                     sigma_phi=NaN, imwidth=imwidth, kind=:lowpass))
     end
 
     GaborBank(fieldsize, filters, meta)
