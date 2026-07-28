@@ -38,7 +38,7 @@ DC removal, polarity):
   sinusoid at frequency `(u,v)/P`. The sliding-patch maps are Gabor channel moduli,
   and they behave that way: `|F(0,2)|` (wave along x) lights the *vertical* stem of a
   T; `|F(2,0)|` lights the *horizontal* crossbar. This notebook and
-  `CreateGaborLifting.jl` compute the same thing from opposite ends — a Gabor bank
+  `CreateGaborLifting.module.jl` compute the same thing from opposite ends — a Gabor bank
   fixes `(ω, θ)` and slides, here the patch is fixed and the whole `(v,u)` grid is
   read at once.
 - **Energy fraction is the wrong thing to watch.** AC energy captured by orders `≤ 3`

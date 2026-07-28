@@ -32,13 +32,13 @@ end
 # ╔═╡ f3782ead-6065-4105-85d3-d97d92b23b85
 begin
     # Config must be included before any component module that depends on it.
-    include(joinpath(@__DIR__, "Config.jl"))
+    include(joinpath(@__DIR__, "Config.module.jl"))
     using .Config
-    include(joinpath(@__DIR__, "LoadEMNIST.jl"))
+    include(joinpath(@__DIR__, "LoadEMNIST.module.jl"))
     using .LoadEMNIST
-    include(joinpath(@__DIR__, "CreateGaborLifting.jl"))
+    include(joinpath(@__DIR__, "CreateGaborLifting.module.jl"))
     using .CreateGaborLifting
-    include(joinpath(@__DIR__, "CreateTJunctionLifting.jl"))
+    include(joinpath(@__DIR__, "CreateTJunctionLifting.module.jl"))
     using .CreateTJunctionLifting
 end
 

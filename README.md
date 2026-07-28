@@ -45,6 +45,30 @@ throughout the earlier work turns out to understate features by ~24 points and, 
 recorded case, to have manufactured a qualitative conclusion that a stronger
 classifier does not reproduce.
 
+**`RationalGaborFeatures/`** is the current build: a bio-inspired early-vision front end
+(dense log-Gabor oriented energy, exactly polarity-invariant, with an ablatable layer of
+pointwise conjunctions applied *before* spatial pooling). Its scale ladder is derived from
+the data rather than hard-coded, so it is meant to be pointed at datasets other than
+EMNIST. See its own README.
+
+## `.module.jl` versus `.jl`
+
+**Every `*.module.jl` file is a plain Julia module, not a notebook.** Everything else with
+a `.jl` extension is a Pluto notebook and opens normally.
+
+The distinction matters in practice: *opening a plain module in Pluto rewrites the file and
+leaves a `<name> backup 1.jl` beside it*, which is confusing and easy to do by accident. The
+seven modules are `Config`, `LoadEMNIST`, `CreateGaborLifting`, `CreateTJunctionLifting`,
+and `RationalGaborFeatures/{GaborStack, AndLayer, Stimuli}`. Each also carries a marker
+comment on its first line.
+
+One exception that is neither: `TestFeaturesWithMLP/FewShotComparison.jl` is a plain
+*script*, run with `julia --project=. <file>` rather than included; it is marked as such.
+
+The core pipeline modules have companion `Test_*.jl` notebooks
+(`LoadEMNIST.module.jl` → `Test_LoadEMNIST.jl`); `RationalGaborFeatures/` uses `Validate_*.jl`
+for the same purpose, and those double as headless gates.
+
 ## Requirements
 
 - Julia 1.11 (developed against 1.11.2)
@@ -52,7 +76,7 @@ classifier does not reproduce.
   <https://www.nist.gov/itl/products-and-services/emnist-dataset> and place
   `emnist-balanced-train-images-idx3-ubyte` and
   `emnist-balanced-train-labels-idx1-ubyte` in `~/Julia/DATABASES/EMNIST/`
-  (this default path is set in `LoadEMNIST.jl`'s `DEFAULT_DATA_DIR`; pass a
+  (this default path is set in `LoadEMNIST.module.jl`'s `DEFAULT_DATA_DIR`; pass a
   different `data_dir` keyword to `load_emnist` to use another location).
 
 ## Setup
@@ -84,12 +108,12 @@ viewing the notebook through an SSH tunnel from another machine — edit its
 ## Project layout
 
 ```
-Config.jl                     Single source of truth for shared constants
-LoadEMNIST.jl                 EMNIST IDX loading, class bucketing, display-orientation fix
+Config.module.jl                     Single source of truth for shared constants
+LoadEMNIST.module.jl                 EMNIST IDX loading, class bucketing, display-orientation fix
 Test_LoadEMNIST.jl            Sanity-check notebook for LoadEMNIST
-CreateGaborLifting.jl         Complex Gabor filter bank -> raw (modulus, phase) tokens
+CreateGaborLifting.module.jl         Complex Gabor filter bank -> raw (modulus, phase) tokens
 Test_CreateGaborLifting.jl    Sanity-check notebook for CreateGaborLifting
-CreateTJunctionLifting.jl     T-junction detector over the Gabor grid: stem/crossbar
+CreateTJunctionLifting.module.jl     T-junction detector over the Gabor grid: stem/crossbar
                               pairs scored by phase-compatibility x weaker modulus
 Test_CreateTJunctionLifting.jl            Sanity-check notebook for CreateTJunctionLifting (EMNIST)
 Test_CreateTJunctionLifting_SyntheticT.jl Same, on a controlled synthetic T stimulus
@@ -98,7 +122,7 @@ Test_TJunction_CornerDemo.jl  Synthetic-stimulus notebook comparing the old vs n
 ```
 
 To change a shared constant (image size, filter scales/orientations, etc.),
-edit `Config.jl` and restart the Pluto server — these are `const` bindings,
+edit `Config.module.jl` and restart the Pluto server — these are `const` bindings,
 so a browser refresh alone won't pick up the change.
 
 ## Dense_Gabors/ — dense-sampling keypoint extraction (superseded)
@@ -109,8 +133,8 @@ so a browser refresh alone won't pick up the change.
 > hole in the *representation*, not a lack of tuning. Read that section before
 > building on anything here.
 
-A self-contained side investigation, independent of the `Config.jl` /
-`CreateGaborLifting.jl` pipeline above (different Gabor convention — see the
+A self-contained side investigation, independent of the `Config.module.jl` /
+`CreateGaborLifting.module.jl` pipeline above (different Gabor convention — see the
 notebooks for the details): instead of a sparse grid of Gabor samples, convolve
 a character with a *dense*, per-pixel bank of oriented Gabor filters and read
 discrete, typed keypoints — **endpoint / corner / T-junction / X-crossing** —

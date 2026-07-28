@@ -31,11 +31,11 @@ end
 
 # ╔═╡ c0000000-0000-0000-0000-000000000003
 begin
-    include(joinpath(@__DIR__, "Config.jl"))
+    include(joinpath(@__DIR__, "Config.module.jl"))
     using .Config
-    include(joinpath(@__DIR__, "CreateGaborLifting.jl"))
+    include(joinpath(@__DIR__, "CreateGaborLifting.module.jl"))
     using .CreateGaborLifting
-    include(joinpath(@__DIR__, "CreateTJunctionLifting.jl"))
+    include(joinpath(@__DIR__, "CreateTJunctionLifting.module.jl"))
     using .CreateTJunctionLifting
 end
 

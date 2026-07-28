@@ -30,7 +30,7 @@ end
 
 # ╔═╡ 5981a9ce-3c86-4cac-a395-f485a83f9c41
 begin
-    include(joinpath(@__DIR__, "LoadEMNIST.jl"))
+    include(joinpath(@__DIR__, "LoadEMNIST.module.jl"))
     using .LoadEMNIST
 end
 

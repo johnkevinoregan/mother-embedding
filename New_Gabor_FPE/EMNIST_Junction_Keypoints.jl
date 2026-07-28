@@ -23,7 +23,7 @@ begin
     using FFTW
     using Plots
     using PlutoUI
-    include(joinpath(@__DIR__, "..", "LoadEMNIST.jl"))
+    include(joinpath(@__DIR__, "..", "LoadEMNIST.module.jl"))
     using .LoadEMNIST
 end
 

@@ -32,7 +32,7 @@ end
 
 # ╔═╡ b1000000-0000-0000-0000-000000000003
 begin
-    include(joinpath(@__DIR__, "..", "LoadEMNIST.jl"))
+    include(joinpath(@__DIR__, "..", "LoadEMNIST.module.jl"))
     using .LoadEMNIST
 end
 

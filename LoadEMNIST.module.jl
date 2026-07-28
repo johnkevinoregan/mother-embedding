@@ -1,3 +1,7 @@
+# ── PLAIN MODULE — .module.jl, not a Pluto notebook ─────────────────────────
+# Included by other files. Opening it in Pluto rewrites it and leaves a
+# "<name> backup 1.jl" beside it. Notebooks are the plain .jl files.
+
 module LoadEMNIST
 
 export read_emnist_images, read_emnist_labels, emnist_class_name,

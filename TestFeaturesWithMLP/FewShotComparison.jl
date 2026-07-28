@@ -1,3 +1,6 @@
+# ── PLAIN SCRIPT, not a Pluto notebook ──────────────────────────────────────
+# Run with `julia --project=. <this file>`. Opening it in Pluto rewrites it.
+
 # FewShotComparison.jl — the experiment behind section 7.11 of
 # README_MLP_FPE_Experiment.md.
 #
@@ -17,7 +20,7 @@
 using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 using Statistics, Printf, Random, LinearAlgebra, Serialization
 using Flux, OneHotArrays, Plots
-include(joinpath(@__DIR__, "..", "LoadEMNIST.jl")); using .LoadEMNIST
+include(joinpath(@__DIR__, "..", "LoadEMNIST.module.jl")); using .LoadEMNIST
 BLAS.set_num_threads(8)
 
 const IMG   = 112

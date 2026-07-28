@@ -35,9 +35,9 @@ end
 begin
     # Only LoadEMNIST is reused from the project — for the real EMNIST samples.
     # Everything else in this notebook is a self-contained port of the Python
-    # demo and does NOT use Config.jl / CreateGaborLifting.jl (those use a
+    # demo and does NOT use Config.module.jl / CreateGaborLifting.module.jl (those use a
     # different Gabor convention; see the note below).
-    include(joinpath(@__DIR__, "..", "LoadEMNIST.jl"))
+    include(joinpath(@__DIR__, "..", "LoadEMNIST.module.jl"))
     using .LoadEMNIST
 end
 
@@ -72,7 +72,7 @@ the filter matches a line/edge oriented at `θ`. Sanity check: a vertical line �
 so — like the Python original — it defines its own Gabor bank rather than
 calling `CreateGaborLifting.gabor_kernel`. The two differ deliberately:
 
-| | this notebook (Python port) | `CreateGaborLifting.jl` |
+| | this notebook (Python port) | `CreateGaborLifting.module.jl` |
 |---|---|---|
 | envelope | anisotropic ($\sigma_t$ along tangent, $\sigma_n$ across) | isotropic-ish, single $\sigma$, aspect $\gamma$ |
 | carrier | along the **normal** (θ = tangent) | along $x_\theta$ (θ = carrier axis) |

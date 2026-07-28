@@ -1,6 +1,10 @@
+# ── PLAIN MODULE — .module.jl, not a Pluto notebook ─────────────────────────
+# Included by other files. Opening it in Pluto rewrites it and leaves a
+# "<name> backup 1.jl" beside it. Notebooks are the plain .jl files.
+
 module CreateTJunctionLifting
 
-include(joinpath(@__DIR__, "Config.jl"))
+include(joinpath(@__DIR__, "Config.module.jl"))
 using .Config
 
 export TJunctionSample, t_junction_lift

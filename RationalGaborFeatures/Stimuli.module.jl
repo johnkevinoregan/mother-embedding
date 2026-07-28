@@ -1,3 +1,7 @@
+# ── PLAIN MODULE — .module.jl, not a Pluto notebook ─────────────────────────
+# Included by other files. Opening it in Pluto rewrites it and leaves a
+# "<name> backup 1.jl" beside it. Notebooks are the plain .jl files.
+
 """
     Stimuli
 
@@ -13,10 +17,15 @@ Size-agnostic — nothing here assumes 112, or characters, or EMNIST.
 """
 module Stimuli
 
-export bar, corner, two_bars, gabor_patch, blob, tee, cross_bars
+export barstim, corner, two_bars, gabor_patch, blob, tee, cross_bars
 
-"Bar of width `w`, length `len`, orientation `θ`, centred at `(cy,cx)`."
-function bar(N::Int, θ::Real; w::Real=13.0, len::Real=70.0,
+"""
+Bar of width `w`, length `len`, orientation `θ`, centred at `(cy,cx)`.
+
+Named `barstim` rather than `bar` because `Plots` also exports `bar`; when two modules
+export the same name Julia binds neither, and the failure surfaces far from its cause.
+"""
+function barstim(N::Int, θ::Real; w::Real=13.0, len::Real=70.0,
              cy::Real=(N+1)/2, cx::Real=(N+1)/2)
     I = zeros(Float32, N, N); s, c = sin(θ), cos(θ)
     @inbounds for y in 1:N, x in 1:N
@@ -45,7 +54,7 @@ function corner(N::Int, α::Real; w::Real=13.0, len::Real=40.0)
     c = (N+1)/2
     I = zeros(Float32, N, N)
     for θ in (0.0, α)
-        I .= max.(I, bar(N, θ; w=w, len=len,
+        I .= max.(I, barstim(N, θ; w=w, len=len,
                          cy=c + (len/2)*sin(θ), cx=c + (len/2)*cos(θ)))
     end
     I
@@ -66,20 +75,20 @@ still co-located.
 """
 function two_bars(N::Int, gap::Real; w::Real=13.0, len::Real=40.0)
     c = (N+1)/2; o = gap / (2 * sqrt(2))
-    max.(bar(N, 0.0;  w=w, len=len, cy=c-o, cx=c-o),
-         bar(N, π/2;  w=w, len=len, cy=c+o, cx=c+o))
+    max.(barstim(N, 0.0;  w=w, len=len, cy=c-o, cx=c-o),
+         barstim(N, π/2;  w=w, len=len, cy=c+o, cx=c+o))
 end
 
 "T-junction: a full bar with a stem meeting its middle (3 rays)."
 function tee(N::Int; w::Real=13.0, len::Real=70.0)
     c = (N+1)/2
-    max.(bar(N, 0.0; w=w, len=len, cy=c, cx=c),
-         bar(N, π/2;  w=w, len=len/2, cy=c + len/4, cx=c))
+    max.(barstim(N, 0.0; w=w, len=len, cy=c, cx=c),
+         barstim(N, π/2;  w=w, len=len/2, cy=c + len/4, cx=c))
 end
 
 "X-crossing: two full bars crossing at the centre (4 rays)."
 cross_bars(N::Int; w::Real=13.0, len::Real=70.0, α::Real=π/2) =
-    max.(bar(N, 0.0; w=w, len=len), bar(N, α; w=w, len=len))
+    max.(barstim(N, 0.0; w=w, len=len), barstim(N, α; w=w, len=len))
 
 "Gabor patch (Gaussian-windowed grating) — clean spectral content at one `λ`."
 gabor_patch(N::Int, λ::Real, θ::Real; σ::Real=22.0) = (c = (N+1)/2;

@@ -26,7 +26,7 @@ end
 
 # ╔═╡ a0000000-0000-0000-0000-000000000002
 begin
-    include(joinpath(@__DIR__, "..", "LoadEMNIST.jl"))   # plain module — safe to include
+    include(joinpath(@__DIR__, "..", "LoadEMNIST.module.jl"))   # plain module — safe to include
     using .LoadEMNIST
 end
 

@@ -32,7 +32,7 @@ end
 
 # ╔═╡ 90000000-0000-0000-0000-000000000003
 begin
-    include(joinpath(@__DIR__, "..", "LoadEMNIST.jl"))
+    include(joinpath(@__DIR__, "..", "LoadEMNIST.module.jl"))
     using .LoadEMNIST
 end
 
@@ -430,7 +430,7 @@ md"""
   can look alike, and a uniform patch that happens to sit at the border rings. Hann
   and Gaussian kill that, at the cost of only seeing the middle of the patch. Since
   a windowed low-order coefficient **is** a Gabor filter response, this notebook and
-  `CreateGaborLifting.jl` compute the same thing from opposite ends: a Gabor bank
+  `CreateGaborLifting.module.jl` compute the same thing from opposite ends: a Gabor bank
   fixes `(ω, θ)` and slides; here we fix the patch and read the whole `(v,u)` grid
   at once.
 - **What is invariant, and what isn't.** `|F|` is invariant to shifting the content

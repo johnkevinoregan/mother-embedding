@@ -1,3 +1,7 @@
+# ── PLAIN MODULE — .module.jl, not a Pluto notebook ─────────────────────────
+# Included by other files. Opening it in Pluto rewrites it and leaves a
+# "<name> backup 1.jl" beside it. Notebooks are the plain .jl files.
+
 """
     AndLayer
 
@@ -188,13 +192,13 @@ end
 # ---------------------------------------------------------------- entry point
 
 """
-    and_maps(E, meta; forms=(:A1,), d=13.0)
+    and_maps(E, meta; forms=(:A1,), d=:auto, d_factor=1.0)
 
 Pointwise conjunction maps from a dense energy stack. Returns `(maps, labels)` where
 `maps` is `H × W × k` and `labels` describes each channel. `forms=()` returns nothing,
 which is how the layer is ablated.
 """
-function and_maps(E::Array{Float32,3}, meta; forms=(:A1,), d=:auto)
+function and_maps(E::Array{Float32,3}, meta; forms=(:A1,), d=:auto, d_factor::Real=1.0)
     all(f in AND_FORMS for f in forms) ||
         error("unknown form in $forms; valid: $AND_FORMS")
     H, W, _ = size(E)
@@ -203,7 +207,8 @@ function and_maps(E::Array{Float32,3}, meta; forms=(:A1,), d=:auto)
         m, l = a1_maps(E, meta); append!(allmaps, m); append!(alllab, l)
     end
     if :A2 in forms
-        m, l = a2_maps(E, meta; d=d); append!(allmaps, m); append!(alllab, l)
+        m, l = a2_maps(E, meta; d=d, d_factor=d_factor)
+        append!(allmaps, m); append!(alllab, l)
     end
     if :A3 in forms
         m, l = a3_maps(E, meta); append!(allmaps, m); append!(alllab, l)
