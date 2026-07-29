@@ -56,3 +56,19 @@ Sample efficiency (linear readouts)
       cnn epoch  5  val R² 0.356
       cnn epoch  6  val R² 0.404
       cnn epoch  7  val R² 0.433
+      cnn epoch  8  val R² 0.437
+      cnn epoch  9  val R² 0.461
+      cnn epoch 10  val R² 0.462
+      cnn epoch 11  val R² 0.400
+      cnn epoch 12  val R² 0.484
+      cnn epoch 13  val R² 0.476
+      cnn epoch 14  val R² 0.481
+
+  k = 6000   curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+    pixels·linear     -0.001     -0.002     -0.000     -0.000      0.001     -0.003     -0.000      0.708
+    CNN              0.116     -0.022      0.899      0.119      0.504      0.532      0.694      0.935
+    ours·linear      0.674      0.325      0.985      0.548      0.855      0.568      0.615     -0.000
+      cnn epoch  1  val R² 0.245
+      cnn epoch  2  val R² 0.329
+      cnn epoch  3  val R² 0.417
+      cnn epoch  4  val R² 0.461

@@ -83,3 +83,9 @@ ours·MLP                 —          —          —          —          �
       cnn epoch  3  val R² 0.359
       cnn epoch  4  val R² 0.415
       cnn epoch  5  val R² 0.419
+      cnn epoch  6  val R² 0.448
+      cnn epoch  7  val R² 0.462
+      cnn epoch  8  val R² 0.464
+      cnn epoch  9  val R² 0.460
+      cnn epoch 10  val R² 0.448
+      cnn epoch 11  val R² 0.457

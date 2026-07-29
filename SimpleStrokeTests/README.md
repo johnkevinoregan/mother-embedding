@@ -1,0 +1,118 @@
+# SimpleStrokeTests — how to reproduce everything here
+
+One stroke on a uniform grey field, described by eight graded properties. `RESULTS.md` has
+the tables; `RESULTSexpanded.md` explains the whole thing from scratch. This file is how to
+re-run it.
+
+## What each file is
+
+| file | kind | opens in Pluto? |
+|:--|:--|:--|
+| `Contours.module.jl` | module — the stimulus generator | **no** — a module, `include`d |
+| `Frontend.module.jl` | module — wraps the Gabor front end | **no** — a module, `include`d |
+| `Explore_Contours.jl` | **Pluto notebook** — interactive stimulus explorer | **yes** |
+| `Preview_Contours.jl` | plain script — contact sheet, sweeps, dataset audit | no |
+| `Phase9_Readouts.jl` | plain script — the experiment | no |
+| `Plot_Phase9.jl` | plain script — figures from the saved results | no |
+
+Opening a `.module.jl` file in Pluto rewrites it and leaves a `<name> backup 1.jl` beside
+it — that is why they carry the extension.
+
+## Interactive: the stimulus explorer
+
+```bash
+cd ~/claude-code/mother-embedding
+julia --project=. -e 'using Pluto; Pluto.run()'
+```
+
+then open `SimpleStrokeTests/Explore_Contours.jl`. Sliders for every generative parameter,
+with the target vector recomputed live, so you can see what any setting actually produces.
+
+## Reproducing the figures and the dataset audit
+
+Fast — about 4 minutes, mostly the 3,000-image audit.
+
+```bash
+cd ~/claude-code/mother-embedding/SimpleStrokeTests
+julia --project=.. Preview_Contours.jl
+```
+
+Writes `contactsheet.png`, `sweeps.png`, `edge_profiles.png`, and prints the target ranges,
+the target correlation matrix and the trivial-cue table.
+
+## Reproducing the experiment
+
+Everything is seeded, so these commands give the numbers in `RESULTS.md` exactly.
+
+**The linear and MLP arms** — about 20 minutes. This includes the whole measurement the
+experiment is built around, and the block attribution with its shuffle control.
+
+```bash
+cd ~/claude-code/mother-embedding/SimpleStrokeTests
+P9_NTRAIN=12000 P9_NTEST=3000 P9_KS=500,2000,6000,12000 \
+P9_EPOCHS=50 P9_ARMS=1,2,4,5 P9_OUT=results_nocnn \
+  julia --project=.. -t 16 Phase9_Readouts.jl 2>&1 | tee nocnn.log
+```
+
+**All five arms including the CNN** — about 2–3 hours on CPU, ~95 % of it the CNN.
+
+```bash
+P9_NTRAIN=12000 P9_NTEST=3000 P9_KS=500,2000,6000,12000 \
+P9_EPOCHS=50 P9_CEPOCHS=12 P9_OUT=results \
+  julia --project=.. -t 16 Phase9_Readouts.jl 2>&1 | tee results_phase9.log
+```
+
+**The figures**, once the runs above have written their `results*/` directories:
+
+```bash
+julia --project=.. Plot_Phase9.jl
+```
+
+### Settings
+
+| variable | default | what it does |
+|:--|:--|:--|
+| `P9_NTRAIN` | 16000 | training-pool size |
+| `P9_NTEST` | 4000 | test-set size, generated from a separate seed |
+| `P9_KS` | `500,2000,6000,16000` | training sizes for the sample-efficiency curve (nested) |
+| `P9_EPOCHS` | 60 | MLP epochs |
+| `P9_CEPOCHS` | 18 | CNN epochs |
+| `P9_ARMS` | `1,2,3,4,5` | which arms: 1 pixels·linear, 2 pixels·MLP, 3 CNN, 4 ours·linear, 5 ours·MLP |
+| `P9_CURVE_ARMS` | `1,4` | which arms appear on the sample-efficiency curve |
+| `P9_STAGES` | `iid,blocks,curve,extrap` | which stages to run |
+| `P9_OUT` | `results` | output directory, so parallel runs cannot clobber each other |
+
+A single stage, for example just the block attribution:
+
+```bash
+P9_STAGES=blocks P9_ARMS=4 P9_OUT=results_blocks julia --project=.. -t 16 Phase9_Readouts.jl
+```
+
+## What guarantees the comparisons are fair
+
+Set out in full in `RESULTSexpanded.md` §7. In short: the generator is parametric and
+unbounded, so a test image is a fresh draw and overlap with training is structurally
+impossible rather than merely unlikely; train and test are generated once and handed to
+every arm, and the features are computed once and reused across all training sizes; the
+ridge penalty and the training epoch are chosen on a validation slice carved out of
+*training*, never from test; and in each extrapolation split the held-out nuisance's own
+target row is dropped, since nothing can be scored on predicting a constant.
+
+## A Julia 1.11.2 quirk to know about
+
+Running the generator repeatedly in one process segfaults inside the garbage collector
+roughly one time in three (`gc_mark_obj8`). Forcing bounds checking on
+(`julia --check-bounds=yes`) makes it disappear over repeated trials, and every isolated
+case runs cleanly, so it looks like a GC bug in this Julia version rather than an
+out-of-bounds write in this code.
+
+It does not affect the results: a segfault kills the process rather than corrupting output,
+and the numbers in `RESULTS.md` were reproduced identically to three decimals by **three
+independent runs** (`nocnn.log`, `nocnn2.log`, `results_phase9.log`). If a long run dies
+unexpectedly, re-run it, or add `--check-bounds=yes` at some cost in speed.
+
+## Known limitations
+
+Read `RESULTS.md` §"`closedness` is confounded" before quoting that column — it is not a
+measure of closure. The CNN is undertrained at 12 CPU epochs and its numbers are a floor.
+One seed per arm, so read a difference of 0.4 as real and 0.02 as noise.
