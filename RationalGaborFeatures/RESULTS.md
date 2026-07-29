@@ -465,9 +465,11 @@ EMNIST number exactly, beats the previous features by 1.4 points, runs at 20.9 m
 and — Phase 6 — demonstrably carries the invariances that augmentation otherwise has to
 supply.
 
-**Not established.** That the conjunction layer helps anything. Three independent lines
+**Not established.** That the conjunction layer helps anything. Five independent lines
 converge on ≈ 0: full data (+0.01), finer pooling (recovers 3.1 points of A signal, adds
-nothing), and sample size (flat at every k from 200 images to 112,800).
+nothing), sample size (flat at every k from 200 images to 112,800), the binary `F`/`f`
+probe (worse than orient), and a synthetic benchmark built specifically to require
+co-location (orient 100 %, three designs). And Phase 7 says why: `R²(A ← orient) = 0.933`.
 
 **Open, in the order that would settle the most:**
 
@@ -478,7 +480,21 @@ nothing), and sample size (flat at every k from 200 images to 112,800).
 3. ~~Why is `F`/`f` at 69.9 % for every representation?~~ — **answered.** Nothing solves it;
    a CNN on raw pixels does worse, and with augmentation converges on the same 69.88 %.
    `F`/`f` is near-undecidable, and should probably join the homoglyph merge list.
-4. **Re-anchor `d` to a measured structure scale** and re-derive `dtheta` the same way —
-   the scale-free audit shows both are currently fitted to one operating point.
-5. **A task that requires i2D structure.** `A1+A2` alone at 88.45 % from 54 numbers says the
-   signal is real; the negative is about EMNIST.
+4. ~~Re-anchor `d` to a measured structure scale~~ — **half done.** `a2_maps` and
+   `ray_maps` now take `d_anchor = :envelope | :structure`; `:envelope` stays the default
+   so every number above reproduces. **`dtheta` is still fitted** — that half is open.
+5. ~~A task that requires i2D structure~~ — **attempted three times, Phase 8, all failed.**
+   Not "the benchmark needs more work": the reason is structural, since any co-location
+   difference also changes local ink density. Superseded by 6.
+
+**What is actually open now:**
+
+6. **Is there any stimulus pair that differs in co-location but not in local density?** If
+   not, the conjunction layer is not merely unhelpful on handwriting — it is redundant with
+   a per-cell energy statistic at any pooling resolution that can resolve the difference,
+   and the case for it has to be made on something other than discriminability (stability
+   under nuisance, sample efficiency, transfer).
+7. **A second dataset at adequate resolution.** Every negative here is at 28×28 upsampled
+   to 112. NIST's original 128×128 source would separate resolution from domain — the one
+   confound that could be hiding a real effect.
+8. **Re-derive `dtheta` from data**, closing the other half of 4.
