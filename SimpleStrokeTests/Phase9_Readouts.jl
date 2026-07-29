@@ -50,6 +50,11 @@ const OUT    = joinpath(@__DIR__, get(ENV, "P9_OUT", "results"))
 # other arm — including the whole measurement the experiment is built around — in minutes
 # rather than hours.
 const ARMSEL = [parse(Int, s) for s in split(get(ENV, "P9_ARMS", "1,2,3,4,5"), ",")]
+# Which stages to run, and which arms appear on the sample-efficiency curve. The curve
+# defaults to the linear arms because a CNN at every k costs about as much as the rest of
+# the experiment put together; `P9_CURVE_ARMS=1,3,4` adds it when that is what is wanted.
+const STAGES = split(get(ENV, "P9_STAGES", "iid,blocks,curve,extrap"), ",")
+const CURVEARMS = [parse(Int, s) for s in split(get(ENV, "P9_CURVE_ARMS", "1,4"), ",")]
 BLAS.set_num_threads(min(16, Sys.CPU_THREADS)); FFTW.set_num_threads(1)
 mkpath(OUT)
 
@@ -305,17 +310,19 @@ function main()
     t = @elapsed (Feat = featurize(vcat(itr, ite), spec))
     @printf("featurised in %.0fs (%.1f ms/img)\n", t, 1000t/(NTRAIN+NTEST)); flush(stdout)
     Xflat = toflat(vcat(itr, ite))
-    R = evaluate(itr, Ytr, ite, Yte, spec; Xflat=Xflat, Feat=Feat)
-    show_table("i.i.d. split — test R² per property, all $NTRAIN training images", R, base)
-    serialize(joinpath(OUT, "iid.jls"), (R=R, base=base, props=PROPS, arms=ARMS))
+    if "iid" in STAGES
+        R = evaluate(itr, Ytr, ite, Yte, spec; Xflat=Xflat, Feat=Feat)
+        show_table("i.i.d. split — test R² per property, all $NTRAIN training images", R, base)
+        serialize(joinpath(OUT, "iid.jls"), (R=R, base=base, props=PROPS, arms=ARMS))
+    end
 
     # ── block attribution: which part of the representation carries each property?
     # The sharp prediction is on `polarity`. Quadrature energy discards the sign of contrast
     # by construction, so `orient` should fail to predict it — being unable to is the
     # correct result — while `lowpass`, which carries mean level, should get it easily. If
     # `orient` predicts polarity the invariance claim is simply wrong.
-    println("\n" * "="^92)
-    println("Block attribution — linear readout on one block at a time (test R²)")
+    "blocks" in STAGES && println("\n" * "="^92)
+    "blocks" in STAGES && println("Block attribution — linear readout on one block at a time (test R²)")
     println("="^92)
     nva = clamp(NTRAIN ÷ 6, 40, NTRAIN - 40)
     tr = 1:NTRAIN-nva; va = NTRAIN-nva+1:NTRAIN
@@ -326,7 +333,7 @@ function main()
               ("rays", ("rays",)), ("all", ("orient","lowpass","A1","A2","rays")),
               ("all·SHUFFLED", ("orient","lowpass","A1","A2","rays"))]
     battr = Dict{String,Vector{Float64}}()
-    for (nm, bs) in blocks
+    for (nm, bs) in ("blocks" in STAGES ? blocks : [])
         cols = block_cols(spec, bs...)
         Fw = Feat
         if endswith(nm, "SHUFFLED")
@@ -353,15 +360,15 @@ function main()
     # compared, and adding a trained CNN at every k would dominate the runtime.
     println("\n" * "="^92); println("Sample efficiency (linear readouts)"); println("="^92)
     curve = Dict{Int,Matrix{Float64}}()
-    for k in KS
-        Rk = evaluate(itr, Ytr, ite, Yte, spec; arms=[1,4], ntrain=k, Xflat=Xflat, Feat=Feat)
+    for k in ("curve" in STAGES ? KS : Int[])
+        Rk = evaluate(itr, Ytr, ite, Yte, spec; arms=CURVEARMS, ntrain=k, Xflat=Xflat, Feat=Feat)
         curve[k] = Rk
         @printf("\n  k = %-6d", k)
         for j in 1:length(PROPS); @printf("%11s", String(PROPS[j])[1:min(10,end)]); end
-        @printf("\n    %-11s", "pixels")
-        for j in 1:length(PROPS); @printf("%11.3f", Rk[1,j]); end
-        @printf("\n    %-11s", "ours")
-        for j in 1:length(PROPS); @printf("%11.3f", Rk[4,j]); end
+        for a in CURVEARMS
+            @printf("\n    %-11s", ARMS[a])
+            for j in 1:length(PROPS); @printf("%11.3f", Rk[a,j]); end
+        end
         println(); flush(stdout)
     end
     serialize(joinpath(OUT, "curve.jls"), curve)
@@ -375,7 +382,7 @@ function main()
         (:thickness, "trained on thin strokes (≤ 6 px), tested on thick (≥ 8 px)",
          (w=(3.0, 6.0),), (w=(8.0, 12.0),)),
     ]
-    for (nm, desc, tkw, ekw) in splits
+    for (nm, desc, tkw, ekw) in ("extrap" in STAGES ? splits : [])
         itr2, Ytr2, ite2, Yte2 = make_split(NTRAIN, NTEST, 500; train_kw=tkw, test_kw=ekw)
         R2 = evaluate(itr2, Ytr2, ite2, Yte2, spec; drop=nm)
         b2 = trivial_baseline(vcat(itr2, ite2), Ytr2, Yte2, NTRAIN)

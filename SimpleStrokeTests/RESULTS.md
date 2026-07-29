@@ -28,7 +28,9 @@ from scratch, including how the splits guarantee the comparisons are fair.
    marginals exactly. On EMNIST the same layer was worth +0.01.
 4. **Three hundred images is enough.** At k = 500, `ours·linear` is already at ~90 % of its
    k = 12,000 score on three of five structural rows. Raw pixels never leave zero at any k.
-5. **The front end was not polarity invariant, and now is.** A bug this dataset exposed
+5. **`closedness` is confounded and should not be read as a closure result** — see below.
+   Treat the other seven rows as the findings.
+6. **The front end was not polarity invariant, and now is.** A bug this dataset exposed
    immediately; it could not show on EMNIST. See "The bug this found" below.
 
 ---
@@ -149,6 +151,55 @@ estimate is a joint function of width and blur rather than of width alone.
 
 `brokenness` also drops under blur (0.340 → 0.107), which is honest: a 20 px ramp fills a
 small gap.
+
+---
+
+## `closedness` is confounded — read that row as nothing
+
+Its trivial baseline is 0.457, by far the highest of the eight, which was the first sign.
+On investigation the row is **over-determined by three local cues, none of which is closure**:
+
+| cue | open | closed | R² for `closedness` alone |
+|:--|--:|--:|--:|
+| arclength | 77 px | 245 px | **0.898** |
+| orientation anisotropy \|C₂\| | 0.555 | 0.148 | 0.327 |
+| \|C₄\| | 0.331 | 0.034 | 0.353 |
+| \|C₂\| + \|C₄\| | | | **0.490** |
+| endpoint gap / stroke width | 8.5 | 0.0 | 0.295 |
+
+**Arclength ranges are disjoint** — open 68–90 px, closed 225–283 px — so a threshold at
+150 px labels every image in the dataset correctly.
+
+None of these requires following the contour, which is the point. **Length is a sum**: total
+energy is `length × width × contrast`, and since the bank measures three scales, width is
+recoverable from the ratio across them and the sum can be normalised — a linear readout
+reaches length without tracing anything. **Orientation isotropy is a per-cell histogram
+statistic**: a closed loop turns through 2π so its tangents cover every orientation, while an
+open arc capped at 2π/3 covers 120° and is strongly anisotropic. And **curvature** adds a
+third, since every closed loop here has R ≤ 45 while open arcs run to R = 600.
+
+### Why it is geometry, not a coding error
+
+In a frame of diameter D a closed contour can be π·D long, while an open arc whose turn is
+capped at 2π/3 is limited to ~1.2·D. **Closure buys length**, unavoidably. Exempting closed
+loops from the arclength cap (added to stop kinked figures being clipped) widened the ratio
+from ~2.6× to 3.5×, but the confound is intrinsic to putting a long contour in a small box.
+
+### The genuine signal is present but swamped
+
+An open arc has exactly two line terminations; a closed loop has none. That *is* local, and
+detecting terminations is what `A2` end-stopping is for — **`A2` alone scores 0.783 on
+`closedness`**. The right mechanism works; it is simply not needed when three shortcuts are
+available.
+
+### Not fixed, deliberately
+
+Removing all three cues at once requires long *open* contours — spirals and serpentines,
+which are long, orientation-isotropic and tightly curved while still having two free ends.
+That would make `closedness` a real test of end-stopping, at the cost of stimuli that look
+like scribbles rather than simple strokes. Judged not worth the change to the dataset's
+character. **The row stays in the tables and should be read as "long and isotropic versus
+short and anisotropic", not as closure detection.**
 
 ---
 
@@ -283,6 +334,9 @@ run.
 **The representation is not translation invariant** — a fixed spatial grid against
 randomised position, where a CNN is translation-equivariant for free. That handicap runs
 against us throughout.
+
+**`closedness` measures the wrong thing**, as set out above. Every number in that column,
+for every arm, should be discounted.
 
 **One seed per arm.** No error bars. Differences of 0.02 should not be read as real;
 differences of 0.4 should.

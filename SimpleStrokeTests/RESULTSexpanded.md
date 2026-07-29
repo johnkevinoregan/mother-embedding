@@ -333,6 +333,47 @@ gains almost nothing, which is also what you would expect.
 
 ---
 
+## 10a. One column that does not mean what it says
+
+`closedness` — is the stroke a closed loop like an O — scores very high for everything:
+0.985 for our features, 0.929 for the CNN, and even the trivial three-number baseline gets
+0.457, the highest baseline of the eight properties. That is suspicious, and on
+investigation it is not measuring closure at all.
+
+Three simpler things happen to go along with being a closed loop in this dataset:
+
+| what it could be reading instead | open strokes | closed loops | how much this alone explains |
+|:--|--:|--:|--:|
+| **how long the contour is** | 77 px | 245 px | **0.898** |
+| **how many different directions it contains** | anisotropic | isotropic | 0.490 |
+| how tightly it curves | gentle to sharp | always sharp | some |
+
+The lengths do not even overlap: open strokes run 68–90 px, closed loops 225–283 px. Simply
+asking "is this contour longer than 150 pixels?" would label every image correctly.
+
+And crucially, **neither cue requires tracing the contour**. Total length is just the total
+amount of ink, adjusted for how thick and dark the stroke is — a sum, not a journey. And
+"how many directions does it contain" is a histogram of local edge orientations: a closed
+loop must turn all the way round, so it contains every direction, while an open arc here
+turns at most 120° and so leaves a third of the directions empty.
+
+**Why this happens is geometry, not a bug.** In a box of a given size, a closed contour can
+be about π times the box width long, while an open arc that doesn't curl up much is limited
+to roughly 1.2 times the box width. Closing a curve *buys* you length. You cannot put a long
+open contour in a small frame without making it wiggle or spiral.
+
+**The honest reading:** the `closedness` column should be treated as "can you tell a long,
+direction-rich contour from a short, direction-poor one" — which everything can, including
+the trivial baseline. It is not evidence that anything detects closure. **The other seven
+columns are unaffected.**
+
+Fixing it properly would mean adding spirals and serpentines — contours that are long and
+full of directions but still have two loose ends — so that only genuine closure separates
+the two cases. That was considered and rejected: it would turn clean single strokes into
+scribbles, and the question is not central enough to be worth changing the dataset for.
+
+---
+
 ## 11. How many training images does it take?
 
 ![sample efficiency](phase9_samples.png)
@@ -428,6 +469,8 @@ than the buggy zeros were.
   backgrounds.
 - That the gaps are statistically solid at the fine end. One random seed per arm, no error
   bars: read a difference of 0.4 as real, and a difference of 0.02 as noise.
+- Anything about closure. The `closedness` column is confounded (section 10a) and every
+  number in it should be discounted.
 - That 3 × 3 pooling is the right choice. `brokenness` in particular may be limited by it —
   a 3-pixel gap inside a 37-pixel cell — rather than by the operators.
 
