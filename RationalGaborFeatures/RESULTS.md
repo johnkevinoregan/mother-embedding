@@ -213,9 +213,44 @@ with the dilution removed.** The "different information, drowned by averaging" h
 does not survive.
 
 **And note the absolute level.** 69.9 % on a *balanced binary* task, against 50 % chance.
-The whole front end is poor at `F`/`f` — it is not that A fails where orient succeeds, but
-that all three representations are near-equally mediocre. Whatever separates F from f is
-largely absent from every pooled representation we have.
+So the follow-up question is whether *anything* solves `F`/`f`, or whether our front end is
+discarding something a general learner would find.
+
+### Nothing solves it, and the front end is the best of the lot
+
+| model | `F`/`f` accuracy |
+|:--|--:|
+| pixel MLP 784 → 256 → 2 | 66.42 % ± 0.31 |
+| small CNN, 2 conv + pool | 67.54 % ± 0.89 |
+| **small CNN + 10× augmentation** | **69.88 % ± 0.22** |
+| **orient + lowpass (ours)** | **69.88 % ± 0.88** |
+| A₁ + A₂ | 67.54 % |
+| ray harmonics | 67.50 % |
+
+**A CNN with direct access to the raw pixels scores *below* our front end.** Augmentation
+lifts it +2.34 — to exactly the features' number, and no further. Two entirely different
+routes converge on **69.9 %**, which makes that a ceiling rather than a limitation of
+either.
+
+On a balanced binary task, ~70 % means roughly **30 % of `F`/`f` pairs are coin flips**.
+That is the same situation as `0`/`O` and `1`/`I`/`L` — the pairs merged at the outset
+because no system can separate them from the ink.
+
+**This overturns a correction in the project record.** `PROGRESS_2026-07-26.md` states:
+*"`F`/`f` confusion is label ambiguity — **wrong** — EMNIST keeps those shapes apart
+deliberately; it is a real descriptor failure."* **The original claim was right and the
+correction was wrong.** That EMNIST keeps them apart describes the authors' choice, not the
+shapes' separability, and separability is now measured directly.
+
+It also resolves the whole thread. The confusion analysis identified `F`/`f` as 17.3 % of
+errors and junction-distinguishable; the prediction was revised upward on that basis; the
+AND layer then moved 8 of 251 errors. All of it was chasing a distinction that **is not
+reliably present in the images**. The original estimate of +0 to +0.5 was right for a reason
+not then identified — not "the task does not reward i2D structure" but "the pair generating
+the errors is near-undecidable".
+
+And it means the 92.5 % merged-class ceiling recorded in earlier work is optimistic:
+`F`/`f` contributes ~250 further irreducible test errors on top of the homoglyph groups.
 
 ### R²(A ← orient) puts a number on the correlation
 
@@ -373,9 +408,9 @@ nothing), and sample size (flat at every k from 200 images to 112,800).
    sit at 67–70 % on a balanced binary task.
 2. ~~`R²(A ← orient)`~~ — **done, Phase 7.** Median 0.933 across 40 classes. Different
    operators, near-collinear on this data.
-3. **Why is `F`/`f` at 69.9 % for *every* representation?** The newest and sharpest
-   question. The information may survive in the dense maps and die in the 3×3 pooling, or
-   the front end may simply lack it. A dense-readout probe would separate those.
+3. ~~Why is `F`/`f` at 69.9 % for every representation?~~ — **answered.** Nothing solves it;
+   a CNN on raw pixels does worse, and with augmentation converges on the same 69.88 %.
+   `F`/`f` is near-undecidable, and should probably join the homoglyph merge list.
 4. **Re-anchor `d` to a measured structure scale** and re-derive `dtheta` the same way —
    the scale-free audit shows both are currently fitted to one operating point.
 5. **A task that requires i2D structure.** `A1+A2` alone at 88.45 % from 54 numbers says the

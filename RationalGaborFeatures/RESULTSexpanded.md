@@ -23,6 +23,11 @@ the project's cleanest positive result: **data augmentation improves a conventio
 network by 9–13 points and improves these features by nothing**, which is direct evidence
 that the designed features already contain the invariances augmentation exists to teach.
 
+*A note on wording.* "Whether two edges meet or merely pass near each other" is deliberate
+rather than idiomatic. The field would normally say *"we need i2D information"* or *"we need
+end-stopped cells"*. Both are correct; §1.6 sets out why the narrower formulation is the
+more useful one for this particular argument, and where it is too narrow.
+
 ---
 
 # Part 1 · Background
@@ -134,6 +139,47 @@ whether the two orientations occupy the **same point**.
 This is not a hypothetical. Measured on our own system, the pooled orientation summary
 gives a cosine similarity of **0.97** between a corner and two separated strokes — they are
 nearly the same vector.
+
+## 1.6 Why "do they meet?" rather than "we need end-stopped cells"
+
+The conventional way to state this requirement is *"an i1D description is insufficient; we
+need i2D operators"*, or in biological language *"we need end-stopped or hypercomplex
+cells"*. Both are correct and both are avoided here, for four reasons.
+
+**It names a quantity rather than a category.** "i2D" is a *class* of structure — corners,
+junctions, line ends, high curvature. Co-location is a single measurable property: do two
+measurements peak at the same place? That matters because the quantity, not the category,
+is what appears in the mathematics. §2.2 shows that the difference between pooling before
+and after multiplying is *exactly* the spatial covariance of two energy maps — which is the
+co-location signal and nothing else. Naming the requirement "i2D" would leave that
+derivation with no corresponding term.
+
+**It says what is missing, not merely what is wanted.** An orientation summary can perfectly
+well report *"there is horizontal structure here and vertical structure here"*. What it
+cannot report is whether the two coincide. "We need i2D" states a deficiency without
+locating it; "the description cannot tell meeting from adjacency" states exactly which fact
+has been discarded and at which step.
+
+**It yields a negative control you can build.** This is the practical reason. Two
+perpendicular bars that nearly touch are **i1D at every point** and yet have the *same
+orientation histogram* as a corner. That makes them an ideal control stimulus: any detector
+that cannot separate them is not measuring i2D structure, however good its classification
+numbers look. The whole of Phase 3 rests on that pair and on the gap sweep between them
+(§4.3), and the phrasing is what makes the control obvious. "We need end-stopped cells"
+suggests no such experiment.
+
+**End-stopping is a mechanism, not the requirement.** Saying "we need end-stopped cells"
+presupposes a particular implementation. The requirement is representational; end-stopping
+is one circuit that satisfies part of it. In this work the two are visibly distinct: A₁
+detects co-location and A₂ detects termination, and they are different operators with
+different failure modes, different blur sensitivities (§4.9) and different periodicities
+(§5.1).
+
+**One honest limitation of the phrasing.** "Do they meet?" describes A₁'s target exactly and
+A₂'s only loosely — a line *end* is i2D but is not a co-location question, and neither is
+curvature. So the formulation is chosen for precision about the **central claim**, which is
+about the order of multiplication and pooling, rather than as a complete account of i2D
+structure. Where the wider category is meant, this report says i2D.
 
 ---
 
@@ -365,6 +411,12 @@ The key stimulus pair: **two bars at 90° whose centres are separated by a contr
 At gap 0 they cross at the centre — maximal co-location. At gap 70 their nearest points are
 ~30 px apart. **The orientation content is identical at every gap**; only co-location
 changes.
+
+This stimulus is the reason for the framing in §1.6. Two perpendicular bars that nearly
+touch are i1D at every single point, yet carry the same orientation histogram as a corner —
+so they are a control that no orientation summary can pass, and the sweep between them turns
+a categorical question ("is this i2D?") into a continuous one with a known answer at every
+step.
 
 **Results.**
 
@@ -730,9 +782,58 @@ were designed for, with the dilution removed. The "different information, drowne
 averaging" hypothesis does not survive.
 
 **And note the absolute level.** 69.9 % on a **balanced binary** task, against 50 % chance.
-The whole front end is poor at `F`/`f`. It is not that the conjunctions fail where the
-conventional statistic succeeds — **all three are near-equally mediocre**, which is a sharper
-open question than the one this test was meant to close.
+All three representations are near-equally mediocre, which raises a sharper question than the
+one this test was meant to close: *does anything solve `F`/`f`, or is our front end
+discarding something a general learner would find?*
+
+### 4.10.3 Nothing solves it
+
+**What was done.** The same 4,800/800 split, but classifiers with direct access to the raw
+28×28 pixels: a plain network on the 784 pixel values, and the small convolutional network
+used throughout this project. Then, because 834 k parameters on 4,800 images may simply be
+data-starved rather than at a ceiling, the CNN again with **ten augmented copies per
+training image** — the same ±10° / ±10 % / ±2 px augmentation as §4.8, which that section
+showed is worth 9–13 points to a data-starved network.
+
+**Results.**
+
+| model | `F`/`f` accuracy |
+|:--|--:|
+| pixel MLP 784 → 256 → 2 | 66.42 % ± 0.31 |
+| small CNN, 2 conv + pool | 67.54 % ± 0.89 |
+| **small CNN + 10× augmentation** | **69.88 % ± 0.22** |
+| **orientation + low-pass (ours)** | **69.88 % ± 0.88** |
+| A₁ + A₂ | 67.54 % |
+| ray harmonics | 67.50 % |
+
+**A convolutional network with direct access to the pixels scores *below* the front end.**
+Augmentation lifts it by 2.34 points — to *exactly* the features' number, and no further.
+**Two entirely unrelated routes converge on 69.9 %**: a designed representation with
+invariances built in, and a learned one taught the same invariances from data. That
+convergence is what makes ~70 % a ceiling rather than a limitation of either method.
+
+**What this means.** On a balanced binary task, ~70 % implies roughly **30 % of `F`/`f`
+pairs are coin flips**. That is the same situation as `0`/`O` and `1`/`I`/`L` — the pairs
+merged at the very start (§1.1) precisely because no system can separate them from the ink.
+`F`/`f` belongs on that list and was not on it.
+
+**It also resolves the whole thread of this report.** The confusion analysis identified
+`F`/`f` as 17.3 % of remaining errors and, correctly, as junction-distinguishable *in
+principle*; the prediction for the conjunction layer was revised upward on that basis
+(§6); the layer then moved 8 of 251 errors. All of that was chasing a distinction **that is
+not reliably present in the images**. The original estimate of +0 to +0.5 was right, though
+for a reason not identified at the time — not "the task does not reward i2D structure" but
+"the pair generating most of the error is near-undecidable".
+
+**And it corrects a correction.** An earlier progress report recorded: *"`F`/`f` confusion is
+label ambiguity — **wrong** — EMNIST keeps those shapes apart deliberately; it is a real
+descriptor failure."* The original claim was right and the correction was wrong. That the
+dataset's authors kept the classes apart describes their labelling choice, not the shapes'
+separability; separability is now measured directly, and it is poor.
+
+A consequence worth noting: the 92.5 % ceiling that earlier work established for
+merged-class EMNIST is **optimistic**, since `F`/`f` contributes roughly 250 further
+irreducible test errors on top of the homoglyph groups.
 
 ### 4.10.2 How correlated are they, exactly?
 
@@ -911,13 +1012,9 @@ exactly what the R² measurement later showed.
 
 ## Open
 
-1. **Why is `F`/`f` at ~70 % for *every* representation?** The newest and sharpest question.
-   All three of orientation statistics, conjunctions and ray harmonics sit at 67–70 % on a
-   balanced binary task. Either the information survives in the dense maps and dies in the
-   pooling, or the front end lacks it entirely. A dense-readout probe would separate those.
-2. **Re-anchor the probe offset to a measured structure scale**, and re-derive the angular
+1. **Re-anchor the probe offset to a measured structure scale**, and re-derive the angular
    tuning the same way, so the module stops carrying constants fitted at one operating point.
-3. **A task that requires i2D structure.** 54 conjunction numbers alone reach 88.45 %, so the
+2. **A task that requires i2D structure.** 54 conjunction numbers alone reach 88.45 %, so the
    signal is real. The negative result is about handwritten characters, which apparently do
    not contain the configurations where orientation statistics fail.
 
