@@ -29,9 +29,10 @@ for (ev, name) in rows, k in 1:NCOL
     p = sample_params(rng; event=ev); img, v, _ = stimulus(p, rng; N=N)
     # every tile carries its own event name. Putting it only on the first tile of the row
     # made "no event" read as a property of that one image rather than a row heading.
-    ttl = if ev === :kink;  @sprintf("%s %.0f° %s", name, v[4], band_of(v[4]))
-          elseif ev === :gap; @sprintf("%s brk %.2f w %.1f", name, v[2], v[6])
-          else @sprintf("%s crv %.2f %s", name, v[1], v[3] > 0.5 ? "CLOSED" : "open") end
+    cl = v[3] > 0.5 ? " ○closed" : ""
+    ttl = if ev === :kink;  @sprintf("%s %.0f° %s%s", name, v[4], band_of(v[4]), cl)
+          elseif ev === :gap; @sprintf("%s brk %.2f%s", name, v[2], cl)
+          else @sprintf("%s crv %.2f%s", name, v[1], cl) end
     push!(panels, tile(img, ttl))
 end
 plot(panels...; layout=(length(rows), NCOL), size=(146NCOL, 150length(rows)),

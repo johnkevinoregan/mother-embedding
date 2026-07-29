@@ -161,10 +161,10 @@ interpolate.
 Curvature and turn are drawn independently and the arclength follows from them, which is
 what keeps `curvedness` and `closedness` from collapsing onto one another.
 """
-function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 16.0), ramp=(0.8, 20.0),
+function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 12.0), ramp=(0.8, 20.0),
                        amp=(0.30, 1.00), bg=(0.40, 0.60), noise=0.02,
                        kappa=(0.0, 0.028), turn=(0.0, 2π/3), aspect=(0.62, 1.0),
-                       p_straight=0.20, p_closed=0.18, N=112)
+                       p_straight=0.20, p_closed=0.32, N=112)
     u(r) = r isa Tuple ? r[1] + (r[2]-r[1])*rand(rng) : Float64(r)
 
     # Stroke width and edge ramp are drawn first because they decide how much room is left
