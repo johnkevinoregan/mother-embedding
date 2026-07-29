@@ -119,3 +119,35 @@ Sample efficiency (linear readouts)
     CNN              0.455      0.289      0.953      0.277      0.863      0.877      0.913      0.992
     ours·linear      0.682      0.340      0.985      0.567      0.859      0.576      0.625     -0.000
       cnn[big] epoch   5  loss 0.4507  val R² 0.381
+      cnn[big] epoch  10  loss 0.3568  val R² 0.545
+      cnn[big] epoch  15  loss 0.3192  val R² 0.017
+      cnn[big] epoch  20  loss 0.2496  val R² 0.575
+      cnn[big] epoch  25  loss 0.1729  val R² -0.030
+      cnn[big] epoch  30  loss 0.1154  val R² 0.576
+      cnn[big] epoch  35  loss 0.0780  val R² 0.316
+      cnn[big] epoch  40  loss 0.0655  val R² 0.612
+      cnn[big] epoch  45  loss 0.0458  val R² -0.108
+      cnn[big] epoch  50  loss 0.0367  val R² 0.783
+      cnn[big] epoch  55  loss 0.0307  val R² 0.146
+      cnn[big] epoch  60  loss 0.0299  val R² 0.836
+      cnn[big] best val R² 0.836 after 60 epochs
+
+============================================================================================
+extrapolation: polarity — trained on light strokes, tested on dark
+============================================================================================
+
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial              0.008      0.009      0.437      0.070      0.031      0.204      0.184        NaN
+--------------------------------------------------------------------------------------------
+pixels·linear       -0.130     -0.112     -2.352     -0.532     -1.773     -2.931     -0.889          —
+pixels·MLP          -2.747     -1.491     -5.025     -3.668     -6.981     -8.319     -4.060          —
+CNN                  0.202     -0.197      0.817     -2.225     -0.415     -1.039     -0.260          —
+ours·linear          0.682      0.350      0.985      0.570      0.857      0.634      0.639          —
+ours·MLP             0.849      0.661      0.997      0.870      0.929      0.671      0.699          —
+      cnn[big] epoch   5  loss 0.5125  val R² 0.497
+      cnn[big] epoch  10  loss 0.3901  val R² -0.268
+      cnn[big] epoch  15  loss 0.3385  val R² 0.563
+      cnn[big] epoch  20  loss 0.3054  val R² 0.577
+      cnn[big] epoch  25  loss 0.2580  val R² -0.903
+      cnn[big] epoch  30  loss 0.1979  val R² 0.257
+      cnn[big] epoch  35  loss 0.1446  val R² -0.746

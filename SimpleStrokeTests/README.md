@@ -82,6 +82,74 @@ julia --project=.. Preview_Contours.jl
 Writes `contactsheet.png`, `sweeps.png`, `edge_profiles.png`, and prints the target ranges,
 the target correlation matrix and the trivial-cue table.
 
+## Reading and modifying the code
+
+These are plain text files — any editor works. VS Code with the Julia extension gives
+jump-to-definition and can run a file or a single line in an attached REPL, but nothing here
+depends on it.
+
+Every function carries a docstring saying **why** it is the way it is, usually naming the
+bug that forced it. From the Julia prompt:
+
+```julia
+julia> include("Contours.module.jl"); using .Contours
+julia> ?excess_turn          # press ? then the name
+```
+
+### Where to change what
+
+| to change | file | function |
+|:--|:--|:--|
+| stimulus ranges — thickness, blur, curvature, gap size | `Contours.module.jl` | `sample_params` |
+| what the eight target numbers are | `Contours.module.jl` | `PROPS`, `targets_of` |
+| how a shape becomes pixels | `Contours.module.jl` | `render_geom` |
+| pooling grid (3×3 → 5×5) | `Frontend.module.jl` | `build_frontend(N; grid)` |
+| the Gabor bank — scales, orientations | `Frontend.module.jl` | `LADDER`, `BETAS`, `NORI` |
+| the CNN architecture | `Phase9_Readouts.jl` | `cnn_model` |
+| the MLP — width, depth, learning rate | `Phase9_Readouts.jl` | `mlp` |
+| how train/test splits are built | `Phase9_Readouts.jl` | `make_split` |
+| which arms exist | `Phase9_Readouts.jl` | `ARMS`, `evaluate` |
+
+### Changing something safely
+
+**Try it small first.** Every script takes its sizes from the environment, so a change can be
+exercised end to end in under a minute before committing an hour to it:
+
+```bash
+P9_NTRAIN=800 P9_NTEST=300 P9_STAGES=iid P9_ARMS=4 P9_OUT=results_scratch \
+  julia --project=.. -t 8 Phase9_Readouts.jl
+```
+
+**If you touch the generator, re-run the audit.** `julia --project=.. Preview_Contours.jl`
+prints the target ranges, the correlation matrix between targets, and the R² of each target
+from three trivial image statistics. Every serious bug in this dataset was caught by that
+table rather than by a crash — a target with no support at one end, two targets that turned
+out to be the same thing, a cue that made a property guessable without looking at structure.
+
+**If you touch the front end, run the validators** in `../RationalGaborFeatures/`:
+`Validate_GaborStack.jl`, `Validate_AndLayer.jl`, `Validate_Pooling.jl`,
+`Validate_RayHarmonics.jl`, `Validate_Convention.jl`. They are Pluto notebooks and each
+prints `ALL GATES PASSED` or names what failed.
+
+### Traps specific to this code
+
+**`Plots` exports common short names.** It exports `bar` and `with`; when two modules export
+the same name Julia binds *neither*, and the failure appears far from its cause. That is why
+`Stimuli` has `barstim` and `Contours` has `respec`. Avoid short generic names for anything
+exported.
+
+**Never open a `.module.jl` file in Pluto.** Pluto rewrites any file it opens and leaves a
+`<name> backup 1.jl` beside it. The extension exists as a warning.
+
+**Targets are measured from the drawn geometry, not asserted from the parameters.** If you
+change how a shape is built, check that its measurement still describes it — the corner angle
+was wrong for a third of samples precisely because it was asserted rather than measured.
+
+**Everything is seeded.** Any change to the generator changes every published number, even if
+the change looks cosmetic. Re-run and re-check rather than assuming a table still holds.
+
+**Julia 1.11.2 GC segfault** — see the section below.
+
 ## Reproducing the experiment
 
 Everything is seeded, so these commands give the numbers in `RESULTS.md` exactly.
