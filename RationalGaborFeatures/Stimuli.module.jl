@@ -17,7 +17,7 @@ Size-agnostic — nothing here assumes 112, or characters, or EMNIST.
 """
 module Stimuli
 
-export barstim, corner, two_bars, gabor_patch, blob, tee, cross_bars
+export barstim, corner, two_bars, gabor_patch, blob, tee, cross_bars, rays
 
 """
 Bar of width `w`, length `len`, orientation `θ`, centred at `(cy,cx)`.
@@ -89,6 +89,26 @@ end
 "X-crossing: two full bars crossing at the centre (4 rays)."
 cross_bars(N::Int; w::Real=13.0, len::Real=70.0, α::Real=π/2) =
     max.(barstim(N, 0.0; w=w, len=len), barstim(N, α; w=w, len=len))
+
+"""
+    rays(N, angles; w, r)
+
+`length(angles)` half-bars of equal length `r` radiating from the centre. The canonical
+junction stimuli: `[0]` is an endpoint, `[0,π]` a straight line, `[0,π/2]` an L-corner,
+`[0,π/2,π]` a T-junction, `[0,π/2,π,3π/2]` an X-crossing.
+
+Every ray has the same length, so **ray count is the only thing that varies** and the
+readout must be taken *at the junction point*, not summed over the image. Summing over the
+image is exactly how a total-ink confound was mistaken for a ray-count result once already
+(see `RESULTS.md` §5.1).
+"""
+function rays(N::Int, angles; w::Real=13.0, r::Real=40.0)
+    c = (N+1)/2; I = zeros(Float32, N, N)
+    for θ in angles
+        I .= max.(I, barstim(N, θ; w=w, len=2r, cy=c + r*sin(θ), cx=c + r*cos(θ)))
+    end
+    I
+end
 
 "Gabor patch (Gaussian-windowed grating) — clean spectral content at one `λ`."
 gabor_patch(N::Int, λ::Real, θ::Real; σ::Real=22.0) = (c = (N+1)/2;

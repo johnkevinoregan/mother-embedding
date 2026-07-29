@@ -308,6 +308,73 @@ A₁** (−40 % vs −12 % at matched blur). A termination is a sharper event th
 
 ---
 
+## Phase 8 — a task where co-location is decisive, attempted three times
+
+The missing positive control. Everything so far shows the conjunction layer adds nothing
+**on EMNIST**; nothing shows it helps anywhere. Phase 3 measured the *operator*, not a
+classifier.
+
+**All three designs failed to discriminate, and the failures are the finding.**
+
+*v1 — four classes* (`:cross` / `:tee` / `:corner` / `:separate`), built from bars drawn
+from the same distributions. `orient` scored **100 %**. The script's own guard fired: the
+global orientation histogram was matched, but `orient` is a **3×3 grid of per-cell
+statistics** and therefore reads layout — a corner puts ink at the bar's end, a separated
+stem sits further out.
+
+*v2 — two classes*, `:touch` versus `:gap`, same bar and stem, only whether the stem
+reaches. `orient` **100 %** again.
+
+*v3 — a gap sweep*, gap measured from the bar's **surface** (v2 measured from its centre,
+so any gap under half the 9–15 px bar width left the stem still overlapping — gaps of 2 and
+4 px produced bit-identical stimuli and bit-identical scores):
+
+| gap (px) | orient+lp | A₁+A₂ | rays | all |
+|--:|--:|--:|--:|--:|
+| 16 → 3 | 100.00 % | 100.00 % | 100.00 % | 100.00 % |
+| 2 | 99.87 % | 100.00 % | 99.75 % | 100.00 % |
+
+**Everything solves it, down to a 2 px gap against a 9–15 px stroke.**
+
+### What this actually shows
+
+**Any co-location difference necessarily changes local ink density.** A gap removes ink
+next to the junction; with 37 px cells that is a measurable per-cell energy change, and a
+classifier trained on thousands of examples finds it. There may be no stimulus pair that
+differs in *meeting* and not in density.
+
+**And it exposes a conflation in how Phase 3 was read.** That gate reported cosine 0.97
+between a corner and separated strokes under pooled orientation energy, which I took as
+"the conventional statistic cannot separate them". Cosine similarity says the vectors are
+*close*; it does not say a trained classifier cannot tell them apart. Those are different
+claims, and the second is the one that matters for whether a feature earns its place.
+
+So the honest position is stronger than the earlier write-up: **no task has been
+constructed on which the conjunction layer beats the orientation statistics** — not EMNIST,
+not the binary `F`/`f` probe, and not a synthetic benchmark built specifically to require
+co-location.
+
+---
+
+## The orientation convention, checked
+
+A Gabor has two angles 90° apart — carrier and ridge — and earlier work outside this
+project used the ridge convention where this bank stores the carrier. A leak would be easy
+and invisible, so `Validate_Convention.jl` pins it with three tests:
+
+| test | result |
+|:--|:--|
+| a bar at β excites the filter with `theta` = β+90° | max error **3.8°** over 5 angles |
+| A₂ probes along the stroke (ends ≫ middle) | **6.9×** |
+| `−arg(c₁)` recovers a single ray's direction over 2π | max error **1.0°** |
+
+Consistent throughout. Worth noting *why* a leak could not have hidden: A₁ uses a 90°
+*shift* and is immune; A₂ and the ray transform would fail their own gates outright if
+flipped; and the `orient` block's `E₂`/`E₄` are a consistent relabelling, invisible to a
+classifier. The exposure was only ever a claim about absolute orientation values.
+
+---
+
 ## Three corrections
 
 ### 1. A₁ does not order junctions by ray count

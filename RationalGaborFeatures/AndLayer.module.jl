@@ -25,7 +25,9 @@ Three forms, independently switchable:
     autocorrelation at 90° lag, computed per pixel. Zero for a single orientation,
     maximal where two orthogonal orientations coexist *at a point* — which is what
     separates a corner from two strokes that merely share a pooling window.
-  * `:A2` **end-stopping.** Excitation at the centre, differenced against the two flanks
+  * `:A2` **end-stopping.** Its flank offset can be anchored two ways — see `d_anchor` in
+    `a2_maps`. The default `:envelope` reproduces everything in `RESULTS.md`; `:structure`
+    is the scale-free choice for new datasets. Excitation at the centre, differenced against the two flanks
     *along* the stroke. Zero in a line's interior (both flanks present), zero for an
     isolated blob (neither present), maximal at a termination (one present, one absent).
   * `:A3` **cross-scale conjunction.** Orientation-pooled energy multiplied across
@@ -131,8 +133,13 @@ a channel whose *own* flanks are both ≈0 — any channel not aligned with the 
 fires everywhere. Normalising against the centre response instead makes "both flanks
 empty" score ~0, as it must.
 """
-function a2_maps(E::Array{Float32,3}, meta; d=:auto, kappa::Float32=0.5f0,
+function a2_maps(E::Array{Float32,3}, meta; d=:auto, d_anchor::Symbol=:envelope,
+                 structure_scale::Union{Nothing,Real}=nothing, kappa::Float32=0.5f0,
                  eps::Float32=1f-12, d_factor::Real=1.0)
+    d_anchor in (:envelope, :structure) ||
+        error("d_anchor must be :envelope (default, reproduces RESULTS.md) or :structure")
+    d_anchor === :structure && structure_scale === nothing &&
+        error("d_anchor = :structure needs structure_scale (e.g. the measured stroke width)")
     H, W, _ = size(E)
     maps = Matrix{Float32}[]; labels = NamedTuple[]
     for ρ in scales_of(meta)
@@ -149,11 +156,38 @@ function a2_maps(E::Array{Float32,3}, meta; d=:auto, kappa::Float32=0.5f0,
         # σ_φ and the image width are read from the bank's own metadata rather than
         # recomputed here — holding the same parameter in two places is exactly how the
         # offsets silently kept their old values when the bank's angular tuning changed.
-        dρ = if d === :auto
+        # ── WHERE THE FLANK OFFSET IS ANCHORED ──────────────────────────────────────
+        # Two options, and the default is deliberately the weaker one.
+        #
+        # :envelope (DEFAULT) — d = d_factor · σ_along, i.e. one along-contour envelope of
+        #   the filter itself. Every result in RESULTS.md was produced this way and the
+        #   default is kept so they reproduce exactly. It is also the biologically natural
+        #   form: an end-stopped cell's inhibitory zone is fixed relative to its own
+        #   receptive field, not to the stimulus.
+        #
+        #   BUT IT IS NOT SCALE-FREE, and this was measured rather than argued. Sweeping in
+        #   dimensionless units (Validate_ScaleFree.jl) — stimulus fixed, filter scale
+        #   varied — the best d_factor DRIFTS with the stimulus scale: [3.0, 0.5, 1.5, 2.0]
+        #   at w/λ = 0.30 / 0.50 / 0.80 / 1.20. Converting the optima to physical offsets
+        #   gives d/stroke_width = 0.60 / 1.15 / 1.01 — i.e. the optimum tracks the STROKE
+        #   WIDTH, not the envelope. d_factor = 1.0 looked right on EMNIST only because
+        #   σ_along = 9.7 px against a 12.67 px stroke happens to give 0.76 stroke widths at
+        #   that one operating point. A constant fitted at one scale fails silently, not
+        #   loudly, at another.
+        #
+        # :structure — d = d_factor · structure_scale, one measured structure scale, the
+        #   same at every filter scale. This is the general choice, and it matches how the
+        #   rest of the pipeline already works: `scale_ladder` derives the bank from the
+        #   data's own spectrum, so the operator should likewise derive its geometry from
+        #   the data's own structure scale (stroke width, measured in Phase 0 at 12.67 px
+        #   for EMNIST). Use this when pointing the front end at a new dataset.
+        dρ = if d !== :auto
+            Float64(d)
+        elseif d_anchor === :structure
+            d_factor * Float64(structure_scale)
+        else
             m = first(m for m in meta if m.kind === :oriented && m.rho0 ≈ ρ)
             d_factor * m.imwidth / (2π * ρ * m.sigma_phi)
-        else
-            Float64(d)
         end
         # Winner-take-all over orientation: the end-stop inherits the LOCALLY DOMINANT
         # orientation, as a real end-stopped cell does. Taking a max over all orientations
@@ -219,7 +253,8 @@ Pointwise conjunction maps from a dense energy stack. Returns `(maps, labels)` w
 `maps` is `H × W × k` and `labels` describes each channel. `forms=()` returns nothing,
 which is how the layer is ablated.
 """
-function and_maps(E::Array{Float32,3}, meta; forms=(:A1,), d=:auto, d_factor::Real=1.0)
+function and_maps(E::Array{Float32,3}, meta; forms=(:A1,), d=:auto, d_factor::Real=1.0,
+                  d_anchor::Symbol=:envelope, structure_scale::Union{Nothing,Real}=nothing)
     all(f in AND_FORMS for f in forms) ||
         error("unknown form in $forms; valid: $AND_FORMS")
     H, W, _ = size(E)
@@ -228,7 +263,8 @@ function and_maps(E::Array{Float32,3}, meta; forms=(:A1,), d=:auto, d_factor::Re
         m, l = a1_maps(E, meta); append!(allmaps, m); append!(alllab, l)
     end
     if :A2 in forms
-        m, l = a2_maps(E, meta; d=d, d_factor=d_factor)
+        m, l = a2_maps(E, meta; d=d, d_factor=d_factor, d_anchor=d_anchor,
+                       structure_scale=structure_scale)
         append!(allmaps, m); append!(alllab, l)
     end
     if :A3 in forms
