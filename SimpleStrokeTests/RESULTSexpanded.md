@@ -134,6 +134,21 @@ something, and a loss is unsurprising.
 
 ## 6. How the score is defined
 
+### Why not "accuracy"?
+
+**Accuracy** — the fraction of answers that are right — needs a notion of *right*, which
+needs categories. If the task were "is this a right angle, yes or no", accuracy would be the
+natural score. But the answers here are **numbers**, not categories: a corner angle of 87°, a
+brokenness of 0.34. There is no "right", only "how close".
+
+That is deliberate (§4): with categories, an 82° corner guessed as 78° counts as a total
+failure, exactly as bad as guessing 20°. The information about *how* wrong a method is —
+which is most of the information — gets thrown away.
+
+So the score is a measure of closeness instead.
+
+### R²
+
 The score is **R²** ("R squared"), the fraction of the variation in the true answer that the
 prediction accounts for.
 
@@ -174,16 +189,48 @@ draw. Differences between arms are therefore differences between methods, not be
 datasets. The features are also computed once and reused, so the sample-efficiency curve
 compares five training-set sizes on identical data.
 
-### Settings are chosen without touching the test set
+### Settings are chosen without touching the test set — the three-way split
 
-Every method has settings — how strongly to penalise large weights, how long to train. These
-are chosen on a **validation set**: a slice held out of the *training* data, never the test
-data. If they were chosen by looking at test performance, the test score would be optimistic
-by an unknown amount.
+This is the part most worth understanding, because "validation" appears throughout the
+figures and it is not the same thing as "test".
 
-For the neural network arms, the reported prediction is from **whichever training epoch was
-best on validation** — so a method that trains well and then degrades is scored where it was
-good, rather than being penalised for stopping late.
+The 15,000 images are divided **three** ways, not two:
+
+| slice | size | what it is for | is it fitted on? |
+|:--|--:|:--|:--|
+| **train** | 10,000 | fitting the weights | **yes** |
+| **validation** | 2,000 | choosing settings | no — but we may look at it freely |
+| **test** | 3,000 | the published number | no — looked at once, at the end |
+
+**Why a middle slice is needed.** Every method has knobs that are not determined by fitting.
+Ridge has a penalty strength: too small and it memorises the training images, too large and
+it ignores them. A neural network has a stopping point: too early and it has not learned, too
+late and it has started memorising. Nothing in the fitting procedure tells you what to
+choose — you have to try several and compare.
+
+Compare on *what*, though? Not the training images: a method that memorised them scores
+perfectly there, so training performance would always favour the least-regularised, longest-
+trained option. And not the test images: choosing the setting that happens to score best on
+the test set, and then reporting that score, means the number is partly a measure of how many
+settings you tried. With enough attempts you can make anything look good on any fixed set.
+
+Hence a third slice, held out of training, that we are allowed to examine as often as we like
+precisely because nothing we report is measured on it.
+
+**How it is used here, concretely:**
+
+- **Ridge** is fitted at seven penalty strengths; the one with the best validation R² is
+  kept — separately for each of the eight properties, since they differ hugely in how much
+  signal they carry.
+- **Neural networks** are scored on validation after every complete pass through the training
+  data (one pass is an **epoch**). The prediction we report comes from **whichever epoch
+  scored best on validation**, not from the last one — so a method that trains well and then
+  degrades is scored where it was actually good.
+
+**What "validation R² at epoch 37" means**, then: after 37 passes over the training images,
+freeze the model, run it on the 2,000 held-out validation images, and compute R² there. Doing
+that after every epoch gives the learning curves in §12a — and those curves show something a
+training-loss curve cannot, which is the point of the exercise.
 
 ### Two kinds of split
 
@@ -475,10 +522,9 @@ than the buggy zeros were.
 
 ## 12a. Watching the models learn
 
-Each model is trained by repeatedly passing over the training images. One pass is an
-**epoch**. After every epoch we can freeze the model and score it on a **validation set** —
-2,000 images held out of the training data, never fitted on, kept separate from the test set
-so that decisions like "when to stop" can be made without peeking at the final exam.
+Each model is trained by repeatedly passing over the training images; one pass is an
+**epoch**. After every epoch we freeze the model and score it on the validation set (§7) —
+the 2,000 held-out images that are never fitted on and never reported.
 
 ![per-property learning curves](phase9_learning_detail.png)
 
