@@ -1,0 +1,296 @@
+Phase 9 — 12000 train, 3000 test, 12 threads
+
+front end: 279 columns  (orient 135, lowpass 9, A1 27, A2 27, rays 81)
+
+generated 15000 images in 3s
+
+[311441] signal 15: Terminated
+in expression starting at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Phase9_Readouts.jl:458
+unknown function (ip: 0x7f98f2a2bf14)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_parallel_gc_threadfun at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/scheduler.c:148
+unknown function (ip: 0x7f98f2a2f1f4)
+unknown function (ip: 0x7f98f2aaf8eb)
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98f2a2bf14)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_parallel_gc_threadfun at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/scheduler.c:148
+unknown function (ip: 0x7f98f2a2f1f4)
+unknown function (ip: 0x7f98f2aaf8eb)
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98f2a2bf14)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_parallel_gc_threadfun at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/scheduler.c:148
+unknown function (ip: 0x7f98f2a2f1f4)
+unknown function (ip: 0x7f98f2aaf8eb)
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98f2a2bf14)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_parallel_gc_threadfun at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/scheduler.c:148
+unknown function (ip: 0x7f98f2a2f1f4)
+unknown function (ip: 0x7f98f2aaf8eb)
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98f2a2bf14)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_parallel_gc_threadfun at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/scheduler.c:148
+unknown function (ip: 0x7f98f2a2f1f4)
+unknown function (ip: 0x7f98f2aaf8eb)
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98f2a2bf14)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_safepoint_wait_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:246
+jl_safepoint_start_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:181
+ijl_gc_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:3857
+maybe_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:922 [inlined]
+jl_gc_pool_alloc_inner at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:1325
+ijl_gc_pool_alloc_instrumented at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:1383
+unknown function (ip: 0x7f9887321f8d)
+#ray_maps#9 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:109
+ray_maps at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:78 [inlined]
+_feat at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:91
+unknown function (ip: 0x7f98872d8d79)
+macro expansion at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:114 [inlined]
+#101#threadsfor_fun#2 at ./threadingconstructs.jl:253
+#101#threadsfor_fun at ./threadingconstructs.jl:220 [inlined]
+#1 at ./threadingconstructs.jl:154
+unknown function (ip: 0x7f988733977f)
+jl_apply at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/julia.h:2157 [inlined]
+start_task at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/task.c:1202
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98f2a2bf14)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_safepoint_wait_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:246
+jl_safepoint_start_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:181
+ijl_gc_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:3857
+maybe_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:922 [inlined]
+jl_gc_pool_alloc_inner at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:1325
+ijl_gc_pool_alloc_instrumented at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:1383
+unknown function (ip: 0x7f9887321f8d)
+#ray_maps#9 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:109
+ray_maps at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:78 [inlined]
+_feat at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:91
+unknown function (ip: 0x7f98872d8d79)
+macro expansion at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:114 [inlined]
+#101#threadsfor_fun#2 at ./threadingconstructs.jl:253
+#101#threadsfor_fun at ./threadingconstructs.jl:220 [inlined]
+#1 at ./threadingconstructs.jl:154
+unknown function (ip: 0x7f988733977f)
+jl_apply at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/julia.h:2157 [inlined]
+start_task at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/task.c:1202
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98f2a2bf14)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_safepoint_wait_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:246
+jl_safepoint_start_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:181
+ijl_gc_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:3857
+maybe_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:922 [inlined]
+ijl_gc_managed_malloc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:4203
+_new_genericmemory_ at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/genericmemory.c:53 [inlined]
+jl_alloc_genericmemory at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/genericmemory.c:99
+GenericMemory at ./boot.jl:516 [inlined]
+new_as_memoryref at ./boot.jl:535 [inlined]
+Array at ./boot.jl:582 [inlined]
+Array at ./boot.jl:592 [inlined]
+Array at ./boot.jl:599 [inlined]
+similar at ./abstractarray.jl:868 [inlined]
+similar at ./abstractarray.jl:867 [inlined]
+similar at ./broadcast.jl:224 [inlined]
+similar at ./broadcast.jl:223 [inlined]
+copy at ./broadcast.jl:892 [inlined]
+materialize at ./broadcast.jl:867 [inlined]
+#energy_stack#13 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/GaborStack.module.jl:349
+energy_stack at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/GaborStack.module.jl:341 [inlined]
+_feat at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:89
+unknown function (ip: 0x7f98872d8d79)
+macro expansion at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:114 [inlined]
+#101#threadsfor_fun#2 at ./threadingconstructs.jl:253
+#101#threadsfor_fun at ./threadingconstructs.jl:220 [inlined]
+#1 at ./threadingconstructs.jl:154
+unknown function (ip: 0x7f988733977f)
+jl_apply at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/julia.h:2157 [inlined]
+start_task at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/task.c:1202
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98f2a2bf14)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_safepoint_wait_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:246
+jl_safepoint_start_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:181
+ijl_gc_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:3857
+maybe_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:922 [inlined]
+ijl_gc_managed_malloc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:4203
+_new_genericmemory_ at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/genericmemory.c:53 [inlined]
+jl_alloc_genericmemory at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/genericmemory.c:99
+GenericMemory at ./boot.jl:516 [inlined]
+new_as_memoryref at ./boot.jl:535 [inlined]
+Array at ./boot.jl:582 [inlined]
+Array at ./boot.jl:592 [inlined]
+Array at ./boot.jl:599 [inlined]
+similar at ./abstractarray.jl:868 [inlined]
+similar at ./abstractarray.jl:867 [inlined]
+similar at ./broadcast.jl:224 [inlined]
+similar at ./broadcast.jl:223 [inlined]
+copy at ./broadcast.jl:892 [inlined]
+materialize at ./broadcast.jl:867 [inlined]
+#energy_stack#13 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/GaborStack.module.jl:349
+energy_stack at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/GaborStack.module.jl:341 [inlined]
+_feat at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:89
+unknown function (ip: 0x7f98872d8d79)
+macro expansion at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:114 [inlined]
+#101#threadsfor_fun#2 at ./threadingconstructs.jl:253
+#101#threadsfor_fun at ./threadingconstructs.jl:220 [inlined]
+#1 at ./threadingconstructs.jl:154
+unknown function (ip: 0x7f988733977f)
+jl_apply at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/julia.h:2157 [inlined]
+start_task at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/task.c:1202
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98f2a2bf14)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_safepoint_wait_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:246
+jl_safepoint_start_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:181
+ijl_gc_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:3857
+maybe_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:922 [inlined]
+ijl_gc_managed_malloc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:4203
+_new_genericmemory_ at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/genericmemory.c:53 [inlined]
+jl_alloc_genericmemory at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/genericmemory.c:99
+GenericMemory at ./boot.jl:516 [inlined]
+new_as_memoryref at ./boot.jl:535 [inlined]
+Array at ./boot.jl:582 [inlined]
+Array at ./boot.jl:592 [inlined]
+Array at ./boot.jl:599 [inlined]
+similar at ./abstractarray.jl:868 [inlined]
+similar at ./abstractarray.jl:867 [inlined]
+similar at ./broadcast.jl:224 [inlined]
+similar at ./broadcast.jl:223 [inlined]
+copy at ./broadcast.jl:892 [inlined]
+materialize at ./broadcast.jl:867 [inlined]
+#energy_stack#13 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/GaborStack.module.jl:349
+energy_stack at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/GaborStack.module.jl:341 [inlined]
+_feat at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:89
+unknown function (ip: 0x7f98872d8d79)
+macro expansion at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:114 [inlined]
+#101#threadsfor_fun#2 at ./threadingconstructs.jl:253
+#101#threadsfor_fun at ./threadingconstructs.jl:220 [inlined]
+#1 at ./threadingconstructs.jl:154
+unknown function (ip: 0x7f988733977f)
+jl_apply at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/julia.h:2157 [inlined]
+start_task at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/task.c:1202
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98f2a2bf14)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_safepoint_wait_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:246 [inlined]
+jl_set_gc_and_wait at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:226
+segv_handler at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/signals-unix.c:368 [inlined]
+segv_handler at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/signals-unix.c:355
+unknown function (ip: 0x7f98f29e204f)
+ifft at /home/kevin/.julia/packages/AbstractFFTs/4iQz5/src/definitions.jl:67
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98f2a2bf16)
+pthread_cond_wait at /lib/x86_64-linux-gnu/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:822
+jl_safepoint_wait_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:246
+jl_safepoint_start_gc at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/safepoint.c:181
+ijl_gc_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:3857
+maybe_collect at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:922 [inlined]
+jl_gc_pool_alloc_inner at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:1325
+ijl_gc_pool_alloc_instrumented at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/gc.c:1383
+unknown function (ip: 0x7f9887321f8d)
+#ray_maps#9 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:109
+ray_maps at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:78 [inlined]
+_feat at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:91
+unknown function (ip: 0x7f98872d8d79)
+macro expansion at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:114 [inlined]
+#101#threadsfor_fun#2 at ./threadingconstructs.jl:253
+#101#threadsfor_fun at ./threadingconstructs.jl:220 [inlined]
+#1 at ./threadingconstructs.jl:154
+unknown function (ip: 0x7f988733977f)
+jl_apply at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/julia.h:2157 [inlined]
+start_task at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/task.c:1202
+unknown function (ip: (nil))
+unknown function (ip: 0x7f98872a19b7)
+#a2_maps#10 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/AndLayer.module.jl:219
+a2_maps at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/AndLayer.module.jl:136 [inlined]
+#and_maps#15 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/AndLayer.module.jl:266
+and_maps at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/AndLayer.module.jl:256 [inlined]
+_feat at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:90
+unknown function (ip: 0x7f98872d8d79)
+macro expansion at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:114 [inlined]
+#101#threadsfor_fun#2 at ./threadingconstructs.jl:253
+#101#threadsfor_fun at ./threadingconstructs.jl:220 [inlined]
+#1 at ./threadingconstructs.jl:154
+unknown function (ip: 0x7f988733977f)
+jl_apply at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/julia.h:2157 [inlined]
+start_task at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/task.c:1202
+unknown function (ip: (nil))
+== at ./promotion.jl:639 [inlined]
+iterate at ./range.jl:908 [inlined]
+#ray_maps#9 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:113
+ray_maps at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:78 [inlined]
+_feat at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:91
+unknown function (ip: 0x7f98872d8d79)
+macro expansion at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:114 [inlined]
+#101#threadsfor_fun#2 at ./threadingconstructs.jl:253
+#101#threadsfor_fun at ./threadingconstructs.jl:220 [inlined]
+#1 at ./threadingconstructs.jl:154
+unknown function (ip: 0x7f988733977f)
+jl_apply at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/julia.h:2157 [inlined]
+start_task at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/task.c:1202
+unknown function (ip: (nil))
+#ray_maps#9 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:109
+ray_maps at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:78 [inlined]
+_feat at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:91
+unknown function (ip: 0x7f98872d8d79)
+macro expansion at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:114 [inlined]
+#101#threadsfor_fun#2 at ./threadingconstructs.jl:253
+#101#threadsfor_fun at ./threadingconstructs.jl:220 [inlined]
+#1 at ./threadingconstructs.jl:154
+unknown function (ip: 0x7f988733977f)
+jl_apply at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/julia.h:2157 [inlined]
+start_task at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/task.c:1202
+unknown function (ip: (nil))
+* at ./float.jl:493 [inlined]
+* at ./operators.jl:596 [inlined]
+bilin at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:56 [inlined]
+#ray_maps#9 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:109
+ray_maps at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/RayHarmonics.module.jl:78 [inlined]
+_feat at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:91
+unknown function (ip: 0x7f98872d8d79)
+macro expansion at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:114 [inlined]
+#101#threadsfor_fun#2 at ./threadingconstructs.jl:253
+#101#threadsfor_fun at ./threadingconstructs.jl:220 [inlined]
+#1 at ./threadingconstructs.jl:154
+unknown function (ip: 0x7f988733977f)
+jl_apply at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/julia.h:2157 [inlined]
+start_task at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/task.c:1202
+unknown function (ip: (nil))
+< at ./float.jl:618 [inlined]
+< at ./float.jl:660 [inlined]
+> at ./operators.jl:379 [inlined]
+bilin at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/AndLayer.module.jl:53 [inlined]
+#a2_maps#10 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/AndLayer.module.jl:219
+a2_maps at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/AndLayer.module.jl:136 [inlined]
+#and_maps#15 at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/AndLayer.module.jl:266
+and_maps at /home/kevin/claude-code/mother-embedding/RationalGaborFeatures/AndLayer.module.jl:256 [inlined]
+_feat at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:90
+unknown function (ip: 0x7f98872d8d79)
+macro expansion at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Frontend.module.jl:114 [inlined]
+#101#threadsfor_fun#2 at ./threadingconstructs.jl:253
+#101#threadsfor_fun at ./threadingconstructs.jl:220 [inlined]
+#1 at ./threadingconstructs.jl:154
+unknown function (ip: 0x7f988733977f)
+jl_apply at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/julia.h:2157 [inlined]
+start_task at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/task.c:1202
+unknown function (ip: (nil))
+Allocations: 2080365065 (Pool: 2080363525; Big: 1540); GC: 678
+
+[311441] signal 11 (128): Segmentation fault
+in expression starting at /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/Phase9_Readouts.jl:458

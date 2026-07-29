@@ -34,7 +34,7 @@
 
 using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 using Statistics, Printf, Random, LinearAlgebra, Serialization, FFTW
-using Flux, Plots
+using Flux, Plots, CUDA
 include(joinpath(@__DIR__, "Contours.module.jl"))
 include(joinpath(@__DIR__, "Frontend.module.jl"))
 using .Contours, .Frontend
@@ -55,6 +55,19 @@ const ARMSEL = [parse(Int, s) for s in split(get(ENV, "P9_ARMS", "1,2,3,4,5"), "
 # the experiment put together; `P9_CURVE_ARMS=1,3,4` adds it when that is what is wanted.
 const STAGES = split(get(ENV, "P9_STAGES", "iid,blocks,curve,extrap"), ",")
 const CURVEARMS = [parse(Int, s) for s in split(get(ENV, "P9_CURVE_ARMS", "1,4"), ",")]
+# `small` is the CPU-era baseline: two strided convolutions, kept so the published numbers
+# stay reproducible. `big` is what the GPU makes affordable — full resolution at the first
+# layer, four convolutional stages, batch norm. Striding at the very first layer discards
+# fine detail immediately, which is the most likely reason the small net never learned
+# `brokenness` at any sample size.
+const CNNARCH = Symbol(get(ENV, "P9_CNN", "small"))
+const USEGPU  = get(ENV, "P9_GPU", "1") == "1"
+
+# Per-epoch training history, keyed by "<split>/<arm>". Kept for every trained arm, not just
+# the CNN: a final number cannot tell you whether a run had converged, was still climbing,
+# or had peaked and started overfitting, and all three have appeared in this project.
+const HIST = Dict{String,Any}()
+const TAG  = Ref("iid")
 BLAS.set_num_threads(min(16, Sys.CPU_THREADS)); FFTW.set_num_threads(1)
 mkpath(OUT)
 
@@ -153,51 +166,100 @@ One hidden layer, Adam, with the epoch chosen by validation R². The reported pr
 from the best epoch, not the last, so a diverging run is scored where it was actually good
 rather than where it stopped.
 """
-function mlp(Xtr, Ytr, Xva, Yva, Xte; hidden=256, epochs=EPOCHS, seed=1, bs=128)
+function mlp(Xtr, Ytr, Xva, Yva, Xte; hidden=256, epochs=EPOCHS, seed=1, bs=128, tag="MLP")
     Random.seed!(seed)
-    A = permutedims(Xtr); V = permutedims(Xva); T = permutedims(Xte)
-    Yt = permutedims(Ytr); Yv = permutedims(Yva)
-    m = Chain(Dense(size(A,1) => hidden, relu), Dense(hidden => hidden, relu),
-              Dense(hidden => size(Yt,1)))
+    # The MLP arms run on the GPU too, so that the epoch budget can be raised to match the
+    # CNN's. Giving one arm 100 epochs and another 50 would make the comparison a statement
+    # about training budget rather than about representation.
+    dev = (USEGPU && CUDA.functional()) ? gpu : cpu
+    A = dev(permutedims(Xtr)); V = dev(permutedims(Xva)); T = dev(permutedims(Xte))
+    Yt = dev(permutedims(Ytr)); Yv = permutedims(Yva)
+    m = Chain(Dense(size(Xtr,2) => hidden, relu), Dense(hidden => hidden, relu),
+              Dense(hidden => size(Ytr,2))) |> dev
     opt = Flux.setup(Flux.Adam(1f-3), m)
     n = size(A, 2); best = -Inf; bestP = zeros(Float32, size(T,2), size(Yt,1))
-    for _ in 1:epochs
+    hist = fill(NaN, epochs, size(Yv, 1)); lossh = fill(NaN, epochs)
+    for e in 1:epochs
+        tot = 0.0; nb = 0
         for i in Iterators.partition(randperm(n), bs)
-            _, gs = Flux.withgradient(mm -> Flux.mse(mm(A[:, i]), Yt[:, i]), m)
-            Flux.update!(opt, m, gs[1])
+            l, gs = Flux.withgradient(mm -> Flux.mse(mm(A[:, i]), Yt[:, i]), m)
+            Flux.update!(opt, m, gs[1]); tot += l; nb += 1
         end
-        s = nanmean([r2(vec(m(V)[j, :]), vec(Yv[j, :])) for j in 1:size(Yv,1)])
-        if s > best; best = s; bestP = permutedims(m(T)); end
+        Pv = cpu(m(V))
+        hist[e, :] = [r2(vec(Pv[j, :]), vec(Yv[j, :])) for j in 1:size(Yv,1)]
+        lossh[e] = tot / nb
+        s = nanmean(hist[e, :])
+        if s > best; best = s; bestP = permutedims(cpu(m(T))); end
     end
+    HIST["$(TAG[])/$(tag)"] = (val=hist, loss=lossh, props=PROPS, best=best)
     bestP
 end
 
 """
-    cnn(Itr, Ytr, Iva, Yva, Ite) -> predictions
+    cnn_model(nout, arch)
 
-Two strided convolutions, a pool, and a head. Strided rather than pooled at full resolution
-because at 112×112 an unstrided first layer costs ~40× more and this has to train on CPU.
-The same best-epoch-by-validation rule as `mlp`.
+The two CNN architectures.
+
+`:small` is the CPU-era baseline — two **strided** convolutions and a head, with 97 % of its
+817 k parameters in the first dense layer. Striding at the very first layer throws fine
+spatial detail away immediately, which is the most likely reason it never learned
+`brokenness` at any sample size: a 3 px gap is barely more than one stride. It is kept so
+the published numbers stay reproducible, not because it is a good design.
+
+`:big` is a conventional convolutional network: **full resolution at the first layer**,
+pooling after each of four convolutional stages, batch normalisation throughout, 3×3 kernels
+after the first. Roughly 15× the arithmetic per image, which is why it needed a GPU.
+
+    112² × 1  → conv 5×5 → 32, BN, pool → 56² × 32
+              → conv 3×3 → 64, BN, pool → 28² × 64
+              → conv 3×3 → 128, BN, pool → 14² × 128
+              → conv 3×3 → 128, BN, pool →  7² × 128
+              → dense 256 → dense 8
 """
-function cnn(Itr, Ytr, Iva, Yva, Ite; epochs=CEPOCH, seed=1, bs=64)
-    Random.seed!(seed)
-    m = Chain(Conv((5,5), 1=>16, relu; stride=2, pad=2),
+cnn_model(nout, arch) =
+    arch === :small ?
+        Chain(Conv((5,5), 1=>16, relu; stride=2, pad=2),
               Conv((5,5), 16=>32, relu; stride=2, pad=2),
               MaxPool((2,2)), Flux.flatten,
-              Dense(32*14*14 => 128, relu), Dense(128 => size(Ytr,2)))
+              Dense(32*14*14 => 128, relu), Dense(128 => nout)) :
+        Chain(Conv((5,5), 1=>32; pad=2),  BatchNorm(32, relu),  MaxPool((2,2)),
+              Conv((3,3), 32=>64; pad=1), BatchNorm(64, relu),  MaxPool((2,2)),
+              Conv((3,3), 64=>128; pad=1),BatchNorm(128, relu), MaxPool((2,2)),
+              Conv((3,3), 128=>128; pad=1),BatchNorm(128, relu),MaxPool((2,2)),
+              Flux.flatten, Dense(128*7*7 => 256, relu), Dense(256 => nout))
+
+function cnn(Itr, Ytr, Iva, Yva, Ite; epochs=CEPOCH, seed=1, bs=64, arch=CNNARCH)
+    Random.seed!(seed)
+    dev = (USEGPU && CUDA.functional()) ? gpu : cpu
+    m = cnn_model(size(Ytr, 2), arch) |> dev
     opt = Flux.setup(Flux.Adam(1f-3), m)
-    Yt = permutedims(Ytr); Yv = permutedims(Yva)
-    n = size(Itr, 4); best = -Inf; bestP = zeros(Float32, size(Ite,4), size(Yt,1))
-    batched(M, I) = reduce(hcat, [m(M[:,:,:,j]) for j in Iterators.partition(1:size(M,4), 256)])
-    for e in 1:epochs
-        for i in Iterators.partition(randperm(n), bs)
-            _, gs = Flux.withgradient(mm -> Flux.mse(mm(Itr[:,:,:,i]), Yt[:, i]), m)
-            Flux.update!(opt, m, gs[1])
-        end
-        s = nanmean([r2(vec(batched(Iva, 0)[j, :]), vec(Yv[j, :])) for j in 1:size(Yv,1)])
-        @printf("      cnn epoch %2d  val R² %.3f\n", e, s); flush(stdout)
-        if s > best; best = s; bestP = permutedims(batched(Ite, 0)); end
+    Xtr = dev(Itr); Yt = dev(permutedims(Ytr)); Yv = permutedims(Yva)
+    n = size(Itr, 4); best = -Inf; bestP = zeros(Float32, size(Ite,4), size(Yv,1))
+    # batch norm behaves differently in training and inference, so predictions are taken in
+    # test mode and training mode restored afterwards. Getting this wrong would make the
+    # validation score a different quantity from the test score.
+    function predict(M)
+        Flux.testmode!(m)
+        out = reduce(hcat, [cpu(m(dev(M[:,:,:,j]))) for j in Iterators.partition(1:size(M,4), 512)])
+        Flux.trainmode!(m); out
     end
+    hist = fill(NaN, epochs, size(Yv, 1)); lossh = fill(NaN, epochs)
+    for e in 1:epochs
+        tot = 0.0; nb = 0
+        for i in Iterators.partition(randperm(n), bs)
+            l, gs = Flux.withgradient(mm -> Flux.mse(mm(Xtr[:,:,:,i]), Yt[:, i]), m)
+            Flux.update!(opt, m, gs[1]); tot += l; nb += 1
+        end
+        P = predict(Iva)
+        hist[e, :] = [r2(vec(P[j, :]), vec(Yv[j, :])) for j in 1:size(Yv,1)]
+        lossh[e] = tot / nb
+        s = nanmean(hist[e, :])
+        e % 5 == 0 && (@printf("      cnn[%s] epoch %3d  loss %.4f  val R² %.3f\n",
+                               arch, e, lossh[e], s); flush(stdout))
+        if s > best; best = s; bestP = permutedims(predict(Ite)); end
+    end
+    HIST["$(TAG[])/CNN"] = (val=hist, loss=lossh, props=PROPS, best=best)
+    @printf("      cnn[%s] best val R² %.3f after %d epochs\n", arch, best, epochs); flush(stdout)
     bestP
 end
 
@@ -260,7 +322,7 @@ function evaluate(itr, Ytr, ite, Yte, spec; drop=nothing, arms=ARMSEL, ntrain=no
         μ, σ = zfit(Xa[tr, :]); Xa = zapply(Xa, μ, σ)
         Xtr, Xva, Xte = Xa[tr, :], Xa[va, :], Xa[ntr+1:end, :]
         1 in arms && score!(1, ridge(Xtr, Zt, Xva, Zv, Xte)[1])
-        2 in arms && score!(2, mlp(Xtr, Zt, Xva, Zv, Xte))
+        2 in arms && score!(2, mlp(Xtr, Zt, Xva, Zv, Xte; tag="pixels·MLP"))
         Xa = nothing; GC.gc()
     end
     if 3 in arms
@@ -273,7 +335,7 @@ function evaluate(itr, Ytr, ite, Yte, spec; drop=nothing, arms=ARMSEL, ntrain=no
         μ, σ = zfit(Fa[tr, :]); Fa = zapply(Fa, μ, σ)
         Ftr, Fva, Fte = Fa[tr, :], Fa[va, :], Fa[ntr+1:end, :]
         4 in arms && score!(4, ridge(Ftr, Zt, Fva, Zv, Fte)[1])
-        5 in arms && score!(5, mlp(Ftr, Zt, Fva, Zv, Fte))
+        5 in arms && score!(5, mlp(Ftr, Zt, Fva, Zv, Fte; tag="ours·MLP"))
     end
     R
 end
@@ -311,6 +373,7 @@ function main()
     @printf("featurised in %.0fs (%.1f ms/img)\n", t, 1000t/(NTRAIN+NTEST)); flush(stdout)
     Xflat = toflat(vcat(itr, ite))
     if "iid" in STAGES
+        TAG[] = "iid"
         R = evaluate(itr, Ytr, ite, Yte, spec; Xflat=Xflat, Feat=Feat)
         show_table("i.i.d. split — test R² per property, all $NTRAIN training images", R, base)
         serialize(joinpath(OUT, "iid.jls"), (R=R, base=base, props=PROPS, arms=ARMS))
@@ -361,6 +424,7 @@ function main()
     println("\n" * "="^92); println("Sample efficiency (linear readouts)"); println("="^92)
     curve = Dict{Int,Matrix{Float64}}()
     for k in ("curve" in STAGES ? KS : Int[])
+        TAG[] = "curve_k$(k)"
         Rk = evaluate(itr, Ytr, ite, Yte, spec; arms=CURVEARMS, ntrain=k, Xflat=Xflat, Feat=Feat)
         curve[k] = Rk
         @printf("\n  k = %-6d", k)
@@ -383,6 +447,7 @@ function main()
          (w=(3.0, 6.0),), (w=(8.0, 12.0),)),
     ]
     for (nm, desc, tkw, ekw) in ("extrap" in STAGES ? splits : [])
+        TAG[] = "extrap_$(nm)"
         itr2, Ytr2, ite2, Yte2 = make_split(NTRAIN, NTEST, 500; train_kw=tkw, test_kw=ekw)
         R2 = evaluate(itr2, Ytr2, ite2, Yte2, spec; drop=nm)
         b2 = trivial_baseline(vcat(itr2, ite2), Ytr2, Yte2, NTRAIN)
@@ -391,7 +456,8 @@ function main()
         flush(stdout)
     end
 
-    println("\nwrote $(OUT)/")
+    serialize(joinpath(OUT, "history.jls"), HIST)
+    println("\nwrote $(OUT)/  (including per-epoch history for every trained arm)")
 end
 
 main()

@@ -54,7 +54,9 @@ P9_EPOCHS=50 P9_ARMS=1,2,4,5 P9_OUT=results_nocnn \
   julia --project=.. -t 16 Phase9_Readouts.jl 2>&1 | tee nocnn.log
 ```
 
-**All five arms including the CNN** — about 2–3 hours on CPU, ~95 % of it the CNN.
+**All five arms including the CNN.** On CPU with the small net, 2–3 hours, ~95 % of it the
+CNN. On a GPU with the full-resolution net (`P9_CNN=big`), well under an hour and the CNN is
+no longer the bottleneck — feature extraction is.
 
 ```bash
 P9_NTRAIN=12000 P9_NTEST=3000 P9_KS=500,2000,6000,12000 \
@@ -81,6 +83,12 @@ julia --project=.. Plot_Phase9.jl
 | `P9_CURVE_ARMS` | `1,4` | which arms appear on the sample-efficiency curve |
 | `P9_STAGES` | `iid,blocks,curve,extrap` | which stages to run |
 | `P9_OUT` | `results` | output directory, so parallel runs cannot clobber each other |
+| `P9_GPU` | `1` | use the GPU when `CUDA.functional()`; `0` forces CPU. Falls back to CPU silently on a machine without one |
+| `P9_CNN` | `small` | `small` = the two strided convolutions the CPU-era results used; `big` = full resolution, four conv stages with pooling and batch norm |
+
+Both the CNN and the MLP arms honour `P9_GPU`. The ridge arms are closed-form and have no
+epochs or device to choose. **Feature extraction is still CPU-only** — FFT-based, ~19 ms per
+image, so ~5 minutes per 15,000-image split, and now the slowest part of a GPU run.
 
 A single stage, for example just the block attribution:
 
