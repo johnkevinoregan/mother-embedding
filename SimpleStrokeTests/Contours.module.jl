@@ -32,30 +32,36 @@ identity. As an output rather than a category, closure is just another thing to 
 | 1 | `curvedness` | 0–1 | retinal: mean \\|κ\\| of the base in 1/px, squashed |
 | 2 | `brokenness` | 0–1 | gap size **in units of stroke width** |
 | 3 | `closedness` | 0/1 | is it a closed loop |
-| 4 | `corner` | 0–160° | **excess** turn at the vertex; 0 = smooth |
-| 5 | `rays` | 2–4 | 2 plain, 3 tee, 4 crossing |
+| 4 | `vangle` | 20–180° | angle at the vertex; **180 = passes straight through** |
+| 5 | `junction` | 2 / 3 / 4 | branches meeting at a point; **2 = no junction** |
 | 6 | `thickness` | px | stroke width |
 | 7 | `softness` | px | edge ramp width |
 | 8 | `polarity` | ±1 | light or dark stroke |
 
-**The corner row is turn, not interior angle, and nothing is masked.** Interior angle is
-undefined on a smooth stroke, so it had to be masked and the target vector carried a hole.
-Turn — 180° minus the interior angle — makes a smooth stroke an honest **0** rather than a
-missing value, so one unmasked row replaces the old `angledness` + `angle` pair and the
-none/obtuse/right/acute readout still falls out by binning.
+**The vertex angle is unmasked: 180° means the stroke passes straight through.** An earlier
+version masked this row, on the grounds that an angle is undefined without a corner. It is
+not — a smooth stroke has a vertex angle of 180°, an honest value rather than a hole in the
+target vector, and none/obtuse/right/acute still falls out by binning.
 
-It is the **excess** turn: what the direction jumps at a point, over and above the turn the
-smooth curvature already accounts for. Measured raw over a 12 px window a cornerless arc of
-κ = 0.045 shows 60° of turn and would read as an obtuse corner, so `curvedness` would leak
-straight into this row. Subtracting the smooth part isolates the singular part, which is
-what a corner is, and is genuinely 0 for a smooth curve of any curvature.
+**It is computed as `180 − excess turn`, not measured between the limbs.** The excess turn
+is what the direction jumps *at a point*, over and above the turn the smooth curvature
+already accounts for. Measured directly between the limbs over a 12 px window, a cornerless
+arc of κ = 0.045 reads as a 118° corner, so `curvedness` would leak straight into this row —
+and did: a third of the labels landed in the wrong band before this was fixed. Subtracting
+the smooth part isolates the singular part, which is what a corner is.
 
 **Curvedness is measured on the base curve, before the event is applied.** A kink is a
 curvature impulse, so computing it afterwards would make every corner register as global
 curvature and entangle rows 1 and 4. Sampling curvature and vertex angle independently
 is what makes "a right angle on a strongly curved arm" an ordinary sample.
 
-**Rows 7–9 are controls on the front end itself**, in opposite directions. Quadrature
+**Terminations are deliberately not a row.** Every open stroke ends twice, a gap adds two
+more ends, and a closed loop has none — so termination count is a deterministic function of
+`closedness` and `brokenness` and a row for it would carry no information while inflating
+any average taken over rows. The `junction` row counts *branches*, and its null value is 2:
+a straight line, a curve and a kink all have a contour that simply passes through.
+
+**Rows 6–8 are controls on the front end itself**, in opposite directions. Quadrature
 energy is polarity-invariant by construction, so the orientation block *should* fail to
 predict row 9 — inability is the correct result — while the lowpass block, which carries
 mean level, should predict it perfectly. And stroke width should be nearly explicit in the
@@ -75,25 +81,24 @@ module Contours
 using Random, Statistics, LinearAlgebra
 
 export PROPS, N_PROPS, Params, sample_params, render_params, contour_batch,
-       targets_of, TURN_BANDS, band_of, respec, stimulus, excess_turn
+       targets_of, ANGLE_BANDS, band_of, respec, stimulus, excess_turn
 
 "Names of the target vector's entries, in order."
-const PROPS = (:curvedness, :brokenness, :closedness, :corner,
-               :rays, :thickness, :softness, :polarity)
+const PROPS = (:curvedness, :brokenness, :closedness, :vangle,
+               :junction, :thickness, :softness, :polarity)
 const N_PROPS = length(PROPS)
 
 """
-Named bands for the categorical readout, in degrees of **turn at the vertex**.
+Named bands for the categorical readout, as the interior angle at the vertex in degrees.
 
-Turn is 180° minus the interior angle, so a smooth stroke is 0 and a sharp corner is large.
-Sampling puts a third of the kinked stimuli in each of the three corner bands; `:none`
-comes from every stimulus that has no kink at all, so it is well populated without needing
-an arbitrary threshold on a continuous quantity.
+Sampling puts a third of the kinked stimuli in each of the three corner bands; `:none` is
+every stimulus with no kink at all, which sits at exactly 180° and so needs no arbitrary
+threshold on a continuous quantity.
 """
-const TURN_BANDS = (obtuse = (10.0, 80.0), right = (80.0, 100.0), acute = (100.0, 160.0))
+const ANGLE_BANDS = (acute = (20.0, 80.0), right = (80.0, 100.0), obtuse = (100.0, 170.0))
 
 "Categorical corner readout, derived from the continuous target by binning."
-band_of(turn) = turn < 10 ? :none : (turn < 80 ? :obtuse : (turn < 100 ? :right : :acute))
+band_of(a) = a >= 170 ? :none : (a >= 100 ? :obtuse : (a >= 80 ? :right : :acute))
 
 """
     excess_turn(base, polys) -> degrees
@@ -210,8 +215,8 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 25.0), ramp=(0.8
         Δ = 0.0
     end
 
-    b = rand(rng, keys(TURN_BANDS))                  # a third of kinks in each band
-    lo, hi = getfield(TURN_BANDS, b)
+    b = rand(rng, keys(ANGLE_BANDS))                 # a third of kinks in each band
+    lo, hi = getfield(ANGLE_BANDS, b)
 
     # The gap sweeps from a nick to a clear break, in units of stroke width, with a 1 px
     # floor because anything narrower cannot be rendered. Drawing it as `1.5w + 8·rand`
@@ -222,7 +227,7 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 25.0), ramp=(0.8
     # now up to 25 px wide, 3.6 widths would be 90 px and would delete the whole figure.
     Params(κ, Δ, L, u(aspect), ev,
            clamp(ww * (0.10 + 3.6rand(rng)), 1.0, 0.5L),
-           deg2rad(lo + (hi-lo)*rand(rng)),
+           deg2rad(180 - (lo + (hi-lo)*rand(rng))),
            deg2rad(30 + 60rand(rng)) * rand(rng, (-1, 1)),
            ww, rr, u(amp),
            pol === nothing ? rand(rng, (-1, 1)) : Int(pol),
@@ -249,8 +254,8 @@ function targets_of(p::Params, meas=(corner=0.0, kappa=p.kappa, closedness=p.tur
         squash(meas.kappa, 0.012),                                # curvedness
         p.event === :gap ? squash(p.gap / p.w, 1.0) : 0.0,        # brokenness
         clamp(meas.closedness, 0, 1),                             # closedness
-        p.event === :kink ? meas.corner : 0.0,                    # corner (excess turn, deg)
-        p.event === :tee ? 3.0 : (p.event === :cross ? 4.0 : 2.0),# rays
+        180.0 - (p.event === :kink ? meas.corner : 0.0),          # vangle (180 = straight through)
+        p.event === :tee ? 3.0 : (p.event === :cross ? 4.0 : 2.0),# junction order
         p.w,                                                      # thickness
         p.ramp,                                                   # softness
         Float64(p.pol),                                           # polarity

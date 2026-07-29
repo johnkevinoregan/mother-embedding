@@ -29,7 +29,7 @@ for (ev, name) in rows, k in 1:NCOL
     p = sample_params(rng; event=ev); img, v, _ = stimulus(p, rng; N=N)
     # every tile carries its own event name. Putting it only on the first tile of the row
     # made "no event" read as a property of that one image rather than a row heading.
-    ttl = if ev === :kink;  @sprintf("%s turn %.0f° %s", name, v[4], band_of(v[4]))
+    ttl = if ev === :kink;  @sprintf("%s %.0f° %s", name, v[4], band_of(v[4]))
           elseif ev === :gap; @sprintf("%s brk %.2f w %.1f", name, v[2], v[6])
           else @sprintf("%s crv %.2f %s", name, v[1], v[3] > 0.5 ? "CLOSED" : "open") end
     push!(panels, tile(img, ttl))
@@ -60,10 +60,10 @@ for g in range(1.0, 30.0; length=NSW)          # gap, from a nick to a clear bre
     push!(sw, tile(render_params(q, GEOM(3); N=N, rot=0.6, at=(56.0,56.0)),
                    @sprintf("gap %.0f px  brk %.2f", g, targets_of(q)[1][2])))
 end
-for a in range(10, 160; length=NSW)            # corner: turn at the vertex
-    q = respec(base; vturn=deg2rad(a))
+for a in range(20, 180; length=NSW)            # vertex angle: 180 = straight through
+    q = respec(base; vturn=deg2rad(180 - a))
     push!(sw, tile(render_params(q, GEOM(3); N=N, rot=0.6, at=(56.0,56.0)),
-                   @sprintf("turn %.0f°  %s", a, band_of(a))))
+                   @sprintf("vertex %.0f°  %s", a, band_of(a))))
 end
 for (i, pol) in enumerate(vcat(fill(1, NSW÷2), fill(-1, NSW÷2)))   # polarity × contrast
     amp = 0.18 + 0.82*((i-1) % (NSW÷2))/(NSW÷2 - 1)
@@ -144,9 +144,9 @@ cv = Y[:,1] .> 0.01
 
 # The angle band mix must be flat: a three-way readout on unbalanced bands would report a
 # prior, not a discrimination.
-kn = Y[:,4] .> 1e-9
-@printf("\ncorner band mix over %d kinked samples: ", sum(kn))
-for b in (:obtuse, :right, :acute)
+kn = Y[:,4] .< 180 - 1e-9
+@printf("\nvertex-angle band mix over %d kinked samples: ", sum(kn))
+for b in (:acute, :right, :obtuse)
     @printf("%s %.2f  ", b, mean(band_of.(Y[kn,4]) .=== b))
 end
 println()
