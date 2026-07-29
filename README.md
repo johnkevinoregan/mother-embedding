@@ -50,7 +50,9 @@ classifier does not reproduce.
 pointwise conjunctions applied *before* spatial pooling). Its scale ladder is derived from
 the data rather than hard-coded, so it is meant to be pointed at datasets other than
 EMNIST. See its own `README.md` for the design and `RESULTS.md` for what happened when it
-met data — including the control that had been missing since §7.11 was written:
+met data (`RESULTSexpanded.md` is the same material written to be read standalone, with no
+prior knowledge of the project assumed) — including the control that had been missing since
+§7.11 was written:
 **augmentation buys a small CNN 9–13 points and buys these features nothing**, which is
 direct evidence they carry the invariances rather than merely outperforming.
 
