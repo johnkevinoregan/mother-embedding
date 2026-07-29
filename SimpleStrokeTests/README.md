@@ -28,6 +28,48 @@ julia --project=. -e 'using Pluto; Pluto.run()'
 then open `SimpleStrokeTests/Explore_Contours.jl`. Sliders for every generative parameter,
 with the target vector recomputed live, so you can see what any setting actually produces.
 
+## If you have only ever used Pluto
+
+A plain script is just a file of Julia that runs top to bottom. Two ways to run one:
+
+**From the Julia prompt**, which is closest to Pluto and keeps the session warm so a second
+run skips the ~30 s of startup and compilation:
+
+```
+julia --project=/home/kevin/claude-code/mother-embedding
+julia> cd("/home/kevin/claude-code/mother-embedding/SimpleStrokeTests")
+julia> include("Preview_Contours.jl")
+```
+
+**From the shell**, one command that exits when finished:
+
+```bash
+cd ~/claude-code/mother-embedding/SimpleStrokeTests
+julia --project=.. Preview_Contours.jl
+```
+
+`--project=..` points Julia at the `Project.toml` one directory up — the package environment
+Pluto normally activates for you. Without it, `Plots` and `Flux` will not be found. `-t 12`
+gives Julia 12 threads, which matters because feature extraction runs in parallel across
+images. `NAME=value` written *before* the command sets an option for that run only, which is
+how the settings below are passed without editing any code.
+
+`Ctrl-C` stops a script running in the foreground; `pkill -f Phase9_Readouts` stops a
+backgrounded one.
+
+**Or just use the runner**, which has all of this built in:
+
+```bash
+./run.sh              # list what it can do
+./run.sh preview      # figures and dataset audit
+./run.sh fast         # every arm except the CNN
+./run.sh full         # all five arms, GPU, full-resolution CNN
+./run.sh full bg      # the same, in the background, logging to a file
+./run.sh repl         # an interactive Julia session in this project
+```
+
+It echoes each command before running it, so you can copy one out and vary it by hand.
+
 ## Reproducing the figures and the dataset audit
 
 Fast — about 4 minutes, mostly the 3,000-image audit.
