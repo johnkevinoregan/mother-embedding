@@ -23,14 +23,16 @@ tile(img, ttl) = heatmap(img; c=:grays, clims=(0,1), axis=false, ticks=false,
                          title=ttl, titlefontsize=7, titlelocation=:left)
 
 # ── random samples, one row per event ───────────────────────────────────────
-rows = [(:none, "no event"), (:gap, "gap"), (:kink, "kink"), (:tee, "tee"), (:cross, "crossing")]
+rows = [(:none, "none:"), (:gap, "gap:"), (:kink, "kink:"), (:tee, "tee:"), (:cross, "cross:")]
 panels = Any[]
 for (ev, name) in rows, k in 1:NCOL
     p = sample_params(rng; event=ev); img, v, _ = stimulus(p, rng; N=N)
-    ttl = if ev === :kink;  @sprintf("%.0f° %s", v[5], band_of(v[5]))
-          elseif ev === :gap; @sprintf("brk %.2f w %.1f", v[2], v[7])
-          else @sprintf("crv %.2f cls %.2f", v[1], v[3]) end
-    push!(panels, tile(img, (k == 1 ? name*" — " : "")*ttl))
+    # every tile carries its own event name. Putting it only on the first tile of the row
+    # made "no event" read as a property of that one image rather than a row heading.
+    ttl = if ev === :kink;  @sprintf("%s %.0f° %s", name, v[5], band_of(v[5]))
+          elseif ev === :gap; @sprintf("%s brk %.2f w %.1f", name, v[2], v[7])
+          else @sprintf("%s crv %.2f %s", name, v[1], v[3] > 0.5 ? "CLOSED" : "open") end
+    push!(panels, tile(img, ttl))
 end
 plot(panels...; layout=(length(rows), NCOL), size=(146NCOL, 150length(rows)),
      plot_title="SimpleStrokeTests — 10 random samples per event type",

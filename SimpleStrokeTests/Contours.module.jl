@@ -31,7 +31,7 @@ identity. As an output rather than a category, closure is just another thing to 
 |--:|:--|:--|:--|
 | 1 | `curvedness` | 0–1 | retinal: mean \\|κ\\| of the base in 1/px, squashed |
 | 2 | `brokenness` | 0–1 | gap size **in units of stroke width** |
-| 3 | `closedness` | 0–1 | total turn / 2π |
+| 3 | `closedness` | 0/1 | is it a closed loop |
 | 4 | `angledness` | 0/1 | is there a sharp vertex |
 | 5 | `angle` | 20–160° | **masked** where `angledness = 0` |
 | 6 | `rays` | 2–4 | 2 plain, 3 tee, 4 crossing |
@@ -141,7 +141,7 @@ what keeps `curvedness` and `closedness` from collapsing onto one another.
 """
 function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 25.0), ramp=(0.8, 20.0),
                        amp=(0.30, 1.00), bg=(0.40, 0.60), noise=0.02,
-                       kappa=(0.0, 0.045), turn=(0.0, 2π), aspect=(0.62, 1.0),
+                       kappa=(0.0, 0.045), turn=(0.0, 2π/3), aspect=(0.62, 1.0),
                        p_straight=0.20, p_closed=0.18, N=112)
     u(r) = r isa Tuple ? r[1] + (r[2]-r[1])*rand(rng) : Float64(r)
 
@@ -157,10 +157,24 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 25.0), ramp=(0.8
     ww = lu(w); rr = lu(ramp)
     frame = clamp(N/2 - (ww/2 + rr/2 + 3), 16.0, 45.0)
 
-    # A closed loop needs turn ≈ 2π exactly, which uniform sampling almost never produces —
-    # closed ellipses were present in the dataset but at a few percent, so ten random
-    # samples rarely showed one. Like `straight`, closure gets its own probability atom.
-    Δ = rand(rng) < p_closed ? 2π : u(turn)
+    ev = event === nothing ? rand(rng, (:none, :none, :gap, :kink, :kink, :tee, :cross)) :
+                             Symbol(event)
+
+    # Turn is either small or complete, never in between.
+    #
+    # An arc that turns nearly 2π brings its own free ends close together, and that opening
+    # is indistinguishable from a deliberate gap: such a figure showed *two* gaps while its
+    # label described one, and a nearly-closed arc with no event at all already reads as an
+    # oval with a gap in it. Restricting open arcs to 2π/3 keeps the free ends far apart,
+    # and a closed loop has no free ends, so on either the gap event is unambiguous.
+    #
+    # A kink is never applied to a closed loop: rotating the tail of a loop opens it at the
+    # seam, which is a second event the label does not describe. That makes `closedness = 0`
+    # for every kinked sample — a real coupling between two target rows, reported in the
+    # correlation matrix rather than hidden. Constructing a closed curve with one corner is
+    # possible but needs a non-circular base, and is not worth it here.
+    closed = ev !== :kink && rand(rng) < p_closed
+    Δ = closed ? 2π : u(turn)
 
     # An exactly straight stroke needs its own atom for the same reason: sampling curvature
     # from a continuous range makes κ = 0 a measure-zero event, and the dataset then has no
@@ -180,8 +194,6 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 25.0), ramp=(0.8
         Δ = 0.0
     end
 
-    ev = event === nothing ? rand(rng, (:none, :none, :gap, :kink, :kink, :tee, :cross)) :
-                             Symbol(event)
     b = rand(rng, keys(ANGLE_BANDS))                 # a third of kinks in each band
     lo, hi = getfield(ANGLE_BANDS, b)
 
@@ -312,7 +324,8 @@ end
 """
     measure_base(q) -> (curvedness_kappa, closedness)
 
-Mean absolute curvature (1/px) and total turn / 2π, **measured from the base polyline**.
+Mean absolute curvature (1/px) and whether the base is a closed loop, **measured from
+the base polyline**.
 
 Asserted from the parameters these would be wrong whenever `aspect < 1`: an ellipse does
 not have the curvature of the circle it was flattened from, and its mean is not 1/R. The
@@ -330,7 +343,9 @@ function measure_base(q)
         len += hypot(q[i][1]-q[i-1][1], q[i][2]-q[i-1][2])
     end
     len <= 0 && return 0.0, 0.0
-    tot/len, clamp(abs(sgn)/2π, 0, 1)
+    # Binary: turn is either at most 2π/3 or exactly 2π, with nothing in between, so a
+    # graded closedness would have had no support in its middle. "Ellipse or not."
+    tot/len, abs(sgn) >= 0.95*2π ? 1.0 : 0.0
 end
 
 "Do segments a and b properly cross?"
