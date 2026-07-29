@@ -32,7 +32,7 @@ identity. As an output rather than a category, closure is just another thing to 
 | 1 | `curvedness` | 0–1 | retinal: mean \\|κ\\| of the base in 1/px, squashed |
 | 2 | `brokenness` | 0–1 | gap size **in units of stroke width** |
 | 3 | `closedness` | 0/1 | is it a closed loop |
-| 4 | `vangle` | 20–180° | angle at the vertex; **180 = passes straight through** |
+| 4 | `vangle` | 32–180° | angle at the vertex; **180 = passes straight through** |
 | 5 | `arms` | 2 / 3 / 4 | arms meeting at the point; 2 = the contour passes through |
 | 6 | `thickness` | px | stroke width |
 | 7 | `fuzziness` | px | edge ramp width |
@@ -95,8 +95,14 @@ Named bands for the categorical readout, as the interior angle at the vertex in 
 Sampling puts a third of the kinked stimuli in each of the three corner bands; `:none` is
 every stimulus with no kink at all, which sits at exactly 180° and so needs no arbitrary
 threshold on a continuous quantity.
+
+The acute band starts at 32°, not 20°. A kink of interior angle `a` with arms of length
+`L/2` separates its arm tips by `L·sin(a/2)`, so at 20° with a 68 px figure the arms are
+13 px apart — less than the widest stroke, and the two arms merge into a lump whatever the
+arclength. The floor cannot instead be fixed by thinning the stroke for sharp corners,
+because that would make `thickness` predict `vangle`, and both are scored.
 """
-const ANGLE_BANDS = (acute = (20.0, 80.0), right = (80.0, 100.0), obtuse = (100.0, 170.0))
+const ANGLE_BANDS = (acute = (32.0, 80.0), right = (80.0, 100.0), obtuse = (100.0, 170.0))
 
 "Categorical corner readout, derived from the continuous target by binning."
 band_of(a) = a >= 170 ? :none : (a >= 100 ? :obtuse : (a >= 80 ? :right : :acute))
@@ -203,7 +209,7 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 12.0), ramp=(0.8
     # straight lines at all — which is how the first version of this generator produced a
     # `curvedness` target that never went below 0.52.
     straight = rand(rng) < p_straight
-    κ = 0.0; L = min(62 + 34rand(rng), 2frame)
+    κ = 0.0; L = min(72 + 26rand(rng), 2frame)
     if !straight
         # The figure has to fit, but the binding constraint is the arc's *chord*, not its
         # diameter: a shallow arc of very large radius fits easily. Capping the radius at a
@@ -219,12 +225,15 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 12.0), ramp=(0.8
         # A closed loop is exempt: its arclength is 2πR by definition, and applying the cap
         # cut Δ = L/R below 2π so that nothing in the dataset was closed at all.
         R = 1/κ; Δ = max(Δ, 0.12)
-        Lmax = closed ? 2π*R : min(2π*R, 2frame)
+        # For an open arc the turn cap binds as well as the frame: `2frame` alone let the
+        # turn reach 143°, past the 2π/3 this is supposed to enforce.
+        Lmax = closed ? 2π*R : min((2π/3)*R, 2frame)
         # Floor the arclength well above the stroke width, or the figure is a stub: at the
-        # old floor of 38 px a kink left 19 px arms and rendered as an unreadable lump.
+        # original floor of 38 px a kink left 19 px arms and rendered as an unreadable lump,
+        # and 52 px still produced some. 68 px leaves 34 px arms at the widest stroke.
         # Curvature is capped at 0.028 (R ≥ 36 px) for the same reason — with turn bounded
         # at 2π/3, a tighter radius cannot produce a long enough arc.
-        L = clamp(Δ*R, min(52.0, Lmax), Lmax); Δ = L/R
+        L = clamp(Δ*R, min(68.0, Lmax), Lmax); Δ = L/R
     else
         Δ = 0.0
     end
