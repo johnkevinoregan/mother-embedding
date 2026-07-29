@@ -187,6 +187,58 @@ sample.
 
 ---
 
+## Phase 7 — the F/f probe, and how correlated A actually is
+
+Two open questions, both aimed at the same doubt: aggregate accuracy over 40 classes cannot
+say *why* the AND layer adds nothing.
+
+### A binary F-versus-f classifier removes the dilution
+
+`F`/`f` is 17.3 % of errors but 1.3 % of items, so a partial fix is unmeasurable in
+aggregate. Training on that pair alone — 4,800 train, 800 test, perfectly balanced — asks
+the question directly. Ray harmonics are included because **A₁ provably cannot do this
+job**: F is a 3-ray T, f a 4-ray X, and that is a 2π distinction while A₁ is π-periodic.
+
+| features | n | accuracy |
+|:--|--:|--:|
+| **orient + lowpass** | 144 | **69.88 % ± 0.88** |
+| A₁ + A₂ | 54 | 67.54 % ± 0.19 |
+| ray harmonics `c₀, \|c₁\|, \|c₂\|` | 81 | 67.50 % ± 0.87 |
+| orient + A₁ + A₂ | 198 | 69.62 % ± 0.45 |
+| orient + rays | 225 | 68.88 % ± 0.78 |
+| everything | 279 | 69.29 % ± 0.75 |
+
+**No operator beats orient, and none adds to it, even on the pair they were designed for
+with the dilution removed.** The "different information, drowned by averaging" hypothesis
+does not survive.
+
+**And note the absolute level.** 69.9 % on a *balanced binary* task, against 50 % chance.
+The whole front end is poor at `F`/`f` — it is not that A fails where orient succeeds, but
+that all three representations are near-equally mediocre. Whatever separates F from f is
+largely absent from every pooled representation we have.
+
+### R²(A ← orient) puts a number on the correlation
+
+Least-squares fit of each A column on the 144 orient+lowpass columns, fitted on train and
+scored on test:
+
+| | median R² | mean R² |
+|:--|--:|--:|
+| **all 40 classes, 112,800 images** | **0.933** | 0.924 |
+| F/f images only | 0.956 | 0.943 |
+| rays ← orient, F/f images | 0.910 | 0.897 |
+
+**42 of 54 A columns have R² > 0.9; all 54 exceed 0.75.**
+
+This is the measurement that settles the wording. **A is ~93 % linearly recoverable from
+orient on EMNIST** — so "strongly correlated in this image set" is exactly right, and
+"redundant" was wrong, because Phase 3 shows the same two operators dissociating by 4.9×
+(pooled) on stimuli built to require it. **They are different operators that become
+near-collinear on handwritten characters.** Real letters do not produce the configurations
+that separate them.
+
+---
+
 ## Was it the blurred edges?
 
 Our synthetic stimuli are **hard binary**; EMNIST is anti-aliased at source and then
@@ -295,6 +347,7 @@ Kept because the pattern matters more than any single number.
 | A helps more at small k | **wrong** — flat at every k |
 | `d_factor` and `dtheta` are scale-free | **wrong** — both drift |
 | augmentation helps pixels far more than features | **right** — 5–13 point differential |
+| A beats orient on `F`/`f` once dilution is removed | **wrong** — 67.5 % vs 69.9 % |
 
 The revision after the confusion analysis is the instructive one. It felt like hard
 evidence — the residual errors *were* junction-distinguishable — and it made the prediction
@@ -316,14 +369,14 @@ nothing), and sample size (flat at every k from 200 images to 112,800).
 
 **Open, in the order that would settle the most:**
 
-1. **A binary `F`-vs-`f` probe** — orient alone, A₁+A₂ alone, ray harmonics — stripping out
-   the 40-class dilution and the 1.3 %-of-items ceiling. If A alone beats orient alone on
-   that pair, the information is different, useful, and merely drowned by averaging.
-2. **`R²(A ← orient)`** on EMNIST and on the synthetic battery. High on EMNIST *and* low on
-   synthetic would mean real characters lack the dissociating configurations; low on both
-   would mean A carries independent structure this task ignores.
-3. **`c₀` from the ray transform.** A₁ provably cannot count rays, which is what `F`/`f`
-   needs.
-4. **Re-anchor `d` to a measured structure scale** and re-derive `dtheta` the same way.
+1. ~~A binary `F`-vs-`f` probe~~ — **done, Phase 7.** No operator beats orient; all three
+   sit at 67–70 % on a balanced binary task.
+2. ~~`R²(A ← orient)`~~ — **done, Phase 7.** Median 0.933 across 40 classes. Different
+   operators, near-collinear on this data.
+3. **Why is `F`/`f` at 69.9 % for *every* representation?** The newest and sharpest
+   question. The information may survive in the dense maps and die in the 3×3 pooling, or
+   the front end may simply lack it. A dense-readout probe would separate those.
+4. **Re-anchor `d` to a measured structure scale** and re-derive `dtheta` the same way —
+   the scale-free audit shows both are currently fitted to one operating point.
 5. **A task that requires i2D structure.** `A1+A2` alone at 88.45 % from 54 numbers says the
    signal is real; the negative is about EMNIST.
