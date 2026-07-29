@@ -1,0 +1,129 @@
+# ── PLAIN MODULE — .module.jl, not a Pluto notebook ─────────────────────────
+# Included by other files. Opening it in Pluto rewrites it and leaves a
+# "<name> backup 1.jl" beside it. Notebooks are the plain .jl files.
+
+"""
+    Frontend
+
+The `RationalGaborFeatures` front end, wrapped as a single `featurize(imgs)` call, plus the
+block masks the experiment needs to attribute a result to a part of the representation.
+
+The bank is built once at module load for a fixed image size. Every experiment arm sees
+exactly the same feature matrix, so differences between arms are differences between
+readouts, not between preprocessing.
+
+## The blocks
+
+| block | columns at grid 3 | what it is |
+|:--|--:|:--|
+| `orient` | 135 | pooled quadrature energy, 3 scales × 8/12/16 orientations |
+| `lowpass` | 9 | pooled DC — the only block that knows absolute level |
+| `A1` | 27 | orientation-profile autocorrelation at 90° lag |
+| `A2` | 27 | end-stopping along the locally dominant orientation |
+| `rays` | 27 | ray-transform harmonics `c₀`, `|c₁|/c₀`, `|c₂|/c₀` |
+
+The split between `orient` and `lowpass` is what makes the polarity control sharp. Quadrature
+energy discards the sign of contrast by construction, so `orient` *should* be unable to
+predict polarity — being unable to is the correct result. `lowpass` carries mean level and
+should predict it perfectly. If `orient` predicts polarity, the invariance claim is wrong,
+and that is worth finding out.
+"""
+module Frontend
+
+using Statistics, LinearAlgebra, FFTW
+
+include(joinpath(@__DIR__, "..", "RationalGaborFeatures", "GaborStack.module.jl"))
+include(joinpath(@__DIR__, "..", "RationalGaborFeatures", "AndLayer.module.jl"))
+include(joinpath(@__DIR__, "..", "RationalGaborFeatures", "RayHarmonics.module.jl"))
+include(joinpath(@__DIR__, "..", "RationalGaborFeatures", "Pooling.module.jl"))
+using .GaborStack, .AndLayer, .RayHarmonics, .Pooling
+
+export build_frontend, featurize, block_cols, FrontendSpec
+
+"The rational scale ladder and its per-scale angular resolution, as validated in RESULTS.md."
+const LADDER = [2.0, 3.742, 7.0]
+const BETAS  = [2.0, 1.6, 1.2]
+const NORI   = [8, 12, 16]
+
+struct FrontendSpec
+    bank
+    wts
+    labels::Vector{String}
+    n::Int
+    grid::Int
+end
+
+"""
+    build_frontend(N; grid=3)
+
+Bank, pooling weights and column labels for `N×N` input. Padding is sized from both the
+across- and along-contour extents, and rounded to a length FFTW factors well.
+"""
+function build_frontend(N::Int; grid::Int=3)
+    HF, WF, _ = field_for((N, N), LADDER; n_orient=NORI, beta=BETAS)
+    bank = make_bank((HF, WF), LADDER; imwidth=N, n_orient=NORI, beta=BETAS)
+    wts  = grid_weights(N, N, grid)
+    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid)
+    FrontendSpec(bank, wts, lab, length(f), grid)
+end
+
+function _feat(img, bank, wts, grid)
+    # Subtract the background level before filtering.
+    #
+    # The bank zero-pads the image into a larger field. On EMNIST the background *was*
+    # zero, so the padding was seamless and this never mattered. Here the background is
+    # ~0.5, and zero-padding puts a full-contrast step all the way round the image border.
+    # The filter response is then R_border + pol·R_stroke, whose squared magnitude carries
+    # a cross term 2·pol·Re(R_border·conj(R_stroke)) that **flips sign with polarity** —
+    # so the quadrature energy, which is supposed to be blind to the sign of contrast,
+    # stopped being blind to it. Measured: features differing by 29 % between a stroke and
+    # its exact contrast-reverse, and `orient` predicting polarity at R² 0.65 when it
+    # should predict nothing.
+    #
+    # The median is the background level for these stimuli (the stroke covers a small
+    # fraction of the field), so subtracting it makes the padded zeros continuous with the
+    # background and the border step disappears. Oriented channels have no DC, so this
+    # changes nothing about their response to the image interior. The lowpass block keeps
+    # its polarity information, since it now reports ink signed relative to background.
+    img = img .- median(img)
+    Es = energy_stack(img, bank)
+    A, al = and_maps(Es, bank.meta; forms=(:A1, :A2))
+    Rm, rl = ray_maps(Es, bank.meta)
+    f1, l1 = assemble(Es, bank.meta, A, al,
+                      PoolSpec(grid=grid, blocks=(:orient, :lowpass, :A1, :A2)); Wts=wts)
+    PR = pool_maps(Rm, wts)
+    nc = grid*grid
+    fr = Float32[]; lr = String[]
+    for (k, l) in enumerate(rl), c in 1:nc
+        push!(fr, PR[c, k])
+        push!(lr, "rays.$(l.form).ρ$(round(l.rho0, digits=2)).cell$(c)")
+    end
+    vcat(f1, fr), vcat(l1, lr)
+end
+
+"""
+    featurize(imgs, spec) -> n × d matrix
+
+Threaded over images. Each image is independent, and the bank is read-only, so this is a
+plain parallel map — the only shared state is FFTW's plan cache, which is why `FFTW`
+threads are left at 1 and the parallelism is taken at the image level instead.
+"""
+function featurize(imgs::Vector{Matrix{Float32}}, spec::FrontendSpec)
+    F = zeros(Float32, length(imgs), spec.n)
+    Threads.@threads for i in eachindex(imgs)
+        F[i, :] = _feat(imgs[i], spec.bank, spec.wts, spec.grid)[1]
+    end
+    F
+end
+
+"""
+    block_cols(spec, names...) -> Vector{Int}
+
+Column indices for one or more feature blocks. `block_cols(spec, "orient", "lowpass")` is
+the conventional-statistics arm; `block_cols(spec, "A1", "A2")` is the conjunction layer
+alone; `block_cols(spec, "lowpass")` is the block that should carry polarity.
+"""
+block_cols(spec::FrontendSpec, names::AbstractString...) =
+    findall(l -> any(startswith(l, n * ".") || startswith(l, n) for n in names), spec.labels)
+
+end # module

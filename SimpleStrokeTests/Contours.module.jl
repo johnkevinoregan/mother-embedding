@@ -168,7 +168,7 @@ Curvature and turn are drawn independently and the arclength follows from them, 
 what keeps `curvedness` and `closedness` from collapsing onto one another.
 """
 function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 12.0), ramp=(0.8, 20.0),
-                       amp=(0.30, 1.00), bg=(0.40, 0.60), noise=0.02,
+                       amp=(0.35, 1.00), bg=(0.40, 0.60), noise=0.02,
                        kappa=(0.0, 0.028), turn=(0.0, 2π/3), aspect=(0.62, 1.0),
                        p_straight=0.20, p_closed=0.30, N=112)
     u(r) = r isa Tuple ? r[1] + (r[2]-r[1])*rand(rng) : Float64(r)
@@ -185,6 +185,7 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 12.0), ramp=(0.8
     ww = lu(w); rr = lu(ramp)
     frame = clamp(N/2 - (ww/2 + rr/2 + 3), 16.0, 45.0)
 
+    bgv = u(bg)
     ev = event === nothing ? rand(rng, (:none, :none, :gap, :kink, :kink, :tee, :cross)) :
                              Symbol(event)
 
@@ -264,9 +265,17 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 12.0), ramp=(0.8
            clamp(ww * (0.10 + 3.6rand(rng)), 1.0, 0.5L),
            deg2rad(180 - (lo + (hi-lo)*rand(rng))),
            deg2rad(30 + 60rand(rng)) * rand(rng, (-1, 1)),
-           ww, rr, u(amp),
+           # Contrast is a *fraction of the available headroom*, not an absolute value.
+           # Drawn absolutely, `bg + amp` exceeded 1 and `bg − amp` fell below 0, and
+           # asymmetrically so: at bg = 0.6 a light stroke clips once amp > 0.4 but a dark
+           # one only once amp > 0.6. Light and dark then stop being mirror images, and
+           # quadrature energy — which is supposed to be blind to the sign of contrast —
+           # could read polarity from the clipping alone. It did: `orient` predicted
+           # polarity at R² 0.58 when it should predict nothing at all. Scaling by the
+           # headroom makes the two polarities exact reflections of one another.
+           ww, rr, u(amp) * 0.88min(bgv, 1 - bgv),
            pol === nothing ? rand(rng, (-1, 1)) : Int(pol),
-           u(bg), Float64(noise))
+           bgv, Float64(noise))
 end
 
 # ── targets ─────────────────────────────────────────────────────────────────
