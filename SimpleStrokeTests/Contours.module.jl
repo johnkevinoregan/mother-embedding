@@ -170,7 +170,7 @@ what keeps `curvedness` and `closedness` from collapsing onto one another.
 function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 12.0), ramp=(0.8, 20.0),
                        amp=(0.30, 1.00), bg=(0.40, 0.60), noise=0.02,
                        kappa=(0.0, 0.028), turn=(0.0, 2π/3), aspect=(0.62, 1.0),
-                       p_straight=0.20, p_closed=0.32, N=112)
+                       p_straight=0.20, p_closed=0.30, N=112)
     u(r) = r isa Tuple ? r[1] + (r[2]-r[1])*rand(rng) : Float64(r)
 
     # Stroke width and edge ramp are drawn first because they decide how much room is left
@@ -196,19 +196,26 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 12.0), ramp=(0.8
     # oval with a gap in it. Restricting open arcs to 2π/3 keeps the free ends far apart,
     # and a closed loop has no free ends, so on either the gap event is unambiguous.
     #
-    # A kink is never applied to a closed loop: rotating the tail of a loop opens it at the
-    # seam, which is a second event the label does not describe. That makes `closedness = 0`
-    # for every kinked sample — a real coupling between two target rows, reported in the
-    # correlation matrix rather than hidden. Constructing a closed curve with one corner is
-    # possible but needs a non-circular base, and is not worth it here.
-    closed = ev !== :kink && rand(rng) < p_closed
+    # Only `:none` and `:gap` are ever drawn on a closed loop.
+    #
+    # A kink cannot be: rotating the tail of a loop opens it at the seam, which is a second
+    # event the label does not describe. A tee or a crossing cannot be either, for a
+    # different reason — the branch would have to be an open segment attached to a closed
+    # one, so a single figure would hold two strokes of different kinds while one
+    # `closedness` value tried to describe both.
+    #
+    # The price is a real coupling: `closedness` is 0 for every kinked and every branched
+    # sample, so it correlates with `vangle` and `arms`. That is reported in the correlation
+    # matrix rather than hidden. Removing it would need a closed curve carrying a corner or
+    # a branch, which needs a non-circular base and is not worth it here.
+    closed = ev in (:none, :gap) && rand(rng) < p_closed
     Δ = closed ? 2π : u(turn)
 
     # An exactly straight stroke needs its own atom for the same reason: sampling curvature
     # from a continuous range makes κ = 0 a measure-zero event, and the dataset then has no
     # straight lines at all — which is how the first version of this generator produced a
     # `curvedness` target that never went below 0.52.
-    straight = rand(rng) < p_straight
+    straight = !closed && rand(rng) < p_straight
     κ = 0.0; L = min(72 + 26rand(rng), 2frame)
     if !straight
         # The figure has to fit, but the binding constraint is the arc's *chord*, not its
