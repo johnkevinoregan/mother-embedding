@@ -213,14 +213,17 @@ short and anisotropic", not as closure detection.**
 | `lowpass` (9) | 0.044 | 0.051 | 0.669 | 0.047 | 0.238 | 0.326 | 0.050 |
 | `A1+A2` (54) | 0.174 | 0.065 | 0.783 | 0.265 | 0.515 | 0.508 | 0.446 |
 | `rays` (81) | 0.310 | 0.116 | 0.917 | 0.303 | 0.553 | 0.412 | 0.359 |
-| **`all·SHUFFLED`** (279) | 0.632 | 0.174 | 0.953 | 0.403 | 0.727 | 0.514 | 0.463 |
+| **control: `orient`+`lowpass` intact, `A`/`rays` shuffled** (279) | 0.632 | 0.174 | 0.953 | 0.403 | 0.727 | 0.514 | 0.463 |
 | **`all`** (279) | **0.682** | **0.340** | **0.985** | **0.567** | **0.859** | **0.576** | **0.625** |
 | **real gain** | +0.050 | **+0.166** | +0.032 | **+0.164** | **+0.132** | +0.062 | **+0.162** |
 
 **`all` has 279 columns against `orient`'s 135, so `all` − `orient` is not the claim.** The
-shuffle control permutes the `A1`/`A2`/ray columns *across samples*: identical column count,
-identical marginals, correspondence with the image destroyed. Whatever it scores above
-`orient` is what capacity alone buys.
+control permutes the `A1`/`A2`/ray columns *across samples* — identical column count,
+identical marginals, correspondence with the image destroyed — while **leaving `orient` and
+`lowpass` untouched**. It is therefore "the conventional statistics plus 135 columns of
+noise", and it *should* score close to `orient`: a control that collapsed to zero would be
+testing nothing. Whatever it scores **above** `orient` is what capacity alone buys, and the
+gap from it **up to** `all` is the conjunction layer's real contribution.
 
 **It buys between 0.003 and 0.06.** The shuffled row sits on top of `orient` — so the gain
 from the conjunction and ray blocks is information, not parameters, and the honest number is

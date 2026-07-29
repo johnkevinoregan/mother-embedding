@@ -33,16 +33,20 @@ annotate!(p1, 7.0, 1.0, text("photometric controls", 9, :grey30))
 savefig(p1, joinpath(@__DIR__, "phase9_arms.png"))
 
 # ── 2. block attribution against the shuffle control ────────────────────────
-p2 = plot(size=(1000,400), ylabel="test R²  (linear readout)", legend=:topleft,
+p2 = plot(size=(1150,430), ylabel="test R²  (linear readout)", legend=:topleft,
           xrotation=20, ylims=(-0.05, 1.05), grid=true, gridalpha=0.25,
-          title="Which part of the representation carries each property?",
-          titlefontsize=11, bottom_margin=8Plots.mm, left_margin=6Plots.mm)
+          title="Which part of the representation carries each property?  (gap from grey to red = the conjunction layer)",
+          titlefontsize=10, bottom_margin=8Plots.mm, left_margin=6Plots.mm)
 order = ["orient","lowpass","A1+A2","rays","all·SHUFFLED","all"]
+# the control keeps orient+lowpass intact and shuffles only A1/A2/rays, so its bar should
+# land on `orient` — the gap from it to `all` is the conjunction layer's real contribution
+labels = ["orient (135)","lowpass (9)","A1+A2 (54)","rays (81)",
+          "CONTROL: orient+lp + A/rays shuffled","all 279"]
 cols2 = [:steelblue, :grey60, :orange, :seagreen, :grey35, :firebrick]
 w2 = 0.14
 for (k, b) in enumerate(order)
     bar!(p2, (1:8) .+ (k-3.5)*w2, [max(blk[b][j], -0.05) for j in 1:8];
-         bar_width=w2, label=b, c=cols2[k], lw=0)
+         bar_width=w2, label=labels[k], c=cols2[k], lw=0)
 end
 xticks!(p2, 1:8, P); hline!(p2, [0]; lc=:black, lw=1, label="")
 savefig(p2, joinpath(@__DIR__, "phase9_blocks.png"))

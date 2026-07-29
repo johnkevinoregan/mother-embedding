@@ -50,3 +50,9 @@ Sample efficiency (linear readouts)
     CNN              0.038     -0.031      0.807      0.049      0.250      0.200      0.268      0.770
     ours·linear      0.648      0.283      0.982      0.486      0.833      0.516      0.565     -0.000
       cnn epoch  1  val R² 0.040
+      cnn epoch  2  val R² 0.214
+      cnn epoch  3  val R² 0.300
+      cnn epoch  4  val R² 0.322
+      cnn epoch  5  val R² 0.356
+      cnn epoch  6  val R² 0.404
+      cnn epoch  7  val R² 0.433
