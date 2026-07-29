@@ -493,9 +493,12 @@ co-location (orient 100 %, three designs). And Phase 7 says why: `R²(A ← orie
 3. ~~Why is `F`/`f` at 69.9 % for every representation?~~ — **answered.** Nothing solves it;
    a CNN on raw pixels does worse, and with augmentation converges on the same 69.88 %.
    `F`/`f` is near-undecidable, and should probably join the homoglyph merge list.
-4. ~~Re-anchor `d` to a measured structure scale~~ — **half done.** `a2_maps` and
-   `ray_maps` now take `d_anchor = :envelope | :structure`; `:envelope` stays the default
-   so every number above reproduces. **`dtheta` is still fitted** — that half is open.
+4. ~~Re-anchor `d` to a measured structure scale~~ — **partly done, and this entry was
+   wrong when written.** The switch existed in `a2_maps` only; `ray_maps` still hardcoded
+   the envelope anchor until it was added later. Both now take
+   `d_anchor = :envelope | :structure`, with `:envelope` the default so every number above
+   reproduces. Two halves remain open: **`dtheta` is still fitted**, and **`:structure` has
+   never been exercised by an experiment** — it is a switch, not a result.
 5. ~~A task that requires i2D structure~~ — **attempted three times, Phase 8, all failed.**
    Not "the benchmark needs more work": the reason is structural, since any co-location
    difference also changes local ink density. Superseded by 6.

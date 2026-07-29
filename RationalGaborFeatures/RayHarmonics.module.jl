@@ -101,19 +101,38 @@ conditioning collapsed it to plain energy, and the fix was a **relative** term `
 ray transform kept the absolute form until it was found again here.
 
 `nphi` ray directions over [0, 2π); defaults to twice the orientation count of the scale,
-so each orientation channel is used once in each of its two directions. `d = :auto` sets
-the probe radius from the channel's own along-contour envelope, as `AndLayer` does — see
-the caveat in `RESULTS.md` about that anchoring being wrong in general.
+so each orientation channel is used once in each of its two directions.
+
+`d_anchor` selects how the probe radius is set, exactly as in `AndLayer.a2_maps`:
+`:envelope` (default) from the channel's own along-contour envelope, which reproduces every
+published number; `:structure` from a caller-supplied scale measured off the image, which is
+the right anchoring when the image content does not scale with the frame.
 """
-function ray_maps(E::Array{Float32,3}, meta; nphi=nothing, d=:auto,
-                  d_factor::Real=1.0, eps::Float32=1f-12)
+function ray_maps(E::Array{Float32,3}, meta; nphi=nothing, d=:auto, d_factor::Real=1.0,
+                  d_anchor::Symbol=:envelope, structure_scale::Union{Nothing,Real}=nothing)
     H, W, _ = size(E)
+    d_anchor in (:envelope, :structure) ||
+        error("d_anchor must be :envelope (default, reproduces published numbers) or :structure")
+    d_anchor === :structure && structure_scale === nothing &&
+        error("d_anchor = :structure needs structure_scale")
     maps = Matrix{Float32}[]; labels = NamedTuple[]
     for ρ in scales_of(meta)
         ch = chan_of(meta, ρ); n = length(ch)
         K = nphi === nothing ? 2n : Int(nphi)
         m1 = first(m for m in meta if m.kind === :oriented && m.rho0 ≈ ρ)
-        dρ = d === :auto ? d_factor * m1.imwidth / (2π * ρ * m1.sigma_phi) : Float64(d)
+        # Probe radius. `:envelope` (default) ties d to the filter's own along-contour extent,
+        # d ∝ λ = imwidth/ρ — correct when image content scales with the frame, wrong when
+        # content keeps its pixel size and the frame grows. `:structure` ties it to a scale
+        # measured from the image instead. Same switch, same defaults and same reasoning as
+        # `AndLayer.a2_maps`; it was added there first and this function was missed, while
+        # RESULTS.md claimed both had it.
+        dρ = if d !== :auto
+            Float64(d)
+        elseif d_anchor === :structure
+            d_factor * Float64(structure_scale)
+        else
+            d_factor * m1.imwidth / (2π * ρ * m1.sigma_phi)
+        end
 
         # for ray direction φ, the stroke runs along φ, so the carrier is φ+90° (mod π)
         pick = Vector{Int}(undef, K); φs = Vector{Float64}(undef, K)

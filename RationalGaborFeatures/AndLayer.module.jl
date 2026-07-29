@@ -86,6 +86,23 @@ normalised at that pixel and the `n/2` shift is exactly 90°.
 Multiplying by `C₀` turns a shape measure into an energy, which keeps the map
 well-behaved where there is no ink (the normalised profile is meaningless there).
 """
+# NOTE on the `eps` guards in this file, checked when the ray transform's equivalent guard
+# turned out to be a bug (see RayHarmonics and SimpleStrokeTests/RESULTS.md).
+#
+# An epsilon guard that writes a fill value is safe **only when the fill value is the true
+# limit of the quantity as the energy goes to zero.** That is the case here and was not the
+# case there:
+#
+#   A₁ = Σₖ EₖEₖ₊ₙ⁄₂ / C₀ .... numerator is O(E²), denominator O(E), so A₁ → 0. Writing 0 is
+#                              the limit.
+#   A₂ = E·|E₊−E₋|/(E₊+E₋+κE) . the leading E factor forces A₂ → 0. Writing 0 is the limit.
+#   |c₁|/c₀ ................... a *bounded ratio* with no limit as c₀ → 0. Writing 0 asserted
+#                              "perfectly symmetric" where there was no evidence, and pooling
+#                              those zeros multiplied the result by ink coverage.
+#
+# Both maps here are energy-weighted, so a spatial mean of them is meaningful and no
+# ratio-after-pooling treatment is needed. The distinction is energy-like vs scale-free, not
+# absolute vs relative epsilon.
 function a1_maps(E::Array{Float32,3}, meta; eps::Float32=1f-12)
     H, W, _ = size(E)
     out = Array{Float32,3}(undef, H, W, 0); labels = NamedTuple[]
