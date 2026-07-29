@@ -364,6 +364,56 @@ this dataset, not about pooling in general.
 
 ---
 
+## Ratios are formed after pooling, not per pixel
+
+`ray_maps` used to divide at every pixel — `|c₁|/c₀`, `|c₂|/c₀` — guarded by `c₀ > 1e-12`,
+writing `0` where that failed. Both halves were wrong.
+
+**The guard asserted something it had no evidence for.** `0` means *perfectly symmetric*, a
+positive claim at a location with no signal. On a stroke drawing the branch fires at most
+pixels; on a photograph `c₀ > 0` everywhere and it never fires. An operator that behaves
+differently *in kind* between line art and natural images is not a general front end, which
+is the whole aim.
+
+**And pooling a ratio is wrong whatever the background.** A ratio where `c₀` is small is
+numerically fine and statistically meaningless, and a spatial mean gave it the same weight as
+a ratio measured on a strong contour. Because the guard wrote zeros, the pooled value came
+out as *the true ratio × the fraction of the window containing contour* — a shape descriptor
+multiplied by ink coverage, which depends on thickness, length and blur.
+
+**Now:** `ray_maps` returns `c₀`, `|c₁|`, `|c₂|` unnormalised — three energies — and the
+ratio is formed from the *pooled* numerator and denominator, with a **relative** floor (a
+thousandth of the image's own mean `c₀`) instead of a branch. Defined everywhere, no fill
+value, energy-weighted by construction.
+
+`Validate_RayHarmonics` passes all four gates afterwards and the signature table is
+unchanged — endpoint 0.699, straight 0.054, L 0.578, T 0.313, X 0.062 — so the operator still
+measures what it did; only the normalisation moved.
+
+### What it changed
+
+| | before | after |
+|:--|--:|--:|
+| `rays` block alone, `arms` | 0.536 | **0.690** |
+| `rays` block alone, `vangle` | 0.297 | **0.367** |
+| grid 1 + MLP, `brokenness` | 0.663 | **0.737** |
+| grid 1 + MLP, `vangle` | 0.898 | **0.938** |
+| grid 3 linear, `vangle` | 0.552 | **0.580** |
+
+**Two earlier conclusions are withdrawn.** `|c₁|/c₀` was reported as near-dead weight at
+≤ 0.015 unique contribution; it is **+0.021** once pooled correctly, and standalone it goes
+0.467 → 0.539 on `arms`. And the clean split "A₁+A₂ own `vangle`, rays own `arms`" only half
+survives: rays still own `arms` (+0.113 against +0.022), but `vangle` is now a **tie**
+(A +0.059, rays +0.066).
+
+**A standing rule falls out of this.** `RESULTS.md` already recorded that A₂'s *absolute*-ε
+conditioning collapsed it to plain energy, fixed by the relative `κ·E(x)`. The ray transform
+kept the absolute form and nobody revisited it. That is the same error twice, so: **no
+absolute epsilon anywhere in this front end.** Any conditioning constant must be relative to
+a local energy.
+
+---
+
 ## The bug this found
 
 On its first real run the block table showed `orient` predicting **polarity at R² 0.65**,

@@ -591,6 +591,49 @@ grid would start to matter again.
 
 ---
 
+## 12c. A one-line change that moved every number
+
+The ray transform produces three quantities at each point: `c₀` (roughly, how much contour
+energy surrounds this location), and two measures of how *asymmetrically* it is arranged,
+written as fractions of `c₀`.
+
+Those fractions used to be computed **at every pixel** and then averaged over the pooling
+window. Two things were wrong with that.
+
+**Dividing by something near zero.** Where there is no contour, `c₀` is nearly zero and the
+fraction is meaningless. The code guarded against dividing by zero by writing **0** instead —
+but 0 in this quantity means "perfectly symmetric", which is a confident statement about a
+place with no evidence at all. On a line drawing that happens at most pixels; on a
+photograph, where there is some structure everywhere, it never happens. **An operator that
+behaves differently on drawings than on photographs is not the general-purpose front end this
+project is trying to build.**
+
+**And averaging fractions is the wrong operation anyway.** A fraction measured where there is
+almost nothing is pure noise, and a plain average gives it exactly as much say as one measured
+on a strong contour. Worse, because the guard filled empty places with zeros, the average came
+out as the true fraction *multiplied by how much of the window contained ink* — mixing a shape
+measurement together with a "how much ink is here" measurement, which depends on stroke
+thickness and blur.
+
+**The fix is to average the top and bottom separately and divide at the end** — total
+asymmetry over total energy in the window, rather than the average of many per-pixel
+fractions. That is defined everywhere, needs no special case, and automatically counts strong
+contours more than weak ones.
+
+It sounds like bookkeeping. It moved every structural number:
+
+| | before | after |
+|:--|--:|--:|
+| best configuration, `brokenness` | 0.663 | **0.737** |
+| best configuration, corner angle | 0.898 | **0.938** |
+| ray block alone, `arms` | 0.536 | **0.690** |
+
+and it overturned two conclusions reported earlier in this document's history: one of the
+three ray quantities had looked like dead weight and was not, and a clean division of labour
+between the two operator families turned out to be half an artefact of the faulty averaging.
+
+---
+
 ## 13. What these results do and do not show
 
 **They show:**

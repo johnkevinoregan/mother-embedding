@@ -1,0 +1,26 @@
+##### blocks, grid 3, ratios-after-pooling #####
+orient                0.632      0.155      0.944      0.385      0.642      0.507      0.455     -0.000
+lowpass               0.036      0.051      0.659      0.048      0.238      0.309      0.072     -0.000
+A1+A2                 0.172      0.065      0.775      0.262      0.510      0.507      0.440     -0.000
+rays                  0.357      0.124      0.891      0.367      0.690      0.487      0.363     -0.000
+all                   0.694      0.318      0.986      0.580      0.848      0.582      0.618     -0.000
+all·SHUFFLED          0.630      0.162      0.948      0.393      0.697      0.507      0.466     -0.000   (mean of 5 perms, max sd 0.002)
+all·noRAYS            0.655      0.263      0.960      0.514      0.735      0.540      0.525     -0.000   (mean of 5 perms, max sd 0.001)
+all·noA               0.664      0.260      0.984      0.521      0.826      0.563      0.592     -0.001   (mean of 5 perms, max sd 0.002)
+all·noR0              0.693      0.292      0.985      0.577      0.836      0.573      0.546     -0.001   (mean of 5 perms, max sd 0.001)
+all·noR1              0.673      0.299      0.978      0.576      0.832      0.576      0.609     -0.000   (mean of 5 perms, max sd 0.001)
+all·noR2              0.680      0.299      0.984      0.548      0.811      0.565      0.612     -0.000   (mean of 5 perms, max sd 0.001)
+rays.R0               0.055      0.044      0.545      0.053      0.186      0.381      0.280     -0.000
+rays.R1               0.210      0.042      0.711      0.296      0.539      0.104      0.074     -0.004
+rays.R2               0.273      0.064      0.627      0.287      0.472      0.123      0.061     -0.004
+##### iid, grid 1 #####
+front end: grid 1, 31 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 9)
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+ours·linear          0.685      0.224      0.889      0.543      0.729      0.537      0.561     -0.000
+ours·MLP             0.925      0.737      0.998      0.938      0.954      0.687      0.714     -0.099
+##### iid, grid 3 #####
+front end: grid 3, 279 columns  (orient 135, lowpass 9, A1 27, A2 27, rays 81)
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+ours·linear          0.694      0.318      0.986      0.580      0.848      0.582      0.618     -0.000
+ours·MLP             0.835      0.592      0.993      0.835      0.905      0.635      0.657     -0.169
+##### DONE #####

@@ -77,12 +77,30 @@ function _feat(img, bank, wts, grid)
     Rm, rl = ray_maps(Es, bank.meta)
     f1, l1 = assemble(Es, bank.meta, A, al,
                       PoolSpec(grid=grid, blocks=(:orient, :lowpass, :A1, :A2)); Wts=wts)
+    # `ray_maps` returns c₀, |c₁| and |c₂| unnormalised; the ratios are formed **here**, from
+    # the pooled energies, rather than per pixel. Dividing per pixel and then averaging gave
+    # every low-energy location the same weight as a strong contour, and — because the old
+    # divide-by-zero guard wrote zeros — made the pooled ratio scale with how much of the
+    # window contained ink. Dividing after pooling is defined everywhere and needs no guard.
+    #
+    # The denominator carries a **relative** floor, a thousandth of the image's own mean c₀,
+    # so an empty window tends to zero smoothly instead of through a branch. An absolute
+    # epsilon here is what went wrong in A₂ (see RESULTS.md) and in ray_maps before this.
     PR = pool_maps(Rm, wts)
     nc = grid*grid
     fr = Float32[]; lr = String[]
-    for (k, l) in enumerate(rl), c in 1:nc
-        push!(fr, PR[c, k])
-        push!(lr, "rays.$(l.form).ρ$(round(l.rho0, digits=2)).cell$(c)")
+    ρs = unique(l.rho0 for l in rl)
+    for ρ in ρs
+        k0 = findfirst(l -> l.rho0 == ρ && l.form === :R0, rl)
+        k1 = findfirst(l -> l.rho0 == ρ && l.form === :R1, rl)
+        k2 = findfirst(l -> l.rho0 == ρ && l.form === :R2, rl)
+        floor_ρ = 1f-3 * max(mean(@view PR[:, k0]), 1f-12)
+        for c in 1:nc
+            den = PR[c, k0] + floor_ρ
+            push!(fr, PR[c, k0]);        push!(lr, "rays.R0.ρ$(round(ρ,digits=2)).cell$(c)")
+            push!(fr, PR[c, k1] / den);  push!(lr, "rays.R1.ρ$(round(ρ,digits=2)).cell$(c)")
+            push!(fr, PR[c, k2] / den);  push!(lr, "rays.R2.ρ$(round(ρ,digits=2)).cell$(c)")
+        end
     end
     vcat(f1, fr), vcat(l1, lr)
 end

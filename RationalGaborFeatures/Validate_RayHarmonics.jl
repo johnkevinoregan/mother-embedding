@@ -52,6 +52,24 @@ begin
     include(joinpath(@__DIR__, "RayHarmonics.module.jl"))
     include(joinpath(@__DIR__, "Stimuli.module.jl"))
     using .GaborStack, .AndLayer, .RayHarmonics, .Stimuli
+
+    # ── ratios, formed from the unnormalised moments ────────────────────────
+    # `ray_maps` returns c₀, |c₁| and |c₂| as energies; the *ratios* are formed by the
+    # caller, after pooling where there is pooling. A hard divide-by-zero branch writing 0
+    # would assert "perfectly symmetric" wherever there is no evidence — a statement about
+    # line drawings, not about images — so the denominator carries a relative floor instead.
+    function ratios_of(M, lab)
+        out = copy(M)
+        for ρ in unique(l.rho0 for l in lab)
+            k0 = findfirst(l -> l.rho0 == ρ && l.form === :R0, lab)
+            k1 = findfirst(l -> l.rho0 == ρ && l.form === :R1, lab)
+            k2 = findfirst(l -> l.rho0 == ρ && l.form === :R2, lab)
+            fl = 1f-3 * max(maximum(@view M[:, :, k0]), 1f-12)
+            @. out[:, :, k1] = M[:, :, k1] / (M[:, :, k0] + fl)
+            @. out[:, :, k2] = M[:, :, k2] / (M[:, :, k0] + fl)
+        end
+        out
+    end
     gr()
     md"*setup loaded*"
 end
@@ -72,6 +90,10 @@ begin
     function sig(angles; win=4)
         E = energy_stack(rays(N, angles), bank)
         M, lab = ray_maps(E, bank.meta)
+        # ray_maps now returns c₀, |c₁|, |c₂| unnormalised — the ratios are formed by the
+        # caller after pooling. Here the readout is at a single point, so "pooling" is the
+        # identity and the ratio is formed directly.
+        M = ratios_of(M, lab)
         k = findall(l -> l.rho0 ≈ LADDER[end], lab)          # finest scale
         [mean(@view M[CW-win:CW+win, CW-win:CW+win, i]) for i in k]   # c0, |c1|/c0, |c2|/c0
     end
@@ -170,8 +192,8 @@ md"## Gate 3 — polarity invariance, as everywhere else in this front end"
 # ╔═╡ e1000000-0000-0000-0000-00000000000d
 begin
     I = rays(N, CASES[4][2])
-    Mp,_ = ray_maps(energy_stack(I, bank), bank.meta)
-    Mm,_ = ray_maps(energy_stack(-I, bank), bank.meta)
+    Mp,lp = ray_maps(energy_stack(I, bank), bank.meta); Mp = ratios_of(Mp, lp)
+    Mm,lm = ray_maps(energy_stack(-I, bank), bank.meta); Mm = ratios_of(Mm, lm)
     dpol = maximum(abs.(Mp .- Mm))
     gate!("polarity invariance (exactly 0)", dpol == 0, @sprintf("max|ΔM| = %.3e", dpol))
     md"*gate 3 run*"

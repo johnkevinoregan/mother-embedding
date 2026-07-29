@@ -22,6 +22,8 @@ what converts a mod-π quantity to a mod-2π one — east and west read differen
 is 2π-periodic with **one lobe per branch**: endpoint 1, straight 2 opposite, L-corner 2
 adjacent, T 3, X 4. Its Fourier coefficients are the type signature:
 
+Signature table, in terms of the ratios formed after pooling:
+
 | configuration | c₀ | \\|c₁\\|/c₀ | \\|c₂\\|/c₀ |
 |:--|--:|--:|--:|
 | endpoint (1 ray) | 1 | 1.000 | 1.000 |
@@ -68,7 +70,35 @@ end
 """
     ray_maps(E, meta; nphi=nothing, d=:auto, d_factor=1.0)
 
-Returns `(maps, labels)` with three channels per scale: `c0`, `|c1|/c0`, `|c2|/c0`.
+Returns `(maps, labels)` with three channels per scale: **`c₀`, `|c₁|` and `|c₂|`, all
+unnormalised**. The scale-free ratios `|c₁|/c₀` and `|c₂|/c₀` are to be formed by the caller
+**after pooling**, not here.
+
+## Why the ratio is not formed per pixel
+
+It used to be, guarded by `c₀ > 1e-12` with `r = 0` written where that failed. Two things
+were wrong with it, and the second matters on any image.
+
+**The guard smuggled in a line-drawing assumption.** Writing `0` where there is no energy is
+not neutral — `0` means *perfectly symmetric*, a positive claim about a location with no
+evidence. On a stroke drawing the branch fires at most pixels; on a photograph `c₀ > 0`
+everywhere and it never fires. An operator that behaves differently in kind between those two
+cases is not a general front end.
+
+**Pooling a ratio is wrong regardless of background.** A per-pixel ratio where `c₀` is small
+is numerically fine and statistically meaningless, and a spatial mean gives it exactly the
+same weight as a ratio measured on a strong contour. Worse, since the guard wrote zeros, the
+pooled value came out as *the true ratio multiplied by the fraction of the window containing
+contour* — confounding a shape descriptor with ink coverage, which depends on stroke
+thickness, length and blur.
+
+Pooling the numerator and denominator separately and dividing afterwards is defined
+everywhere, needs no guard and no fill value, weights each location by its own energy
+automatically, and behaves identically on a line drawing and a photograph.
+
+This is the same error `A₂` had: `RESULTS.md` records that its original **absolute**-ε
+conditioning collapsed it to plain energy, and the fix was a **relative** term `κ·E(x)`. The
+ray transform kept the absolute form until it was found again here.
 
 `nphi` ray directions over [0, 2π); defaults to twice the orientation count of the scale,
 so each orientation channel is used once in each of its two directions. `d = :auto` sets
@@ -112,20 +142,17 @@ function ray_maps(E::Array{Float32,3}, meta; nphi=nothing, d=:auto,
                 C2r[y,x] += v*c2c; C2i[y,x] -= v*c2s
             end
         end
-        r1 = Matrix{Float32}(undef,H,W); r2 = Matrix{Float32}(undef,H,W)
+        # Returned **unnormalised**: c₀, |c₁| and |c₂| are all energies, and the ratios are
+        # formed *after* pooling by the caller. See the note on normalisation above.
+        m1 = Matrix{Float32}(undef,H,W); m2 = Matrix{Float32}(undef,H,W)
         @inbounds for p in eachindex(C0)
-            c0 = C0[p]
-            if c0 > eps
-                r1[p] = sqrt(C1r[p]^2 + C1i[p]^2)/c0
-                r2[p] = sqrt(C2r[p]^2 + C2i[p]^2)/c0
-            else
-                r1[p] = 0f0; r2[p] = 0f0
-            end
-            C0[p] = c0 / K                       # mean, so c0 is comparable across K
+            m1[p] = sqrt(C1r[p]^2 + C1i[p]^2) / K
+            m2[p] = sqrt(C2r[p]^2 + C2i[p]^2) / K
+            C0[p] = C0[p] / K                    # mean, so all three are comparable across K
         end
         push!(maps, C0); push!(labels, (form=:R0, rho0=ρ, d=dρ))
-        push!(maps, r1); push!(labels, (form=:R1, rho0=ρ, d=dρ))
-        push!(maps, r2); push!(labels, (form=:R2, rho0=ρ, d=dρ))
+        push!(maps, m1); push!(labels, (form=:R1, rho0=ρ, d=dρ))
+        push!(maps, m2); push!(labels, (form=:R2, rho0=ρ, d=dρ))
     end
     out = Array{Float32,3}(undef, H, W, length(maps))
     for (k,M) in enumerate(maps); out[:,:,k] = M; end

@@ -229,6 +229,22 @@ and the numbers in `RESULTS.md` were reproduced identically to three decimals by
 independent runs** (`nocnn.log`, `nocnn2.log`, `results_phase9.log`). If a long run dies
 unexpectedly, re-run it, or add `--check-bounds=yes` at some cost in speed.
 
+## A rule this codebase learned twice
+
+**No absolute epsilon anywhere in the front end.** Any conditioning constant added to a
+denominator must be *relative* to a local energy.
+
+It has now been the cause of two bugs. `A₂` originally used an absolute ε and collapsed to
+plain energy (`RationalGaborFeatures/RESULTS.md`), fixed with a relative `κ·E(x)`. The ray
+transform kept the absolute form — `c₀ > 1e-12`, writing 0 where it failed — until the same
+problem was found again. Writing 0 there is not a neutral fallback: in a normalised quantity
+it asserts a specific value at locations with no evidence, and it makes the operator behave
+differently on line drawings than on photographs.
+
+Related: **form ratios after pooling, not before.** Pooling a per-pixel ratio weights noisy
+low-energy locations equally with strong ones; pooling numerator and denominator separately
+and dividing afterwards is defined everywhere and energy-weights itself.
+
 ## Known limitations
 
 Read `RESULTS.md` §"`closedness` is confounded" before quoting that column — it is not a
