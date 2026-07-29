@@ -67,7 +67,7 @@ module Contours
 using Random, Statistics, LinearAlgebra
 
 export PROPS, N_PROPS, Params, sample_params, render_params, contour_batch,
-       targets_of, ANGLE_BANDS, band_of
+       targets_of, ANGLE_BANDS, band_of, respec
 
 "Names of the target vector's entries, in order."
 const PROPS = (:curvedness, :brokenness, :closedness, :angledness,
@@ -307,26 +307,40 @@ end
 end
 
 """
-    render_params(p, rng; N=112)
+    respec(p; kw...)
+
+Copy of `p` with the named fields replaced. Used to sweep one parameter with everything
+else held fixed — for the figures, and for the extrapolation splits, where a test set
+differs from its training set in exactly one nuisance.
+"""
+respec(p::Params; kw...) =
+    Params((get(values(kw), f, getfield(p, f)) for f in fieldnames(Params))...)
+
+"""
+    render_params(p, rng; N=112, rot=nothing, at=nothing)
 
 Rasterise one stimulus: uniform grey field, random rotation, random position subject to
 fitting with a margin. Returns an `N×N` image in `[0,1]`.
 
+`rot` and `at` pin the orientation and centre, which is what makes a parameter sweep
+legible: without them, re-rendering with a different stroke width would also move and
+rotate the figure and the comparison would show nothing.
+
 The distance field is built segment by segment over each segment's own bounding box
 expanded by the profile's reach, rather than testing every pixel against every segment.
 """
-function render_params(p::Params, rng; N::Int=112)
+function render_params(p::Params, rng; N::Int=112, rot=nothing, at=nothing)
     polys = geometry(p, rng)
 
-    φ = 2π*rand(rng); s, c = sin(φ), cos(φ)
+    φ = rot === nothing ? 2π*rand(rng) : Float64(rot); s, c = sin(φ), cos(φ)
     polys = [[(c*y + s*x, -s*y + c*x) for (y,x) in P] for P in polys]
 
     reach = p.w/2 + p.ramp/2 + 1; m = reach + 2
     ys = [y for P in polys for (y,_) in P]; xs = [x for P in polys for (_,x) in P]
     ylo, yhi = m - minimum(ys), N + 1 - m - maximum(ys)
     xlo, xhi = m - minimum(xs), N + 1 - m - maximum(xs)
-    oy = yhi > ylo ? ylo + (yhi-ylo)*rand(rng) : (ylo+yhi)/2
-    ox = xhi > xlo ? xlo + (xhi-xlo)*rand(rng) : (xlo+xhi)/2
+    oy = at !== nothing ? at[1] : (yhi > ylo ? ylo + (yhi-ylo)*rand(rng) : (ylo+yhi)/2)
+    ox = at !== nothing ? at[2] : (xhi > xlo ? xlo + (xhi-xlo)*rand(rng) : (xlo+xhi)/2)
 
     D = fill(Float32(1e9), N, N)
     for P in polys, k in 1:length(P)-1
