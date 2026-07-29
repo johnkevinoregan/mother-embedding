@@ -140,10 +140,13 @@ one thing and the test set inverts it.
 |:--|--:|--:|--:|--:|--:|--:|
 | *trivial* | 0.000 | 0.005 | 0.378 | 0.071 | 0.024 | 0.019 |
 | pixels·linear | −0.001 | −0.001 | −0.004 | −0.001 | −0.004 | −0.003 |
-| pixels·MLP | −0.107 | −0.353 | 0.769 | −0.146 | 0.162 | −0.229 |
-| CNN | 0.200 | 0.033 | 0.911 | 0.167 | 0.580 | −2.154 |
+| pixels·MLP | −0.074 | −0.196 | 0.772 | −0.083 | −0.003 | −0.124 |
+| CNN | 0.150 | −0.145 | 0.929 | −0.012 | 0.715 | −0.538 |
 | **ours·linear** | **0.655** | 0.107 | **0.982** | **0.525** | **0.845** | −2.547 |
-| ours·MLP | **0.795** | **0.435** | **0.986** | **0.782** | **0.895** | −2.289 |
+| ours·MLP | **0.797** | **0.434** | **0.986** | **0.788** | **0.893** | −2.257 |
+
+Blur costs the CNN its corner readout entirely — `vangle` 0.291 i.i.d. to **−0.012** — while
+ours drops only 0.567 → 0.525. It keeps `arms` (0.715), which is the row it was strongest on.
 
 ### Thickness — trained thin (≤ 6 px), tested thick (≥ 8 px)
 
@@ -151,10 +154,15 @@ one thing and the test set inverts it.
 |:--|--:|--:|--:|--:|--:|--:|
 | *trivial* | −0.001 | −0.006 | −0.435 | −0.086 | −0.035 | −0.911 |
 | pixels·linear | −0.002 | 0.003 | −0.001 | −0.000 | −0.004 | −0.004 |
-| pixels·MLP | −0.316 | −0.471 | 0.508 | −0.461 | −0.138 | −1.747 |
-| CNN | 0.180 | 0.041 | 0.920 | 0.158 | 0.582 | −0.658 |
+| pixels·MLP | −0.232 | −0.171 | 0.527 | −0.230 | −0.016 | −0.543 |
+| CNN | 0.204 | 0.061 | 0.717 | 0.200 | 0.389 | −0.292 |
 | **ours·linear** | **0.619** | **0.333** | **0.976** | **0.490** | **0.776** | −2.052 |
-| ours·MLP | **0.707** | **0.591** | **0.958** | **0.674** | **0.877** | −2.747 |
+| ours·MLP | **0.734** | **0.588** | **0.972** | **0.693** | **0.884** | −2.790 |
+
+`arms` is the clearest case in the whole experiment: the CNN leads it i.i.d. at 0.874, and
+under the three nuisance shifts it goes to **0.715**, **0.389** and **−0.415** while ours
+holds 0.845, 0.776 and 0.857. **The i.i.d. lead was not a representation of junction order;
+it was a representation of junction order *as drawn in the training set*.**
 
 **The structural rows transfer; the coupled photometric row breaks, and should.** Blur makes
 a stroke look thicker, so a thickness estimate calibrated on sharp edges is biased when
@@ -274,11 +282,17 @@ And the CNN over the same nested subsets — the comparison that makes the point
 
 | k | curvedness | brokenness | closedness | vangle | arms |
 |--:|--:|--:|--:|--:|--:|
-| 500 | 0.030 | −0.003 | 0.664 | 0.012 | 0.089 |
-| 2,000 | 0.038 | −0.031 | 0.807 | 0.049 | 0.250 |
-| 6,000 | 0.116 | −0.022 | 0.899 | 0.119 | 0.504 |
-| 12,000 | 0.235 | −0.002 | 0.929 | 0.155 | 0.650 |
-| **% of *its own* ceiling at k=500** | 13 % | — | 71 % | 8 % | **14 %** |
+| 500 | −0.092 | −0.180 | 0.712 | −0.037 | 0.056 |
+| 2,000 | 0.022 | −0.127 | 0.831 | 0.036 | 0.400 |
+| 6,000 | 0.154 | 0.032 | 0.931 | 0.170 | 0.633 |
+| 12,000 | 0.455 | 0.289 | 0.953 | 0.277 | 0.863 |
+| **% of *its own* ceiling at k=500** | — | — | 75 % | — | **6 %** |
+
+**At 500 images the properly trained CNN is at or below zero on four of the five structural
+rows.** Ours is at 0.617 / 0.122 / 0.360 / 0.782 on the same four. The better architecture
+raised the CNN's ceiling substantially without making it any less dependent on data to reach
+it — at k = 500 it is *worse* than the weak strided net was, presumably because a larger
+model overfits harder on 500 images.
 
 **A fixed representation starts where it will finish; a learned one has to buy its
 representation with data.** On `arms`, ours moves 0.782 → 0.859 across a 24× increase in

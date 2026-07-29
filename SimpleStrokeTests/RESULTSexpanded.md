@@ -473,6 +473,42 @@ than the buggy zeros were.
 
 ---
 
+## 12a. Watching the models learn
+
+Each model is trained by repeatedly passing over the training images. One pass is an
+**epoch**. After every epoch we can freeze the model and score it on a **validation set** —
+2,000 images held out of the training data, never fitted on, kept separate from the test set
+so that decisions like "when to stop" can be made without peeking at the final exam.
+
+![per-property learning curves](phase9_learning_detail.png)
+
+Three very different pictures.
+
+**The MLP on raw pixels (left) never learns the geometry.** Only two of the eight lines ever
+rise above zero — closedness and polarity, the two easiest — and the rest oscillate below
+zero for sixty epochs. More training does not help, because the information is not reachable.
+
+**Our features with a network on top (right) converge smoothly.** Every property rises and
+then flattens by about epoch 20, and stays flat. There is no real question of when to stop.
+
+**The CNN (middle) reaches high scores but keeps falling off them.** Several properties drop
+from around 0.9 to below −1 from one epoch to the next. The dashed black line is the training
+loss, and it declines smoothly the whole time — so the model is steadily getting better at
+the images it is being fitted to, while its performance on unseen images lurches around.
+
+That gap between a smooth training loss and an erratic validation score is exactly why the
+validation set exists. Judging by training loss alone, the CNN would look like it was
+improving right to the end.
+
+**Does this unfairly penalise the CNN?** We report the CNN's result from whichever epoch
+scored best on validation, averaged across the eight properties. On a curve this jumpy, that
+epoch might be a compromise — good on average, poor for some individual property. It is worth
+checking rather than assuming, and the check comes out clean: at the epoch chosen, every
+property is within 0.016 of the best it ever reached. The selection rule is not what holds
+the CNN back.
+
+---
+
 ## 13. What these results do and do not show
 
 **They show:**

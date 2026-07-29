@@ -95,4 +95,45 @@ for (k, c) in (("iid/CNN", :steelblue), ("iid/ours·MLP", :firebrick), ("iid/pix
 end
 hline!(p4, [0]; lc=:black, lw=1, label="")
 savefig(p4, joinpath(@__DIR__, "phase9_learning.png"))
+
+# ── 5. per-epoch, per-property, per-arm ─────────────────────────────────────
+# The summary above averages over eight properties, which can hide a model that is improving
+# on one row while collapsing on another. One panel per trained arm, one line per property,
+# plus the training loss on its own axis so smooth-loss-with-erratic-validation is visible
+# as the single picture it is.
+trained = [k for k in ("iid/pixels·MLP", "iid/CNN", "iid/ours·MLP") if haskey(hist, k)]
+pans = Any[]
+for k in trained
+    h = hist[k]; ne = size(h.val, 1)
+    pj = plot(ylims=(-1.0, 1.05), xlabel="epoch", title=split(k, "/")[2], titlefontsize=10,
+              ylabel = k == trained[1] ? "validation R²" : "", grid=true, gridalpha=0.25,
+              legend = k == trained[end] ? :bottomright : false, legendfontsize=6)
+    for (j, nm) in enumerate(P)
+        plot!(pj, 1:ne, max.(h.val[:, j], -1.0); lw=1.6, label=nm)
+    end
+    hline!(pj, [0]; lc=:black, lw=1, label="")
+    # training loss, rescaled onto the same axis purely so the shapes can be compared
+    L = h.loss ./ maximum(h.loss)
+    plot!(pj, 1:ne, L .- 1.0; lw=2.5, ls=:dash, lc=:black, label="train loss (rescaled)")
+    push!(pans, pj)
+end
+p5 = plot(pans...; layout=(1, length(pans)), size=(460*length(pans), 400),
+          plot_title="Per-epoch validation R² by property — i.i.d. split",
+          plot_titlefontsize=11, bottom_margin=9Plots.mm, left_margin=7Plots.mm)
+savefig(p5, joinpath(@__DIR__, "phase9_learning_detail.png"))
+
+# ── 6. the same, per split, so transfer failures are visible during training ─
+splits = [s for s in ("iid", "extrap_polarity", "extrap_fuzziness", "extrap_thickness")
+          if haskey(hist, "$s/CNN")]
+p6 = plot(size=(1000, 380), xlabel="epoch", ylabel="validation R², mean over properties",
+          legend=:bottomright, ylims=(-1.2, 1.0), grid=true, gridalpha=0.25,
+          title="CNN validation by split — the instability is not specific to one dataset",
+          titlefontsize=11, bottom_margin=6Plots.mm, left_margin=6Plots.mm)
+for (s, c) in zip(splits, [:steelblue, :firebrick, :seagreen, :orange])
+    h = hist["$s/CNN"]; v = [nanm(h.val[e, :]) for e in 1:size(h.val, 1)]
+    plot!(p6, 1:length(v), max.(v, -1.2); lw=2, c=c, label=s)
+end
+hline!(p6, [0]; lc=:black, lw=1, label="")
+savefig(p6, joinpath(@__DIR__, "phase9_learning_splits.png"))
+println("wrote phase9_learning_detail.png, phase9_learning_splits.png")
 println("wrote phase9_learning.png")
