@@ -161,9 +161,9 @@ interpolate.
 Curvature and turn are drawn independently and the arclength follows from them, which is
 what keeps `curvedness` and `closedness` from collapsing onto one another.
 """
-function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 25.0), ramp=(0.8, 20.0),
+function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 16.0), ramp=(0.8, 20.0),
                        amp=(0.30, 1.00), bg=(0.40, 0.60), noise=0.02,
-                       kappa=(0.0, 0.045), turn=(0.0, 2π/3), aspect=(0.62, 1.0),
+                       kappa=(0.0, 0.028), turn=(0.0, 2π/3), aspect=(0.62, 1.0),
                        p_straight=0.20, p_closed=0.18, N=112)
     u(r) = r isa Tuple ? r[1] + (r[2]-r[1])*rand(rng) : Float64(r)
 
@@ -203,7 +203,7 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 25.0), ramp=(0.8
     # straight lines at all — which is how the first version of this generator produced a
     # `curvedness` target that never went below 0.52.
     straight = rand(rng) < p_straight
-    κ = 0.0; L = min(58 + 38rand(rng), 2frame)
+    κ = 0.0; L = min(62 + 34rand(rng), 2frame)
     if !straight
         # The figure has to fit, but the binding constraint is the arc's *chord*, not its
         # diameter: a shallow arc of very large radius fits easily. Capping the radius at a
@@ -211,7 +211,20 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 25.0), ramp=(0.8
         # a hole in the low end of the target range.
         chord = Δ >= π ? 1.0 : max(sin(Δ/2), 0.05)
         κ = max(u(kappa), 1/min(frame/chord, 600.0))
-        R = 1/κ; Δ = max(Δ, 0.12); L = clamp(Δ*R, 38.0, 2π*R); Δ = L/R
+        # Cap the arclength at twice the frame budget, but only for *open* arcs. A kink can
+        # straighten an arc out to nearly its full arclength, and an open arc could
+        # otherwise be 2.4x the budget, so the vertex ended up off-canvas and the figure
+        # read as two disconnected pieces.
+        #
+        # A closed loop is exempt: its arclength is 2πR by definition, and applying the cap
+        # cut Δ = L/R below 2π so that nothing in the dataset was closed at all.
+        R = 1/κ; Δ = max(Δ, 0.12)
+        Lmax = closed ? 2π*R : min(2π*R, 2frame)
+        # Floor the arclength well above the stroke width, or the figure is a stub: at the
+        # old floor of 38 px a kink left 19 px arms and rendered as an unreadable lump.
+        # Curvature is capped at 0.028 (R ≥ 36 px) for the same reason — with turn bounded
+        # at 2π/3, a tighter radius cannot produce a long enough arc.
+        L = clamp(Δ*R, min(52.0, Lmax), Lmax); Δ = L/R
     else
         Δ = 0.0
     end
@@ -224,6 +237,11 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 25.0), ramp=(0.8
     # (the first version) put every gap at 1.5 stroke widths or more, so `brokenness` never
     # went below 0.6 and the interesting regime — a gap barely wide enough to see — was
     # absent from the dataset entirely.
+    # NOTE: an earlier version capped `ww` at `L/4` here, to stop thick strokes swallowing
+    # short figures. That coupled two target rows: a closed loop has L = 2πR ≈ 250 px, so
+    # closed loops were the only shapes able to carry the widest strokes, and `thickness`
+    # became predictive of `closedness`. The width range is bounded outright instead.
+
     # The gap is a multiple of stroke width, but capped at half the arclength: with strokes
     # now up to 25 px wide, 3.6 widths would be 90 px and would delete the whole figure.
     Params(κ, Δ, L, u(aspect), ev,
