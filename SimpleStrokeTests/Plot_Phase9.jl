@@ -7,15 +7,16 @@ using Serialization, Printf, Plots, Statistics
 const P = ["curvedness","brokenness","closedness","vangle","arms","thickness","fuzziness","polarity"]
 const STRUCT = 1:5          # the geometry rows; 6-8 are the photometric controls
 
-iid   = deserialize(joinpath(@__DIR__, "results", "iid.jls"))
-curve = deserialize(joinpath(@__DIR__, "results_curve", "curve.jls"))
-blk   = deserialize(joinpath(@__DIR__, "results_nocnn2", "blocks.jls"))
+iid   = deserialize(joinpath(@__DIR__, "results_gpu", "iid.jls"))
+curve = deserialize(joinpath(@__DIR__, "results_gpu", "curve.jls"))
+blk   = deserialize(joinpath(@__DIR__, "results_gpu", "blocks.jls"))
+hist  = deserialize(joinpath(@__DIR__, "results_gpu", "history.jls"))
 
 # ── 1. the arms, i.i.d. ─────────────────────────────────────────────────────
 arms = ["pixels·linear","pixels·MLP","CNN","ours·linear","ours·MLP"]
 cols = [:grey70, :grey45, :steelblue, :firebrick, :darkred]
 p1 = plot(size=(1000,420), ylabel="test R²", legend=:topleft, xrotation=20,
-          title="Phase 9 — how much of each property is recoverable, i.i.d.",
+          title="Phase 9 — how much of each property is recoverable, i.i.d. (CNN: full-resolution, 60 epochs, GPU)",
           titlefontsize=11, ylims=(-0.45, 1.05), bottom_margin=8Plots.mm,
           left_margin=6Plots.mm, grid=true, gridalpha=0.25)
 w = 0.15
@@ -77,3 +78,21 @@ println("wrote phase9_arms.png, phase9_blocks.png, phase9_samples.png")
 for k in ks
     @printf("k=%-6d ours %s\n", k, join([@sprintf("%.3f", curve[k][4,j]) for j in 1:8], " "))
 end
+
+# ── 4. learning curves — why a single final number is not enough ────────────
+# The CNN's validation score swings by more than 3 R² between adjacent epochs while its
+# training loss falls smoothly. Best-epoch selection protects the reported number, but a
+# score picked off a curve like this is weaker evidence than one picked off a plateau.
+nanm(v) = (u = filter(!isnan, v); isempty(u) ? NaN : mean(u))
+p4 = plot(size=(1000, 380), xlabel="epoch", ylabel="validation R², mean over properties",
+          legend=:bottomright, ylims=(-1.2, 1.0), grid=true, gridalpha=0.25,
+          title="Training stability, i.i.d. split", titlefontsize=11,
+          bottom_margin=6Plots.mm, left_margin=6Plots.mm)
+for (k, c) in (("iid/CNN", :steelblue), ("iid/ours·MLP", :firebrick), ("iid/pixels·MLP", :grey55))
+    haskey(hist, k) || continue
+    h = hist[k]; v = [nanm(h.val[e, :]) for e in 1:size(h.val, 1)]
+    plot!(p4, 1:length(v), max.(v, -1.2); lw=2, c=c, label=split(k, "/")[2])
+end
+hline!(p4, [0]; lc=:black, lw=1, label="")
+savefig(p4, joinpath(@__DIR__, "phase9_learning.png"))
+println("wrote phase9_learning.png")

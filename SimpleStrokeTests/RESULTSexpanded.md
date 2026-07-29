@@ -222,13 +222,18 @@ is dropped from that split, and shown as `—`. Reporting a number there would b
 | *trivial baseline* | 0.009 | 0.008 | 0.457 | 0.066 | 0.029 |
 | pixels · linear | −0.000 | −0.001 | −0.000 | −0.000 | 0.000 |
 | pixels · MLP | −0.183 | −0.404 | 0.721 | −0.137 | 0.108 |
-| CNN | 0.235 | −0.002 | 0.929 | 0.155 | 0.650 |
-| **ours · linear** | **0.682** | **0.340** | **0.985** | **0.567** | **0.859** |
-| ours · MLP | **0.830** | **0.617** | **0.991** | **0.831** | **0.918** |
+| CNN | 0.449 | 0.254 | 0.947 | 0.291 | **0.874** |
+| **ours · linear** | **0.682** | **0.340** | **0.985** | **0.567** | 0.859 |
+| ours · MLP | **0.829** | **0.615** | **0.992** | **0.831** | **0.916** |
 
-Read the `vangle` column. Raw pixels: nothing. A large neural network on raw pixels: worse
-than nothing. A CNN that learned its own features for this exact task: 0.155. **Our fixed
-features with a plain weighted sum: 0.567.**
+Read the `vangle` column — the angle of a corner. Raw pixels: nothing. A large neural network
+on raw pixels: worse than nothing. A CNN that learned its own features for this exact task:
+0.291. **Our fixed features with a plain weighted sum: 0.567.**
+
+The CNN wins one of the five, `arms` — how many branches meet at a point — by 0.874 to 0.859.
+With a neural network reading our features instead of a weighted sum we lead there too
+(0.916). An earlier version of this experiment used a weaker CNN and we beat it on all five;
+that was not a fair fight, and the numbers above are from a proper one.
 
 **Raw pixels scoring exactly zero is the expected result, not a bug.** A linear readout on
 pixels is a fixed template — it asks "is the image bright *here* and dark *there*?" Since

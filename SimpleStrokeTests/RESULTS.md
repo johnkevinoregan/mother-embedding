@@ -17,8 +17,9 @@ from scratch, including how the splits guarantee the comparisons are fair.
 ## Summary
 
 1. **A linear readout on 279 of our features beats a two-hidden-layer MLP on 12,544 raw
-   pixels on every structural property, and beats an end-to-end CNN on all five.**
-   `vangle` 0.567 vs the CNN's 0.155, `brokenness` 0.340 vs −0.002.
+   pixels on every structural property, and beats a properly trained end-to-end CNN on four
+   of five** — `vangle` 0.567 vs 0.291, `curvedness` 0.682 vs 0.449 — **losing `arms`
+   narrowly, 0.859 to 0.874.** With an MLP readout instead of a linear one it wins all five.
 2. **Under nuisance shift the gap widens.** Trained on light strokes and tested on dark,
    `ours·linear` is unchanged to three decimals while both pixel arms fall far below
    predicting the mean — the MLP to −6.04.
@@ -79,14 +80,20 @@ existed, and the pixel probe has 45× more free parameters than our feature prob
 | *trivial baseline* | 0.009 | 0.008 | 0.457 | 0.066 | 0.029 | 0.195 | 0.152 | 0.063 |
 | pixels·linear | −0.000 | −0.001 | −0.000 | −0.000 | 0.000 | −0.002 | −0.000 | **0.709** |
 | pixels·MLP | −0.183 | −0.404 | 0.721 | −0.137 | 0.108 | 0.007 | −0.222 | **0.787** |
-| CNN | 0.235 | −0.002 | 0.929 | 0.155 | 0.650 | **0.718** | **0.852** | **0.949** |
-| **ours·linear** | **0.682** | **0.340** | **0.985** | **0.567** | **0.859** | 0.576 | 0.625 | −0.000 |
-| ours·MLP | **0.830** | **0.617** | **0.991** | **0.831** | **0.918** | 0.608 | 0.661 | −0.110 |
+| CNN | 0.449 | 0.254 | 0.947 | 0.291 | **0.874** | **0.874** | **0.922** | **0.986** |
+| **ours·linear** | **0.682** | **0.340** | **0.985** | **0.567** | 0.859 | 0.576 | 0.625 | −0.000 |
+| ours·MLP | **0.829** | **0.615** | **0.992** | **0.831** | **0.916** | 0.599 | 0.656 | −0.115 |
+
+*CNN = full-resolution, four conv stages with pooling and batch norm, 60 epochs on a GPU.
+The earlier CPU-era numbers, from two strided convolutions trained for 12 epochs, are in
+"What the weaker CNN cost" below — the difference is large and the caveat was justified.*
 
 **The result splits along the structural/photometric line.** On geometry our fixed features
-with a linear readout beat everything, including a CNN trained on the targets. On the three
-photometric rows the CNN wins — thickness, blur and contrast sign are local statistics a
-convolutional net learns directly, and two of them our representation deliberately discards.
+with a *linear* readout still beat a CNN trained end-to-end on these targets — on four of
+the five rows. The exception is `arms`, where the CNN edges ahead 0.874 to 0.859; with an
+MLP readout on the same features we lead there too, 0.916. On the three photometric rows the
+CNN wins clearly — thickness, blur and contrast sign are local statistics a convolutional net
+learns directly, and two of them our representation deliberately discards.
 
 **`pixels·linear` at exactly zero is the sanity check, not a failure.** A fixed weighted sum
 of pixels is a template at a fixed location, and position and rotation are randomised, so no
@@ -112,9 +119,15 @@ trained.
 |:--|--:|--:|--:|--:|--:|--:|--:|
 | *trivial* | 0.008 | 0.009 | 0.437 | 0.070 | 0.031 | 0.204 | 0.184 |
 | pixels·linear | −0.130 | −0.112 | −2.352 | −0.532 | −1.773 | −2.931 | −0.889 |
-| pixels·MLP | −1.806 | −1.861 | **−6.042** | −5.117 | −3.973 | −7.921 | −4.591 |
+| pixels·MLP | −2.747 | −1.491 | −5.025 | −3.668 | **−6.981** | −8.319 | −4.060 |
+| CNN | 0.202 | −0.197 | 0.817 | **−2.225** | −0.415 | −1.039 | −0.260 |
 | **ours·linear** | **0.682** | **0.350** | **0.985** | **0.570** | **0.857** | 0.634 | 0.639 |
-| ours·MLP | **0.850** | **0.634** | **0.996** | **0.872** | **0.925** | 0.678 | 0.709 |
+| ours·MLP | **0.849** | **0.661** | **0.997** | **0.870** | **0.929** | 0.671 | 0.699 |
+
+**This is where the properly trained CNN separates from us most sharply, and not in its
+favour.** It is the strongest arm on `arms` i.i.d. (0.874) and lands at **−0.415** on the
+same property when contrast is inverted. On `vangle` it goes 0.291 → **−2.225**. Whatever it
+learned about geometry was entangled with which way the contrast ran.
 
 `ours·linear` here is **identical to its i.i.d. row to three decimals** — perfect transfer to
 a contrast polarity it never saw. Both pixel arms do not merely fail; they land far below
