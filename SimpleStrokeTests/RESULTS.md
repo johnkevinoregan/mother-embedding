@@ -257,6 +257,28 @@ rather than jittering from resampling.
 | 12,000 | 0.682 | 0.340 | 0.985 | 0.567 | 0.859 | 0.576 | 0.625 |
 | **% of ceiling at k=500** | **90 %** | 36 % | **99 %** | 64 % | **91 %** | 77 % | 75 % |
 
+And the CNN over the same nested subsets — the comparison that makes the point:
+
+| k | curvedness | brokenness | closedness | vangle | arms |
+|--:|--:|--:|--:|--:|--:|
+| 500 | 0.030 | −0.003 | 0.664 | 0.012 | 0.089 |
+| 2,000 | 0.038 | −0.031 | 0.807 | 0.049 | 0.250 |
+| 6,000 | 0.116 | −0.022 | 0.899 | 0.119 | 0.504 |
+| 12,000 | 0.235 | −0.002 | 0.929 | 0.155 | 0.650 |
+| **% of *its own* ceiling at k=500** | 13 % | — | 71 % | 8 % | **14 %** |
+
+**A fixed representation starts where it will finish; a learned one has to buy its
+representation with data.** On `arms`, ours moves 0.782 → 0.859 across a 24× increase in
+data while the CNN moves 0.089 → 0.650. At 500 images the gap is **8.8×**; by 12,000 it is
+1.3× and still closing.
+
+**That is the honest shape of the result.** Two of the CNN's curves are climbing steeply at
+the right-hand edge — `arms` gained +0.146 over the last doubling — so with substantially
+more data, more epochs, or both, it would likely close the gap on `curvedness` and `arms`.
+What it does *not* do is learn `brokenness` at all: flat within noise of zero at every size,
+where ours reaches 0.340. A 3 px gap in a 112 px image appears to be below what this
+architecture extracts at any sample size tested.
+
 `pixels·linear` is at 0.000 ± 0.02 for every property at every k, except polarity where it
 sits at 0.689–0.709 throughout. **More data does not help a representation that does not
 contain the property**, which is the cleanest statement of what a front end is for.

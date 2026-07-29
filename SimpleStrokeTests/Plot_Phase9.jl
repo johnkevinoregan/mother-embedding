@@ -8,7 +8,7 @@ const P = ["curvedness","brokenness","closedness","vangle","arms","thickness","f
 const STRUCT = 1:5          # the geometry rows; 6-8 are the photometric controls
 
 iid   = deserialize(joinpath(@__DIR__, "results", "iid.jls"))
-curve = deserialize(joinpath(@__DIR__, "results", "curve.jls"))
+curve = deserialize(joinpath(@__DIR__, "results_curve", "curve.jls"))
 blk   = deserialize(joinpath(@__DIR__, "results_nocnn2", "blocks.jls"))
 
 # ── 1. the arms, i.i.d. ─────────────────────────────────────────────────────
@@ -57,17 +57,19 @@ panels = Any[]
 for j in STRUCT
     pj = plot(xscale=:log10, ylims=(-0.15, 1.03), xlabel="training images",
               ylabel = j == 1 ? "test R²" : "", title=P[j], titlefontsize=9,
-              legend = j == 1 ? :bottomright : false, grid=true, gridalpha=0.25,
+              legend = j == 2 ? :topleft : false, grid=true, gridalpha=0.25,
               xticks=(ks, string.(ks)), xrotation=35)
     plot!(pj, ks, [curve[k][4, j] for k in ks]; lw=2.5, marker=:circle, ms=5,
           c=:firebrick, label="ours·linear")
+    plot!(pj, ks, [curve[k][3, j] for k in ks]; lw=2.5, marker=:diamond, ms=5,
+          c=:steelblue, label="CNN (learned)")
     plot!(pj, ks, [curve[k][1, j] for k in ks]; lw=2.5, marker=:square, ms=4,
           c=:grey55, label="pixels·linear")
     hline!(pj, [0]; lc=:black, lw=1, label="")
     push!(panels, pj)
 end
 p3 = plot(panels...; layout=(1, length(STRUCT)), size=(1350, 330),
-          plot_title="Sample efficiency — most properties reach 90 % of their ceiling by 500 images",
+          plot_title="Sample efficiency — a fixed representation with a linear readout, against a CNN learning its own",
           plot_titlefontsize=11, bottom_margin=10Plots.mm, left_margin=7Plots.mm)
 savefig(p3, joinpath(@__DIR__, "phase9_samples.png"))
 

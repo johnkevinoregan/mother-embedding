@@ -72,3 +72,21 @@ Sample efficiency (linear readouts)
       cnn epoch  2  val R² 0.329
       cnn epoch  3  val R² 0.417
       cnn epoch  4  val R² 0.461
+      cnn epoch  5  val R² 0.496
+      cnn epoch  6  val R² 0.512
+      cnn epoch  7  val R² 0.539
+      cnn epoch  8  val R² 0.548
+      cnn epoch  9  val R² 0.549
+      cnn epoch 10  val R² 0.521
+      cnn epoch 11  val R² 0.556
+      cnn epoch 12  val R² 0.550
+      cnn epoch 13  val R² 0.554
+      cnn epoch 14  val R² 0.540
+
+  k = 12000  curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+    pixels·linear     -0.000     -0.001     -0.000     -0.000      0.000     -0.002     -0.000      0.709
+    CNN              0.235     -0.002      0.929      0.155      0.650      0.718      0.852      0.949
+    ours·linear      0.682      0.340      0.985      0.567      0.859      0.576      0.625     -0.000
+  Activating project at `~/claude-code/mother-embedding`
+
+wrote /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/results_curve/

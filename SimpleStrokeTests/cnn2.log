@@ -89,3 +89,29 @@ ours·MLP                 —          —          —          —          �
       cnn epoch  9  val R² 0.460
       cnn epoch 10  val R² 0.448
       cnn epoch 11  val R² 0.457
+      cnn epoch 12  val R² 0.449
+      cnn epoch 13  val R² 0.442
+      cnn epoch 14  val R² 0.437
+
+============================================================================================
+extrapolation: fuzziness — trained on sharp edges (ramp ≤ 3 px), tested on blurred (≥ 8 px)
+============================================================================================
+
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial              0.000      0.005      0.378      0.071      0.024      0.019    -10.968      0.097
+--------------------------------------------------------------------------------------------
+pixels·linear            —          —          —          —          —          —          —          —
+pixels·MLP               —          —          —          —          —          —          —          —
+CNN                  0.200      0.033      0.911      0.167      0.580     -2.154          —      0.796
+ours·linear              —          —          —          —          —          —          —          —
+ours·MLP                 —          —          —          —          —          —          —          —
+      cnn epoch  1  val R² 0.201
+      cnn epoch  2  val R² 0.302
+      cnn epoch  3  val R² 0.397
+      cnn epoch  4  val R² 0.435
+      cnn epoch  5  val R² 0.458
+      cnn epoch  6  val R² 0.465
+      cnn epoch  7  val R² 0.488
+      cnn epoch  8  val R² 0.486
+      cnn epoch  9  val R² 0.497
+      cnn epoch 10  val R² 0.494

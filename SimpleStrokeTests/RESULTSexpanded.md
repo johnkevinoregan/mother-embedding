@@ -391,6 +391,26 @@ scribbles, and the question is not central enough to be worth changing the datas
 With **500 images** — a few minutes of drawing — the front end is at 90 % of what it reaches
 with 12,000, for three of the five geometric properties.
 
+The CNN — which builds its own description from the examples — over the same subsets:
+
+| training images | curvedness | brokenness | closedness | vangle | arms |
+|--:|--:|--:|--:|--:|--:|
+| 500 | 0.030 | −0.003 | 0.664 | 0.012 | 0.089 |
+| 2,000 | 0.038 | −0.031 | 0.807 | 0.049 | 0.250 |
+| 6,000 | 0.116 | −0.022 | 0.899 | 0.119 | 0.504 |
+| 12,000 | 0.235 | −0.002 | 0.929 | 0.155 | 0.650 |
+
+**This is the clearest way to see what a front end buys you.** With 500 images, our fixed
+description already answers "how many arms meet here" at 0.782, while the CNN manages 0.089
+— roughly nine times worse. By 12,000 images the CNN has reached 0.650 and is still
+improving. It is *learning* what we *supplied*.
+
+Being fair to the CNN: two of its curves are still rising steeply at the right-hand edge, so
+with much more data it would probably catch up on some properties. But note `brokenness` —
+whether the stroke has a gap in it. The CNN sits at zero for every training-set size tried.
+A 3-pixel gap in a 112-pixel image is apparently too fine for it to pick up at all, while our
+description reaches 0.340.
+
 Raw pixels sit at 0.000 for every property at every size. **They do not improve with more
 data**, which is the sharpest statement of what a front end is for: extra examples cannot
 recover information the representation never made available.
