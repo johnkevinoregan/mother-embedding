@@ -45,7 +45,11 @@ const NTEST  = parse(Int, get(ENV, "P9_NTEST",  "4000"))
 const KS     = [parse(Int, s) for s in split(get(ENV, "P9_KS", "500,2000,6000,16000"), ",")]
 const EPOCHS = parse(Int, get(ENV, "P9_EPOCHS", "60"))
 const CEPOCH = parse(Int, get(ENV, "P9_CEPOCHS", "18"))
-const OUT    = joinpath(@__DIR__, "results")
+const OUT    = joinpath(@__DIR__, get(ENV, "P9_OUT", "results"))
+# Which arms to run. The CNN is ~95 % of the wall time, so `P9_ARMS=1,2,4,5` gives every
+# other arm — including the whole measurement the experiment is built around — in minutes
+# rather than hours.
+const ARMSEL = [parse(Int, s) for s in split(get(ENV, "P9_ARMS", "1,2,3,4,5"), ",")]
 BLAS.set_num_threads(min(16, Sys.CPU_THREADS)); FFTW.set_num_threads(1)
 mkpath(OUT)
 
@@ -75,6 +79,17 @@ function trivial_baseline(imgs, Ytr, Yte, ntr)
     Atr, Ate = A[1:ntr, :], A[ntr+1:end, :]
     [r2(Ate * (Atr \ Ytr[:, j]), Yte[:, j]) for j in 1:size(Ytr, 2)]
 end
+
+"""
+Mean over the properties that have a defined R².
+
+A held-out nuisance is constant in training, so its own row has zero variance and scores
+`NaN`. Averaging that in makes the selection metric `NaN`, `NaN > best` is false at every
+epoch, and the model records no prediction at all — which showed up as both MLP arms and
+the CNN scoring a flat 0.000 across the polarity split, looking exactly like three
+independent collapses rather than one bug in a comparison.
+"""
+nanmean(v) = (u = filter(!isnan, v); isempty(u) ? NaN : mean(u))
 
 # ── readouts ────────────────────────────────────────────────────────────────
 
@@ -146,7 +161,7 @@ function mlp(Xtr, Ytr, Xva, Yva, Xte; hidden=256, epochs=EPOCHS, seed=1, bs=128)
             _, gs = Flux.withgradient(mm -> Flux.mse(mm(A[:, i]), Yt[:, i]), m)
             Flux.update!(opt, m, gs[1])
         end
-        s = mean(r2(vec(m(V)[j, :]), vec(Yv[j, :])) for j in 1:size(Yv,1))
+        s = nanmean([r2(vec(m(V)[j, :]), vec(Yv[j, :])) for j in 1:size(Yv,1)])
         if s > best; best = s; bestP = permutedims(m(T)); end
     end
     bestP
@@ -174,7 +189,7 @@ function cnn(Itr, Ytr, Iva, Yva, Ite; epochs=CEPOCH, seed=1, bs=64)
             _, gs = Flux.withgradient(mm -> Flux.mse(mm(Itr[:,:,:,i]), Yt[:, i]), m)
             Flux.update!(opt, m, gs[1])
         end
-        s = mean(r2(vec(batched(Iva, 0)[j, :]), vec(Yv[j, :])) for j in 1:size(Yv,1))
+        s = nanmean([r2(vec(batched(Iva, 0)[j, :]), vec(Yv[j, :])) for j in 1:size(Yv,1)])
         @printf("      cnn epoch %2d  val R² %.3f\n", e, s); flush(stdout)
         if s > best; best = s; bestP = permutedims(batched(Ite, 0)); end
     end
@@ -213,7 +228,7 @@ const ARMS = ["pixels·linear", "pixels·MLP", "CNN", "ours·linear", "ours·MLP
 holds polarity fixed, the polarity row is constant in training and no model can be scored
 on it. Its R² is returned as `NaN` rather than as a number that looks like a result.
 """
-function evaluate(itr, Ytr, ite, Yte, spec; drop=nothing, arms=1:5, ntrain=nothing,
+function evaluate(itr, Ytr, ite, Yte, spec; drop=nothing, arms=ARMSEL, ntrain=nothing,
                   Xflat=nothing, Feat=nothing)
     nfull = length(itr)
     ntr = ntrain === nothing ? nfull : min(ntrain, nfull)
@@ -308,11 +323,25 @@ function main()
     @printf("\n%-16s", "block")
     for p in PROPS; @printf("%11s", String(p)[1:min(10,end)]); end; println()
     blocks = [("orient", ("orient",)), ("lowpass", ("lowpass",)), ("A1+A2", ("A1","A2")),
-              ("rays", ("rays",)), ("all", ("orient","lowpass","A1","A2","rays"))]
+              ("rays", ("rays",)), ("all", ("orient","lowpass","A1","A2","rays")),
+              ("all·SHUFFLED", ("orient","lowpass","A1","A2","rays"))]
     battr = Dict{String,Vector{Float64}}()
     for (nm, bs) in blocks
         cols = block_cols(spec, bs...)
-        μ, σ = zfit(Feat[tr, cols]); Z = zapply(Feat[:, cols], μ, σ)
+        Fw = Feat
+        if endswith(nm, "SHUFFLED")
+            # Capacity control. `all` has 279 columns against `orient`'s 135, so part of any
+            # gain could be the extra parameters rather than extra information. Here the
+            # conjunction and ray columns are permuted *across samples*: identical column
+            # count, identical marginals, correspondence with the image destroyed. Whatever
+            # this row scores above `orient` is what capacity alone buys, and the real claim
+            # is `all` minus this, not `all` minus `orient`.
+            Fw = copy(Feat)
+            bad = block_cols(spec, "A1", "A2", "rays")
+            perm = randperm(MersenneTwister(31), size(Fw, 1))
+            Fw[:, bad] = Fw[perm, bad]
+        end
+        μ, σ = zfit(Fw[tr, cols]); Z = zapply(Fw[:, cols], μ, σ)
         P, _ = ridge(Z[tr, :], Zt, Z[va, :], Zv, Z[NTRAIN+1:end, :])
         v = [r2(P[:, j] .* σy[j] .+ μy[j], Yte[:, j]) for j in 1:length(PROPS)]
         battr[nm] = v

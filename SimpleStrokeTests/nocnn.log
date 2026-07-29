@@ -1,0 +1,92 @@
+Phase 9 — 12000 train, 3000 test, 10 threads
+
+front end: 279 columns  (orient 135, lowpass 9, A1 27, A2 27, rays 81)
+
+generated 15000 images in 4s
+featurised in 290s (19.4 ms/img)
+
+============================================================================================
+i.i.d. split — test R² per property, all 12000 training images
+============================================================================================
+
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial              0.009      0.008      0.457      0.066      0.029      0.195      0.152      0.063
+--------------------------------------------------------------------------------------------
+pixels·linear       -0.000     -0.001     -0.000     -0.000      0.000     -0.002     -0.000      0.709
+pixels·MLP          -0.183     -0.404      0.721     -0.137      0.108      0.007     -0.222      0.787
+CNN                      —          —          —          —          —          —          —          —
+ours·linear          0.682      0.340      0.985      0.567      0.859      0.576      0.625     -0.000
+ours·MLP             0.830      0.617      0.991      0.831      0.918      0.608      0.661     -0.110
+
+============================================================================================
+Block attribution — linear readout on one block at a time (test R²)
+============================================================================================
+
+block            curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+orient                0.635      0.159      0.949      0.394      0.667      0.508      0.455     -0.000
+lowpass               0.044      0.051      0.669      0.047      0.238      0.326      0.050     -0.000
+A1+A2                 0.174      0.065      0.783      0.265      0.515      0.508      0.446     -0.000
+rays                  0.310      0.116      0.917      0.303      0.553      0.412      0.359     -0.000
+all                   0.682      0.340      0.985      0.567      0.859      0.576      0.625     -0.000
+
+============================================================================================
+Sample efficiency (linear readouts)
+============================================================================================
+
+  k = 500    curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+    pixels          -0.008     -0.014     -0.198     -0.019      0.001     -0.013     -0.008      0.689
+    ours             0.617      0.122      0.971      0.360      0.782      0.443      0.470     -0.012
+
+  k = 2000   curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+    pixels          -0.004     -0.003     -0.001     -0.002     -0.002     -0.008      0.000      0.703
+    ours             0.648      0.283      0.982      0.486      0.833      0.516      0.565     -0.000
+
+  k = 6000   curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+    pixels          -0.001     -0.002     -0.000     -0.000      0.001     -0.003     -0.000      0.708
+    ours             0.674      0.325      0.985      0.548      0.855      0.568      0.615     -0.000
+
+  k = 12000  curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+    pixels          -0.000     -0.001     -0.000     -0.000      0.000     -0.002     -0.000      0.709
+    ours             0.682      0.340      0.985      0.567      0.859      0.576      0.625     -0.000
+
+============================================================================================
+extrapolation: polarity — trained on light strokes, tested on dark
+============================================================================================
+
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial              0.008      0.009      0.437      0.070      0.031      0.204      0.184        NaN
+--------------------------------------------------------------------------------------------
+pixels·linear       -0.130     -0.112     -2.352     -0.532     -1.773     -2.931     -0.889          —
+pixels·MLP          -0.001     -0.000     -0.001     -0.001     -0.000     -0.000     -0.000          —
+CNN                      —          —          —          —          —          —          —          —
+ours·linear          0.682      0.350      0.985      0.570      0.857      0.634      0.639          —
+ours·MLP            -0.001     -0.000     -0.001     -0.001     -0.000     -0.000     -0.000          —
+
+============================================================================================
+extrapolation: fuzziness — trained on sharp edges (ramp ≤ 3 px), tested on blurred (≥ 8 px)
+============================================================================================
+
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial              0.000      0.005      0.378      0.071      0.024      0.019    -10.968      0.097
+--------------------------------------------------------------------------------------------
+pixels·linear       -0.001     -0.001     -0.004     -0.001     -0.004     -0.003          —      0.753
+pixels·MLP          -0.107     -0.353      0.769     -0.146      0.162     -0.229          —      0.809
+CNN                      —          —          —          —          —          —          —          —
+ours·linear          0.655      0.107      0.982      0.525      0.845     -2.547          —     -0.000
+ours·MLP             0.795      0.435      0.986      0.782      0.895     -2.289          —     -0.121
+
+============================================================================================
+extrapolation: thickness — trained on thin strokes (≤ 6 px), tested on thick (≥ 8 px)
+============================================================================================
+
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial             -0.001     -0.006     -0.435     -0.086     -0.035    -20.898     -0.911      0.116
+--------------------------------------------------------------------------------------------
+pixels·linear       -0.002      0.003     -0.001     -0.000     -0.004          —     -0.004      0.295
+pixels·MLP          -0.316     -0.471      0.508     -0.461     -0.138          —     -1.747      0.611
+CNN                      —          —          —          —          —          —          —          —
+ours·linear          0.619      0.333      0.976      0.490      0.776          —     -2.052     -0.002
+ours·MLP             0.707      0.591      0.958      0.674      0.877          —     -2.747     -0.135
+  Activating project at `~/claude-code/mother-embedding`
+
+wrote /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/results_nocnn/
