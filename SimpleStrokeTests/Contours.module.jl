@@ -33,9 +33,9 @@ identity. As an output rather than a category, closure is just another thing to 
 | 2 | `brokenness` | 0–1 | gap size **in units of stroke width** |
 | 3 | `closedness` | 0/1 | is it a closed loop |
 | 4 | `vangle` | 20–180° | angle at the vertex; **180 = passes straight through** |
-| 5 | `junction` | 2 / 3 / 4 | branches meeting at a point; **2 = no junction** |
+| 5 | `arms` | 2 / 3 / 4 | arms meeting at the point; 2 = the contour passes through |
 | 6 | `thickness` | px | stroke width |
-| 7 | `softness` | px | edge ramp width |
+| 7 | `fuzziness` | px | edge ramp width |
 | 8 | `polarity` | ±1 | light or dark stroke |
 
 **The vertex angle is unmasked: 180° means the stroke passes straight through.** An earlier
@@ -58,14 +58,15 @@ is what makes "a right angle on a strongly curved arm" an ordinary sample.
 **Terminations are deliberately not a row.** Every open stroke ends twice, a gap adds two
 more ends, and a closed loop has none — so termination count is a deterministic function of
 `closedness` and `brokenness` and a row for it would carry no information while inflating
-any average taken over rows. The `junction` row counts *branches*, and its null value is 2:
-a straight line, a curve and a kink all have a contour that simply passes through.
+any average taken over rows. The `arms` row counts how many arms meet at the point, and 2 is
+an ordinary value for it, not a null: a straight line has two arms, one either side. Three
+is a T, four a crossing.
 
 **Rows 6–8 are controls on the front end itself**, in opposite directions. Quadrature
 energy is polarity-invariant by construction, so the orientation block *should* fail to
-predict row 9 — inability is the correct result — while the lowpass block, which carries
+predict row 8 — inability is the correct result — while the lowpass block, which carries
 mean level, should predict it perfectly. And stroke width should be nearly explicit in the
-energy ratio across the three rationally-spaced scales, so row 7 should be linearly
+energy ratio across the three rationally-spaced scales, so row 6 should be linearly
 decodable from very few samples. Both are predictions, on record.
 
 ## What stays uncontrolled, and why it is reported
@@ -85,7 +86,7 @@ export PROPS, N_PROPS, Params, sample_params, render_params, contour_batch,
 
 "Names of the target vector's entries, in order."
 const PROPS = (:curvedness, :brokenness, :closedness, :vangle,
-               :junction, :thickness, :softness, :polarity)
+               :arms, :thickness, :fuzziness, :polarity)
 const N_PROPS = length(PROPS)
 
 """
@@ -255,7 +256,7 @@ function targets_of(p::Params, meas=(corner=0.0, kappa=p.kappa, closedness=p.tur
         p.event === :gap ? squash(p.gap / p.w, 1.0) : 0.0,        # brokenness
         clamp(meas.closedness, 0, 1),                             # closedness
         180.0 - (p.event === :kink ? meas.corner : 0.0),          # vangle (180 = straight through)
-        p.event === :tee ? 3.0 : (p.event === :cross ? 4.0 : 2.0),# junction order
+        p.event === :tee ? 3.0 : (p.event === :cross ? 4.0 : 2.0),# arms meeting at the point
         p.w,                                                      # thickness
         p.ramp,                                                   # softness
         Float64(p.pol),                                           # polarity

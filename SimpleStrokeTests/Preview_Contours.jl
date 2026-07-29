@@ -17,7 +17,7 @@ println("="^76); println("Contact sheet"); println("="^76)
 rng = MersenneTwister(20260729)
 NCOL = 10          # random samples per event row
 NSW  = 6           # steps per sweep row: six well-separated values read better than ten
-                   # near-identical ones, which is why the softness range looked flat
+                   # near-identical ones, which is why the fuzziness range looked flat
 tile(img, ttl) = heatmap(img; c=:grays, clims=(0,1), axis=false, ticks=false,
                          colorbar=false, yflip=true, aspect_ratio=1,
                          title=ttl, titlefontsize=7, titlelocation=:left)
@@ -47,9 +47,9 @@ base = respec(sample_params(MersenneTwister(11); event=:kink), kappa=0.0, turn=0
             arclen=78.0, vturn=deg2rad(90), w=7.0, ramp=1.0, amp=0.85, pol=1, bg=0.5)
 GEOM(seed) = MersenneTwister(seed)
 sw = Any[]
-for r in range(0.8, 22.0; length=NSW)          # edge softness: step edge → heavy blur
+for r in range(0.8, 22.0; length=NSW)          # edge fuzziness: step edge → heavy blur
     push!(sw, tile(render_params(respec(base; ramp=r), GEOM(3); N=N, rot=0.6, at=(56.0,56.0)),
-                   @sprintf("softness %.1f px", r)))
+                   @sprintf("fuzziness %.1f px", r)))
 end
 for w in range(3.0, 25.0; length=NSW)          # stroke thickness
     push!(sw, tile(render_params(respec(base; w=w), GEOM(3); N=N, rot=0.6, at=(56.0,56.0)),
@@ -80,7 +80,7 @@ savefig(joinpath(@__DIR__, "sweeps.png")); println("wrote sweeps.png")
 # The sweep row shows fuzziness qualitatively; this shows what the ramp actually does to
 # the intensity, which is what the Gabor bank sees.
 pr = plot(xlabel="pixels from the stroke centre", ylabel="intensity", legend=:topright,
-          size=(760, 330), title="edge profile at four softness values (stroke width 7 px, peak normalised)",
+          size=(760, 330), title="edge profile at four fuzziness values (stroke width 7 px, peak normalised)",
           titlefontsize=10, left_margin=5Plots.mm, bottom_margin=5Plots.mm)
 for r in (0.8, 5.0, 12.0, 22.0)
     # a *straight* stroke, laid vertically, so one image row is a clean cross-section.
@@ -89,7 +89,7 @@ for r in (0.8, 5.0, 12.0, 22.0)
     img = render_params(respec(base; event=:none, ramp=r, noise=0.0), GEOM(3);
                         N=N, rot=π/2, at=(56.0, 56.0))
     plot!(pr, -26:26, img[56, 30:82]; lw=2.2, marker=:circle, ms=3,
-          label=@sprintf("softness %.1f px", r))
+          label=@sprintf("fuzziness %.1f px", r))
 end
 vline!(pr, [-3.5, 3.5]; ls=:dash, lc=:black, lw=1, label="nominal stroke edge")
 savefig(pr, joinpath(@__DIR__, "edge_profiles.png"))
@@ -155,5 +155,5 @@ println("""
 
 The R² column is the Phase 8 post-mortem made routine. Any property a linear function of
 three scalar image summaries can already predict is not testing structure, and a model
-scoring well on it would be telling us nothing. `thickness`, `softness` and `polarity` are
+scoring well on it would be telling us nothing. `thickness`, `fuzziness` and `polarity` are
 *expected* to be predictable here — they are photometric controls, not structure.""")
