@@ -555,6 +555,42 @@ the CNN back.
 
 ---
 
+## 12b. How finely should we pool? A surprise
+
+The front end divides the image into a grid of cells and summarises each one. All the results
+above use a 3×3 grid — nine cells, 279 numbers. Is that the right choice?
+
+Running it from 1×1 (one cell covering the whole image, 31 numbers) up to 5×5 (775 numbers)
+gives two clean trends in **opposite** directions:
+
+![grid sweep](phase9_grid.png)
+
+- With a **weighted-sum readout**, more cells help up to 3×3, then stop.
+- With a **small neural network** on top, fewer cells are *better all the way down* — and
+  31 numbers from a single cell beat 775 from twenty-five, on every property.
+
+**Why the two disagree.** A weighted sum cannot combine information about *where* something
+is with information about *what* it is — the grid is the only way it gets any spatial
+structure at all. A neural network can build that internally, so the grid gives it nothing it
+could not make for itself. Meanwhile the grid takes something away: **because every image
+places its stroke at a random position, a fixed grid means the same shape in a different
+place produces different numbers**, and the readout has to learn to undo that. One cell
+covering everything has no such problem.
+
+**So the best configuration here is 31 numbers with a small network**, and it beats the
+properly trained CNN comfortably: 0.898 against 0.248 on corner angle, 0.663 against 0.236 on
+brokenness.
+
+**Two honest qualifications.** First, most of this document has emphasised what a *linear*
+readout can recover, because that is the sharpest way to ask whether a property is
+"available". The best configuration turns out not to be linear, so that framing describes the
+3×3 setup rather than the best one. Second, every image here contains exactly one stroke on
+an empty background — so pooling the whole image together loses nothing, because there is
+only one thing in it. With several objects in a scene, one cell would mix them up and the
+grid would start to matter again.
+
+---
+
 ## 13. What these results do and do not show
 
 **They show:**

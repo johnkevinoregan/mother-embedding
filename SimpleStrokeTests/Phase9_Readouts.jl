@@ -401,17 +401,33 @@ function main()
     for p in PROPS; @printf("%11s", String(p)[1:min(10,end)]); end; println()
     blocks = [("orient", ("orient",)), ("lowpass", ("lowpass",)), ("A1+A2", ("A1","A2")),
               ("rays", ("rays",)), ("all", ("orient","lowpass","A1","A2","rays")),
-              ("all·SHUFFLED", ("orient","lowpass","A1","A2","rays"))]
+              ("all·SHUFFLED", ("orient","lowpass","A1","A2","rays")),
+              # Leave-one-out with matched capacity. `all` minus each of these is the unique
+              # contribution of the block that was scrambled, with column count and marginals
+              # held fixed. Needed because the ray transform is **linear** in the energy field
+              # while A1 and A2 are bilinear: if the gain is mostly `rays`, the useful
+              # ingredient is the geometry of the sampling rather than the conjunction, and
+              # "AND layer" would be the wrong name for the result.
+              ("all·noRAYS", ("orient","lowpass","A1","A2","rays")),
+              ("all·noA", ("orient","lowpass","A1","A2","rays")),
+              # The ray block is 81 of 279 columns — 29 % of the representation — split into
+              # three harmonics of the ray transform: c₀ (≈ how many branches), |c₁|/c₀ (how
+              # asymmetric) and |c₂|/c₀. Scrambling one at a time says which of them is
+              # actually carrying anything, and whether 81 columns are earning their place.
+              ("all·noR0", ("orient","lowpass","A1","A2","rays")),
+              ("all·noR1", ("orient","lowpass","A1","A2","rays")),
+              ("all·noR2", ("orient","lowpass","A1","A2","rays")),
+              ("rays.R0", ("rays.R0",)), ("rays.R1", ("rays.R1",)), ("rays.R2", ("rays.R2",))]
     battr = Dict{String,Vector{Float64}}()
     shufruns = Vector{Vector{Float64}}()
     for (nm, bs) in ("blocks" in STAGES ? blocks : [])
       # the control is averaged over NSHUF independent permutations; the others run once
-      reps = endswith(nm, "SHUFFLED") ? (1:NSHUF) : (1:1)
+      reps = startswith(nm, "all·") ? (1:NSHUF) : (1:1)
       acc = Vector{Vector{Float64}}()
       for rep in reps
         cols = block_cols(spec, bs...)
         Fw = Feat
-        if endswith(nm, "SHUFFLED")
+        if startswith(nm, "all·")
             # Capacity control. `all` has 279 columns against `orient`'s 135, so part of any
             # gain could be the extra parameters rather than extra information. Here the
             # conjunction and ray columns are permuted *across samples*: identical column
@@ -419,7 +435,12 @@ function main()
             # this row scores above `orient` is what capacity alone buys, and the real claim
             # is `all` minus this, not `all` minus `orient`.
             Fw = copy(Feat)
-            bad = block_cols(spec, "A1", "A2", "rays")
+            bad = nm == "all·noRAYS" ? block_cols(spec, "rays") :
+                  nm == "all·noA"     ? block_cols(spec, "A1", "A2") :
+                  nm == "all·noR0"    ? block_cols(spec, "rays.R0") :
+                  nm == "all·noR1"    ? block_cols(spec, "rays.R1") :
+                  nm == "all·noR2"    ? block_cols(spec, "rays.R2") :
+                                        block_cols(spec, "A1", "A2", "rays")
             perm = randperm(MersenneTwister(31 + rep), size(Fw, 1))
             Fw[:, bad] = Fw[perm, bad]
         end
@@ -429,7 +450,7 @@ function main()
       end
       v = [mean(a[j] for a in acc) for j in 1:length(PROPS)]
       battr[nm] = v
-      endswith(nm, "SHUFFLED") && (shufruns = acc)
+      nm == "all·SHUFFLED" && (shufruns = acc)
       @printf("%-16s", nm); for x in v; @printf("%11.3f", x); end
       if length(acc) > 1
           sd = [std([a[j] for a in acc]) for j in 1:length(PROPS)]

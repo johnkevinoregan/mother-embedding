@@ -137,3 +137,29 @@ hline!(p6, [0]; lc=:black, lw=1, label="")
 savefig(p6, joinpath(@__DIR__, "phase9_learning_splits.png"))
 println("wrote phase9_learning_detail.png, phase9_learning_splits.png")
 println("wrote phase9_learning.png")
+
+# ── 7. pooling grid sweep ───────────────────────────────────────────────────
+# The two readouts want opposite things. A linear map needs the grid to express
+# position-dependent combinations, so it peaks at 3x3. An MLP can build those itself, and
+# would rather have the translation invariance that global pooling gives for free — so it
+# improves monotonically as the grid coarsens, and 31 globally-pooled numbers beat 775.
+gr_cols = [31, 124, 279, 496, 775]
+gr_lin = Dict("curvedness"=>[0.675,0.679,0.677,0.664,0.657], "brokenness"=>[0.223,0.259,0.319,0.318,0.326],
+              "vangle"=>[0.491,0.521,0.552,0.532,0.532], "arms"=>[0.688,0.782,0.842,0.839,0.835])
+gr_mlp = Dict("curvedness"=>[0.903,0.861,0.824,0.780,0.744], "brokenness"=>[0.663,0.622,0.620,0.539,0.503],
+              "vangle"=>[0.898,0.858,0.822,0.785,0.739], "arms"=>[0.930,0.917,0.904,0.887,0.871])
+pans7 = Any[]
+for nm in ("curvedness","brokenness","vangle","arms")
+    pj = plot(xticks=(1:5, ["1×1\n31","2×2\n124","3×3\n279","4×4\n496","5×5\n775"]),
+              title=nm, titlefontsize=10, ylims=(0.15, 1.0), grid=true, gridalpha=0.25,
+              xlabel="pooling grid / columns", ylabel = nm=="curvedness" ? "test R²" : "",
+              legend = nm=="brokenness" ? :bottomright : false)
+    plot!(pj, 1:5, gr_mlp[nm]; lw=2.5, marker=:circle, ms=5, c=:firebrick, label="ours·MLP")
+    plot!(pj, 1:5, gr_lin[nm]; lw=2.5, marker=:square, ms=4, c=:steelblue, label="ours·linear")
+    push!(pans7, pj)
+end
+p7 = plot(pans7...; layout=(1,4), size=(1250, 340), bottom_margin=11Plots.mm, left_margin=7Plots.mm,
+          plot_title="Pooling grid: a linear readout wants the grid, a nonlinear one wants the invariance",
+          plot_titlefontsize=11)
+savefig(p7, joinpath(@__DIR__, "phase9_grid.png"))
+println("wrote phase9_grid.png")

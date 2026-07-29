@@ -316,6 +316,54 @@ limited by the 3×3 pooling grid rather than by data.
 
 ---
 
+## The pooling grid — and a configuration that beats everything here
+
+![grid sweep](phase9_grid.png)
+
+`grid = 5` was run to ask whether `brokenness` and `vangle` were limited by the operators or
+by pooling a 3 px gap inside a 37 px cell. The answer is the operators — but sweeping the
+grid the *other* way turned up something better.
+
+| grid | columns | linear `vangle` | linear `arms` | **MLP `vangle`** | **MLP `arms`** |
+|--:|--:|--:|--:|--:|--:|
+| **1×1** | **31** | 0.491 | 0.688 | **0.898** | **0.930** |
+| 2×2 | 124 | 0.521 | 0.782 | 0.858 | 0.917 |
+| 3×3 | 279 | **0.552** | **0.842** | 0.822 | 0.904 |
+| 4×4 | 496 | 0.532 | 0.839 | 0.785 | 0.887 |
+| 5×5 | 775 | 0.532 | 0.835 | 0.739 | 0.871 |
+
+**The two readouts want opposite things, monotonically and without exception.** The linear
+readout peaks at 3×3; the MLP improves all the way down to a single cell, and **31 globally
+pooled numbers beat 775 on every row**.
+
+**Why.** A linear map cannot form position-dependent combinations for itself, so the grid is
+how it gets them — the cells *are* its nonlinearity. An MLP builds those internally, and what
+it would rather have is what the grid destroys: **translation invariance**. Position is
+randomised in every image, so a fixed grid makes the same shape at a different place produce
+different numbers, and any readout on it must learn to undo that from data. Global pooling
+has it for free.
+
+**The best configuration in this experiment is therefore 31 features, globally pooled, with a
+small MLP** — and it beats the properly trained CNN by a wide margin:
+
+| | `curvedness` | `brokenness` | `closedness` | `vangle` | `arms` |
+|:--|--:|--:|--:|--:|--:|
+| CNN (full-res, 60 epochs, GPU) | 0.410 | 0.236 | 0.959 | 0.248 | 0.843 |
+| **grid 1 + MLP (31 features)** | **0.903** | **0.663** | **0.996** | **0.898** | **0.930** |
+
+**Two things this costs us.** The "explicit under a *linear* readout" framing — the whole
+premise of the phase — describes the 3×3 configuration, not the best one. And the
+translation-invariance handicap that has been noted throughout as running against us turns
+out to have been **self-inflicted**: the front end can be translation invariant simply by not
+imposing a grid.
+
+**And one caveat.** These stimuli contain a single figure on an empty field, so global
+pooling loses nothing — there is only one thing to pool. On an image with several objects it
+would confound them, and the grid would start earning its place again. This result is about
+this dataset, not about pooling in general.
+
+---
+
 ## The bug this found
 
 On its first real run the block table showed `orient` predicting **polarity at R² 0.65**,
