@@ -354,6 +354,19 @@ constructed on which the conjunction layer beats the orientation statistics** �
 not the binary `F`/`f` probe, and not a synthetic benchmark built specifically to require
 co-location.
 
+> **SUPERSEDED — see `SimpleStrokeTests/RESULTS.md` (Phase 9).** A task has now been
+> constructed. On a graded-property contour dataset the conjunction and ray blocks are worth
+> **+0.166 R² on brokenness, +0.164 on corner angle and +0.132 on junction order** over a
+> shuffle control matching column count and marginals — against +0.01 here.
+>
+> The EMNIST conclusion below stands unchanged: the layer really does add ≈ 0 *on
+> handwriting*, for the reason Phase 7 gives. What Phase 9 shows is that this was a
+> statement about the **data**, not about the operators. The Phase 8 post-mortem was also
+> right about its own failure and wrong in its generalisation: co-location differences do
+> always change local ink density, but on a task where corner angle and junction order vary
+> independently of thickness and contrast, that no longer makes the conjunction layer
+> redundant.
+
 ---
 
 ## The orientation convention, checked
@@ -465,7 +478,7 @@ EMNIST number exactly, beats the previous features by 1.4 points, runs at 20.9 m
 and — Phase 6 — demonstrably carries the invariances that augmentation otherwise has to
 supply.
 
-**Not established.** That the conjunction layer helps anything. Five independent lines
+**Not established *on EMNIST*.** That the conjunction layer helps there. Five independent lines
 converge on ≈ 0: full data (+0.01), finer pooling (recovers 3.1 points of A signal, adds
 nothing), sample size (flat at every k from 200 images to 112,800), the binary `F`/`f`
 probe (worse than orient), and a synthetic benchmark built specifically to require
