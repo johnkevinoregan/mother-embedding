@@ -24,11 +24,11 @@ tile(img, ttl) = heatmap(img; c=:grays, clims=(0,1), axis=false, ticks=false,
 rows = [(:none, "no event"), (:gap, "gap"), (:kink, "kink"), (:tee, "tee"), (:cross, "crossing")]
 panels = Any[]
 for (ev, name) in rows, k in 1:NCOL
-    p = sample_params(rng; event=ev); v, _ = targets_of(p)
+    p = sample_params(rng; event=ev); img, v, _ = stimulus(p, rng; N=N)
     ttl = if ev === :kink;  @sprintf("%.0f° %s", v[5], band_of(v[5]))
           elseif ev === :gap; @sprintf("brk %.2f w %.1f", v[2], v[7])
           else @sprintf("crv %.2f cls %.2f", v[1], v[3]) end
-    push!(panels, tile(render_params(p, rng; N=N), (k == 1 ? name*" — " : "")*ttl))
+    push!(panels, tile(img, (k == 1 ? name*" — " : "")*ttl))
 end
 plot(panels...; layout=(length(rows), NCOL), size=(146NCOL, 150length(rows)),
      plot_title="SimpleStrokeTests — 10 random samples per event type",

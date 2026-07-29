@@ -67,7 +67,7 @@ module Contours
 using Random, Statistics, LinearAlgebra
 
 export PROPS, N_PROPS, Params, sample_params, render_params, contour_batch,
-       targets_of, ANGLE_BANDS, band_of, respec
+       targets_of, ANGLE_BANDS, ANGLE_WINDOW, band_of, respec, stimulus, vertex_angle
 
 "Names of the target vector's entries, in order."
 const PROPS = (:curvedness, :brokenness, :closedness, :angledness,
@@ -84,6 +84,23 @@ sampling over 20–160° would have left `:right` with 7 % of the data.
 const ANGLE_BANDS = (acute = (20.0, 80.0), right = (80.0, 100.0), obtuse = (100.0, 160.0))
 
 band_of(deg) = deg < 80 ? :acute : (deg < 100 ? :right : :obtuse)
+
+"""
+Half-width, in pixels, of the window over which the corner angle is measured.
+
+The corner angle is **measured back out of the geometry** over this window rather than
+taken from the parameter that generated it. On a straight base the two agree exactly, but
+when the arms are themselves curved they do not: the label is the discontinuity in the
+*tangent* at the vertex, while what is visible is the direction of each limb, and a 35 px
+arm on a radius-22 base swings 45° away from its own tangent. Measured against the
+generating parameter, the mean error was 28° on strongly curved bases and **a third of all
+kinked samples fell in a different band than their label**.
+
+A label the image does not carry is not a hard example, it is a wrong one, and no model
+can be scored against it. 12 px is chosen to be comparable to the envelope of the coarsest
+filter in the bank, so the target describes structure at the scale the front end resolves.
+"""
+const ANGLE_WINDOW = 12
 
 # ── the parameter space ─────────────────────────────────────────────────────
 
@@ -184,14 +201,15 @@ The target vector and a mask marking which entries are defined for this stimulus
 stroke is an unmistakable break, the same gap in an 11 px stroke is barely a nick, and the
 target should say so.
 """
-function targets_of(p::Params)
-    kink = p.event === :kink
+function targets_of(p::Params, measured_angle=NaN)
+    kink = p.event === :kink && !isnan(measured_angle)
+    ang = kink ? measured_angle : rad2deg(p.angle)
     v = Float64[
         squash(p.kappa, 0.012),                                   # curvedness
         p.event === :gap ? squash(p.gap / p.w, 1.0) : 0.0,        # brokenness
         clamp(p.turn / 2π, 0, 1),                                 # closedness
-        kink ? 1.0 : 0.0,                                         # angledness
-        kink ? rad2deg(p.angle) : 90.0,                           # angle (masked if not)
+        p.event === :kink ? 1.0 : 0.0,                            # angledness
+        kink ? ang : 90.0,                                        # angle (masked if not)
         p.event === :tee ? 3.0 : (p.event === :cross ? 4.0 : 2.0),# rays
         p.w,                                                      # thickness
         p.ramp,                                                   # softness
@@ -222,10 +240,16 @@ function apply_gap(q, g, rng)
     filter(s -> length(s) >= 2, [q[1:max(1, i-h)], q[min(n, i+h):n]])
 end
 
-"Rotate the tail about the vertex so the two arms meet at interior angle `α`."
-function apply_kink(q, α, rng)
-    n = length(q); i = round(Int, n*(0.32 + 0.36rand(rng)))
-    turn = (π - α) * rand(rng, (-1, 1))
+"""
+Rotate the tail about the vertex at index `i` by `sgn·(π − α)`.
+
+Deterministic in `i` and `sgn` so that `solve_kink` can vary `α` alone: the search needs
+the same figure at every trial angle, and drawing the vertex position afresh each time
+would make the measured angle jump around for reasons unrelated to `α`.
+"""
+function apply_kink(q, α, i::Int, sgn::Int)
+    n = length(q)
+    turn = (π - α) * sgn
     cy, cx = q[i]; s, c = sin(turn), cos(turn)
     r = copy(q)
     @inbounds for j in i+1:n
@@ -276,25 +300,93 @@ function self_crossing(polys)
 end
 
 """
-    geometry(p, rng)
+    vertex_angle(polys, W = ANGLE_WINDOW)
 
-Base curve plus its event. Unintended self-crossings are redrawn — except for `:cross`,
-where the crossing is the target. The retry resamples the **event placement only**: the
-`Params` are fixed on entry, so no retry loop can make stroke width or polarity depend on
-what event is present.
+The angle between the two limbs at the sharpest point of the figure, measured over a
+window of `W` px each side. `NaN` if there is no room to measure.
+
+The vertex is located as the point of maximum turn rather than taken from the index that
+built it, so this is a genuine measurement of the rendered geometry and would catch a
+kink that the construction placed somewhere other than where it was asked to.
+"""
+function vertex_angle(polys, W::Int=ANGLE_WINDOW)
+    P = polys[1]; n = length(P)
+    n < 2W + 3 && return NaN
+    best = 0.0; iv = 0
+    @inbounds for i in 3:n-2
+        a = atan(P[i][1]-P[i-2][1], P[i][2]-P[i-2][2])
+        b = atan(P[i+2][1]-P[i][1], P[i+2][2]-P[i][2])
+        t = abs(atan(sin(b-a), cos(b-a)))
+        t > best && (best = t; iv = i)
+    end
+    (iv == 0 || iv-W < 1 || iv+W > n) && return NaN
+    v1 = (P[iv-W][1]-P[iv][1], P[iv-W][2]-P[iv][2])
+    v2 = (P[iv+W][1]-P[iv][1], P[iv+W][2]-P[iv][2])
+    rad2deg(acos(clamp((v1[1]*v2[1] + v1[2]*v2[2])/(hypot(v1...)*hypot(v2...)), -1, 1)))
+end
+
+"""
+    solve_kink(q, want_deg, i, sgn) -> (polys, measured)
+
+Find the tail rotation whose **measured** corner angle is `want_deg`, by bisection on the
+generating angle.
+
+Needed because measuring the angle rather than asserting it broke the sampling: drawing the
+generating angle a third in each band left the *measured* bands at 0.35 / 0.19 / 0.46,
+since curved arms bias the measurement outward. Inverting the map restores balance without
+touching the curvature distribution — the alternative, rejecting samples whose measured
+band was over-represented, would have thrown away strongly curved arms preferentially and
+coupled `curvedness` to `angle`.
+
+Where the requested angle is unreachable for this figure, the closest attainable one is
+used and its *measured* value returned, so the label still describes the image.
+"""
+function solve_kink(q, want_deg::Float64, i::Int, sgn::Int)
+    lo, hi = deg2rad(1.0), deg2rad(179.0)
+    local best, bestang, bestrr
+    bestrr = Inf
+    for _ in 1:16
+        mid = (lo + hi)/2
+        polys = apply_kink(q, mid, i, sgn)
+        a = vertex_angle(polys)
+        isnan(a) && return polys, a
+        r = abs(a - want_deg)
+        if r < bestrr; bestrr = r; best = polys; bestang = a; end
+        a < want_deg ? (lo = mid) : (hi = mid)
+    end
+    best, bestang
+end
+
+"""
+    geometry(p, rng) -> (polys, measured_angle)
+
+Base curve plus its event, and the corner angle measured back out of the result — `NaN`
+when there is no kink. Unintended self-crossings are redrawn, except for `:cross` where the
+crossing is the target. The retry resamples the **event placement only**: the `Params` are
+fixed on entry, so no retry loop can make stroke width or polarity depend on the event.
+
+A kink whose angle cannot be measured — too near an end of a short arm to fit the window —
+is redrawn rather than kept with an asserted label.
 """
 function geometry(p::Params, rng; tries::Int=24)
     q = base_curve(p)
     local polys
+    local meas = NaN
     for _ in 1:tries
-        polys = if p.event === :none;  [q]
-        elseif p.event === :gap;       apply_gap(q, p.gap, rng)
-        elseif p.event === :kink;      apply_kink(q, p.angle, rng)
-        else                           add_branch(q, p.event === :cross, p.branch, rng)
+        if p.event === :kink
+            n = length(q)
+            i = round(Int, n*(0.32 + 0.36rand(rng)))
+            polys, meas = solve_kink(q, rad2deg(p.angle), i, rand(rng, (-1, 1)))
+            (!isnan(meas) && !self_crossing(polys)) && return polys, meas
+        else
+            polys = if p.event === :none;  [q]
+            elseif p.event === :gap;       apply_gap(q, p.gap, rng)
+            else                           add_branch(q, p.event === :cross, p.branch, rng)
+            end
+            (p.event === :cross || !self_crossing(polys)) && return polys, NaN
         end
-        (p.event === :cross || !self_crossing(polys)) && return polys
     end
-    polys
+    polys, meas
 end
 
 # ── rendering ───────────────────────────────────────────────────────────────
@@ -330,7 +422,26 @@ The distance field is built segment by segment over each segment's own bounding 
 expanded by the profile's reach, rather than testing every pixel against every segment.
 """
 function render_params(p::Params, rng; N::Int=112, rot=nothing, at=nothing)
-    polys = geometry(p, rng)
+    first(stimulus(p, rng; N=N, rot=rot, at=at))
+end
+
+"""
+    stimulus(p, rng; N=112, rot=nothing, at=nothing) -> (img, v, mask)
+
+Image together with the target vector and mask **computed from the geometry that was
+actually drawn**. This is the entry point the dataset uses; `render_params` is the
+image-only convenience wrapper for figures.
+
+Targets are derived here rather than from `p` alone because the corner angle is measured
+from the rendered figure — see `ANGLE_WINDOW`.
+"""
+function stimulus(p::Params, rng; N::Int=112, rot=nothing, at=nothing)
+    polys, meas = geometry(p, rng)
+    v, mask = targets_of(p, meas)
+    render_geom(polys, p, rng; N=N, rot=rot, at=at), v, mask
+end
+
+function render_geom(polys, p::Params, rng; N::Int=112, rot=nothing, at=nothing)
 
     φ = rot === nothing ? 2π*rand(rng) : Float64(rot); s, c = sin(φ), cos(φ)
     polys = [[(c*y + s*x, -s*y + c*x) for (y,x) in P] for P in polys]
@@ -374,8 +485,8 @@ function contour_batch(n::Int, seed::Int; N::Int=112, kw...)
     Y = zeros(Float64, n, N_PROPS); M = trues(n, N_PROPS); ps = Vector{Params}(undef, n)
     for i in 1:n
         p = sample_params(rng; kw...)
-        v, mk = targets_of(p)
-        imgs[i] = render_params(p, rng; N=N); Y[i,:] = v; M[i,:] = mk; ps[i] = p
+        imgs[i], v, mk = stimulus(p, rng; N=N)
+        Y[i,:] = v; M[i,:] = mk; ps[i] = p
     end
     imgs, Y, M, ps
 end
