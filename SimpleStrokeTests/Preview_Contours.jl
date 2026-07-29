@@ -15,7 +15,9 @@ const N = 112
 # ── contact sheet, organised by event so the sheet is readable ──────────────
 println("="^76); println("Contact sheet"); println("="^76)
 rng = MersenneTwister(20260729)
-NCOL = 10
+NCOL = 10          # random samples per event row
+NSW  = 6           # steps per sweep row: six well-separated values read better than ten
+                   # near-identical ones, which is why the softness range looked flat
 tile(img, ttl) = heatmap(img; c=:grays, clims=(0,1), axis=false, ticks=false,
                          colorbar=false, yflip=true, aspect_ratio=1,
                          title=ttl, titlefontsize=7, titlelocation=:left)
@@ -43,31 +45,31 @@ base = respec(sample_params(MersenneTwister(11); event=:kink), kappa=0.0, turn=0
             arclen=78.0, angle=deg2rad(90), w=7.0, ramp=1.0, amp=0.85, pol=1, bg=0.5)
 GEOM(seed) = MersenneTwister(seed)
 sw = Any[]
-for r in range(0.6, 9.0; length=NCOL)          # edge softness: step edge → heavy blur
+for r in range(0.8, 22.0; length=NSW)          # edge softness: step edge → heavy blur
     push!(sw, tile(render_params(respec(base; ramp=r), GEOM(3); N=N, rot=0.6, at=(56.0,56.0)),
                    @sprintf("softness %.1f px", r)))
 end
-for w in range(2.5, 13.0; length=NCOL)          # stroke thickness
+for w in range(3.0, 25.0; length=NSW)          # stroke thickness
     push!(sw, tile(render_params(respec(base; w=w), GEOM(3); N=N, rot=0.6, at=(56.0,56.0)),
                    @sprintf("thickness %.1f px", w)))
 end
-for g in range(1.0, 26.0; length=NCOL)          # gap, from a nick to a clear break
+for g in range(1.0, 30.0; length=NSW)          # gap, from a nick to a clear break
     q = respec(base; event=:gap, gap=g)
     push!(sw, tile(render_params(q, GEOM(3); N=N, rot=0.6, at=(56.0,56.0)),
                    @sprintf("gap %.0f px  brk %.2f", g, targets_of(q)[1][2])))
 end
-for a in range(20, 160; length=NCOL)            # corner angle
+for a in range(20, 160; length=NSW)            # corner angle
     q = respec(base; angle=deg2rad(a))
     push!(sw, tile(render_params(q, GEOM(3); N=N, rot=0.6, at=(56.0,56.0)),
                    @sprintf("angle %.0f°  %s", a, band_of(a))))
 end
-for (i, pol) in enumerate(vcat(fill(1, NCOL÷2), fill(-1, NCOL÷2)))   # polarity × contrast
-    amp = 0.18 + 0.82*((i-1) % (NCOL÷2))/(NCOL÷2 - 1)
+for (i, pol) in enumerate(vcat(fill(1, NSW÷2), fill(-1, NSW÷2)))   # polarity × contrast
+    amp = 0.18 + 0.82*((i-1) % (NSW÷2))/(NSW÷2 - 1)
     push!(sw, tile(render_params(respec(base; pol=pol, amp=amp), GEOM(3); N=N, rot=0.6,
                                  at=(56.0,56.0)),
                    @sprintf("%s  amp %.2f", pol == 1 ? "light" : "dark", amp)))
 end
-plot(sw...; layout=(5, NCOL), size=(146NCOL, 150*5),
+plot(sw...; layout=(5, NSW), size=(168NSW, 172*5),
      plot_title="one parameter swept, everything else pinned",
      plot_titlefontsize=12)
 savefig(joinpath(@__DIR__, "sweeps.png")); println("wrote sweeps.png")
@@ -76,20 +78,20 @@ savefig(joinpath(@__DIR__, "sweeps.png")); println("wrote sweeps.png")
 # The sweep row shows fuzziness qualitatively; this shows what the ramp actually does to
 # the intensity, which is what the Gabor bank sees.
 pr = plot(xlabel="pixels from the stroke centre", ylabel="intensity", legend=:topright,
-          size=(760, 330), title="edge profile at four softness values (stroke width 7 px)",
+          size=(760, 330), title="edge profile at four softness values (stroke width 7 px, peak normalised)",
           titlefontsize=10, left_margin=5Plots.mm, bottom_margin=5Plots.mm)
-for r in (0.8, 2.5, 5.0, 9.0)
+for r in (0.8, 5.0, 12.0, 22.0)
     # a *straight* stroke, laid vertically, so one image row is a clean cross-section.
     # Cutting a kinked stimulus (the first version) missed the stroke entirely at the sharp
     # settings and only the widest ramp reached the sampled row.
     img = render_params(respec(base; event=:none, ramp=r, noise=0.0), GEOM(3);
                         N=N, rot=π/2, at=(56.0, 56.0))
-    plot!(pr, -16:16, img[56, 40:72]; lw=2.2, marker=:circle, ms=3,
+    plot!(pr, -26:26, img[56, 30:82]; lw=2.2, marker=:circle, ms=3,
           label=@sprintf("softness %.1f px", r))
 end
 vline!(pr, [-3.5, 3.5]; ls=:dash, lc=:black, lw=1, label="nominal stroke edge")
-savefig(pr, joinpath(@__DIR__, "figures", "edge_profiles.png"))
-println("wrote figures/edge_profiles.png")
+savefig(pr, joinpath(@__DIR__, "edge_profiles.png"))
+println("wrote edge_profiles.png")
 
 # ── audit ───────────────────────────────────────────────────────────────────
 imgs, Y, M, ps = contour_batch(3000, 1; N=N)

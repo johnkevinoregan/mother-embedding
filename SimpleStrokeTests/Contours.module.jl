@@ -139,28 +139,42 @@ interpolate.
 Curvature and turn are drawn independently and the arclength follows from them, which is
 what keeps `curvedness` and `closedness` from collapsing onto one another.
 """
-function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 11.0), ramp=(0.8, 6.0),
+function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 25.0), ramp=(0.8, 20.0),
                        amp=(0.30, 1.00), bg=(0.40, 0.60), noise=0.02,
                        kappa=(0.0, 0.045), turn=(0.0, 2π), aspect=(0.62, 1.0),
-                       p_straight=0.20, frame=45.0)
+                       p_straight=0.20, p_closed=0.18, N=112)
     u(r) = r isa Tuple ? r[1] + (r[2]-r[1])*rand(rng) : Float64(r)
 
-    # An exactly straight stroke needs its own probability atom: sampling curvature from a
-    # continuous range makes κ = 0 a measure-zero event, and the dataset then has no
+    # Stroke width and edge ramp are drawn first because they decide how much room is left
+    # for the figure: a 25 px stroke with a 20 px ramp reaches 23 px beyond its centreline,
+    # and a shape sized for a hairline would be clipped by the frame.
+    # Log-uniform, not uniform. The range runs to a 25 px stroke and a 20 px ramp, but drawn
+    # uniformly the *mean* width would be 14 px and almost every figure would be a blob with
+    # its structure swallowed — a 25 px stroke on a 45 px radius leaves a 16 px hole. Sampled
+    # log-uniformly the extremes are reachable while the typical stroke stays around 8 px,
+    # which is what "the thickest up to 25" asks for.
+    lu(r) = r isa Tuple ? exp(log(r[1]) + (log(r[2])-log(r[1]))*rand(rng)) : Float64(r)
+    ww = lu(w); rr = lu(ramp)
+    frame = clamp(N/2 - (ww/2 + rr/2 + 3), 16.0, 45.0)
+
+    # A closed loop needs turn ≈ 2π exactly, which uniform sampling almost never produces —
+    # closed ellipses were present in the dataset but at a few percent, so ten random
+    # samples rarely showed one. Like `straight`, closure gets its own probability atom.
+    Δ = rand(rng) < p_closed ? 2π : u(turn)
+
+    # An exactly straight stroke needs its own atom for the same reason: sampling curvature
+    # from a continuous range makes κ = 0 a measure-zero event, and the dataset then has no
     # straight lines at all — which is how the first version of this generator produced a
     # `curvedness` target that never went below 0.52.
-    Δ = u(turn)
     straight = rand(rng) < p_straight
-    κ = 0.0; L = 58 + 38rand(rng)
+    κ = 0.0; L = min(58 + 38rand(rng), 2frame)
     if !straight
-        # The figure has to fit the frame, but the binding constraint is the arc's *chord*,
-        # not its diameter: a shallow arc of very large radius fits easily. Capping the
-        # radius at a constant (the previous bug) therefore also put a floor under the
-        # curvature and left a hole in the low end of the target range.
+        # The figure has to fit, but the binding constraint is the arc's *chord*, not its
+        # diameter: a shallow arc of very large radius fits easily. Capping the radius at a
+        # constant (an earlier bug) therefore also put a floor under the curvature and left
+        # a hole in the low end of the target range.
         chord = Δ >= π ? 1.0 : max(sin(Δ/2), 0.05)
-        Rmax = min(frame/chord, 600.0)
-        κmin = 1/Rmax
-        κ = max(u(kappa), κmin)
+        κ = max(u(kappa), 1/min(frame/chord, 600.0))
         R = 1/κ; Δ = max(Δ, 0.12); L = clamp(Δ*R, 38.0, 2π*R); Δ = L/R
     else
         Δ = 0.0
@@ -168,7 +182,6 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 11.0), ramp=(0.8
 
     ev = event === nothing ? rand(rng, (:none, :none, :gap, :kink, :kink, :tee, :cross)) :
                              Symbol(event)
-    ww = u(w)
     b = rand(rng, keys(ANGLE_BANDS))                 # a third of kinks in each band
     lo, hi = getfield(ANGLE_BANDS, b)
 
@@ -177,11 +190,13 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 11.0), ramp=(0.8
     # (the first version) put every gap at 1.5 stroke widths or more, so `brokenness` never
     # went below 0.6 and the interesting regime — a gap barely wide enough to see — was
     # absent from the dataset entirely.
+    # The gap is a multiple of stroke width, but capped at half the arclength: with strokes
+    # now up to 25 px wide, 3.6 widths would be 90 px and would delete the whole figure.
     Params(κ, Δ, L, u(aspect), ev,
-           max(1.0, ww * (0.10 + 3.6rand(rng))),     # gap, in units of stroke width
+           clamp(ww * (0.10 + 3.6rand(rng)), 1.0, 0.5L),
            deg2rad(lo + (hi-lo)*rand(rng)),
            deg2rad(30 + 60rand(rng)) * rand(rng, (-1, 1)),
-           ww, u(ramp), u(amp),
+           ww, rr, u(amp),
            pol === nothing ? rand(rng, (-1, 1)) : Int(pol),
            u(bg), Float64(noise))
 end
@@ -201,13 +216,13 @@ The target vector and a mask marking which entries are defined for this stimulus
 stroke is an unmistakable break, the same gap in an 11 px stroke is barely a nick, and the
 target should say so.
 """
-function targets_of(p::Params, measured_angle=NaN)
-    kink = p.event === :kink && !isnan(measured_angle)
-    ang = kink ? measured_angle : rad2deg(p.angle)
+function targets_of(p::Params, meas=(angle=NaN, kappa=p.kappa, closedness=p.turn/2π))
+    kink = p.event === :kink && !isnan(meas.angle)
+    ang = kink ? meas.angle : rad2deg(p.angle)
     v = Float64[
-        squash(p.kappa, 0.012),                                   # curvedness
+        squash(meas.kappa, 0.012),                                # curvedness
         p.event === :gap ? squash(p.gap / p.w, 1.0) : 0.0,        # brokenness
-        clamp(p.turn / 2π, 0, 1),                                 # closedness
+        clamp(meas.closedness, 0, 1),                             # closedness
         p.event === :kink ? 1.0 : 0.0,                            # angledness
         kink ? ang : 90.0,                                        # angle (masked if not)
         p.event === :tee ? 3.0 : (p.event === :cross ? 4.0 : 2.0),# rays
@@ -267,15 +282,55 @@ differ in ray count and in nothing incidental.
 The tangent is taken with **modular** indices, because on a nearly-closed base a clamped
 index collapses both neighbours onto the same point, and the branch then gets laid down
 *along* the contour instead of across it.
+
+The branch carries the **same curvature as the base**. Drawing it always straight — as an
+earlier version did — meant a curved base could carry a straight stem, so a tee or a
+crossing mixed two stroke types in one figure and the model would have to describe them
+jointly. With one curvature per figure the target vector describes both strokes at once.
+Separating the two strokes' descriptions is a later problem.
 """
-function add_branch(q, through::Bool, brnch, rng)
+function add_branch(q, through::Bool, brnch, κ, rng)
     n = length(q); i = round(Int, n*(0.25 + 0.50rand(rng)))
     step = max(2, n ÷ 20)
     j = mod1(i + step, n); k = mod1(i - step, n)
     β = atan(q[j][1] - q[k][1], q[j][2] - q[k][2]) + brnch
     L = 26 + 22rand(rng); lo = through ? -L : 0.0
     cy, cx = q[i]
-    [q, [(cy + s*sin(β), cx + s*cos(β)) for s in range(lo, L; length=max(3, round(Int, L-lo)))]]
+    m = max(3, round(Int, L - lo))
+    ks = κ < 1e-6 ? 0.0 : κ * rand(rng, (-1, 1))
+    br = if ks == 0.0
+        [(cy + s*sin(β), cx + s*cos(β)) for s in range(lo, L; length=m)]
+    else
+        # circular arc from the junction with tangent β and curvature ks:
+        #   x(s) = x₀ + (sin(β+ks·s) − sin β)/ks,  y(s) = y₀ − (cos(β+ks·s) − cos β)/ks
+        [(cy - (cos(β + ks*s) - cos(β))/ks, cx + (sin(β + ks*s) - sin(β))/ks)
+         for s in range(lo, L; length=m)]
+    end
+    [q, br]
+end
+
+"""
+    measure_base(q) -> (curvedness_kappa, closedness)
+
+Mean absolute curvature (1/px) and total turn / 2π, **measured from the base polyline**.
+
+Asserted from the parameters these would be wrong whenever `aspect < 1`: an ellipse does
+not have the curvature of the circle it was flattened from, and its mean is not 1/R. The
+corner angle taught the same lesson — a label taken from the parameter that generated a
+figure is not necessarily a label the figure carries.
+"""
+function measure_base(q)
+    n = length(q); n < 4 && return 0.0, 0.0
+    tot = 0.0; sgn = 0.0; len = 0.0
+    @inbounds for i in 2:n-1
+        a = atan(q[i][1]-q[i-1][1], q[i][2]-q[i-1][2])
+        b = atan(q[i+1][1]-q[i][1], q[i+1][2]-q[i][2])
+        d = atan(sin(b-a), cos(b-a))
+        tot += abs(d); sgn += d
+        len += hypot(q[i][1]-q[i-1][1], q[i][2]-q[i-1][2])
+    end
+    len <= 0 && return 0.0, 0.0
+    tot/len, clamp(abs(sgn)/2π, 0, 1)
 end
 
 "Do segments a and b properly cross?"
@@ -370,23 +425,24 @@ is redrawn rather than kept with an asserted label.
 """
 function geometry(p::Params, rng; tries::Int=24)
     q = base_curve(p)
+    κm, clo = measure_base(q)
     local polys
-    local meas = NaN
+    local ang = NaN
     for _ in 1:tries
         if p.event === :kink
             n = length(q)
             i = round(Int, n*(0.32 + 0.36rand(rng)))
-            polys, meas = solve_kink(q, rad2deg(p.angle), i, rand(rng, (-1, 1)))
-            (!isnan(meas) && !self_crossing(polys)) && return polys, meas
+            polys, ang = solve_kink(q, rad2deg(p.angle), i, rand(rng, (-1, 1)))
+            (!isnan(ang) && !self_crossing(polys)) && break
         else
             polys = if p.event === :none;  [q]
             elseif p.event === :gap;       apply_gap(q, p.gap, rng)
-            else                           add_branch(q, p.event === :cross, p.branch, rng)
+            else                     add_branch(q, p.event === :cross, p.branch, p.kappa, rng)
             end
-            (p.event === :cross || !self_crossing(polys)) && return polys, NaN
+            (p.event === :cross || !self_crossing(polys)) && break
         end
     end
-    polys, meas
+    polys, (angle=ang, kappa=κm, closedness=clo)
 end
 
 # ── rendering ───────────────────────────────────────────────────────────────
@@ -465,9 +521,15 @@ function render_geom(polys, p::Params, rng; N::Int=112, rot=nothing, at=nothing)
     end
 
     I = Matrix{Float32}(undef, N, N); e = p.w/2; ρ = max(p.ramp, 1e-3)
+    # Peak normalisation. Once the ramp is wider than the stroke, the profile never reaches
+    # full amplitude, so widening the ramp would also *dim* the stroke and `softness` would
+    # be partly a contrast manipulation. Dividing by the profile's analytic peak keeps peak
+    # contrast at `amp` whatever the ramp, so softness is pure blur — which is what makes
+    # the two rows of the target vector independently readable.
+    t0 = clamp((e + ρ/2)/ρ, 0.0, 1.0); pk = max(t0*t0*(3 - 2t0), 1e-6)
     @inbounds for q in eachindex(D)
         t = clamp((e + ρ/2 - sqrt(D[q]))/ρ, 0.0, 1.0)
-        I[q] = clamp(p.bg + p.pol*p.amp*(t*t*(3-2t)) + p.noise*randn(rng), 0f0, 1f0)
+        I[q] = clamp(p.bg + p.pol*p.amp*(t*t*(3-2t))/pk + p.noise*randn(rng), 0f0, 1f0)
     end
     I
 end
