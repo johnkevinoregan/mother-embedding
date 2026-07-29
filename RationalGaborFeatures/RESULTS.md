@@ -26,15 +26,31 @@ readable.
 | arm | n | final | best |
 |:--|--:|--:|--:|
 | reference — old F3×3+2 no-DC | 88 | 92.31 % | 92.42 % |
-| new: `orient` + `lowpass` | 144 | **93.71 %** | 93.78 % |
-| + `A1` | 171 | 93.78 % | 93.78 % |
-| + `A1` + `A2` | 198 | 93.71 % | 93.71 % |
+| new: `orient` + `lowpass` | 144 | **93.66 %** | 93.79 % |
+| + `A1` | 171 | 93.72 % | 93.78 % |
+| + `A1` + `A2` | 198 | 93.66 % | 93.66 % |
 
 ![Phase 5a](figures/phase5a_curves.png)
 
-**+1.40 points** (≈ 8 standard errors) from the bank alone — a ladder placed on the
-measured spectrum, more orientations, correct padding. **The AND layer adds +0.07, then
-−0.12.**
+**+1.35 points** (≈ 7 standard errors) from the bank alone — a ladder placed on the
+measured spectrum, more orientations, correct padding. **The AND layer adds +0.06, then
+−0.06.**
+
+> **These numbers were re-verified on 2026-07-29 and differ from those first published
+> here by up to 0.06 points.** The table above is the reproducible one; the earlier
+> figures were 93.71 / 93.78 / 93.71.
+>
+> The gap was chased rather than assumed away, and no code change accounts for it. The
+> script has a single commit and is unmodified; two identical re-runs agree to four
+> significant figures, so the pipeline is deterministic; and the only front-end change
+> since — the padding default `:zero → :replicate` — produces **bit-identical** features on
+> EMNIST (max relative difference 0.000e+00 over 40 images, because EMNIST's background is
+> zero and its upsampled border is zero in 100 % of images). The original numbers must have
+> come from a run whose conditions were not captured in the repository.
+>
+> Every conclusion is unchanged: the bank is worth ≈ +1.35 points and the AND layer
+> contributes ≈ 0, both far outside and far inside the 0.19-point standard error
+> respectively.
 
 ### It is not that the conjunctions compute nothing
 

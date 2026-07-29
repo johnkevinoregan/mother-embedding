@@ -1,4 +1,4 @@
-extraction: 15.2 min on 16 threads  (6.9 ms/image)
+loaded cached features from /tmp/p5a_features.jls
 new features: 198   old features: 88
 homoglyph-merged: 40 classes, chance 2.50 %
 
@@ -7,8 +7,8 @@ PHASE 5a — does the new front end reach the number we already have?
 ==============================================================================
 
 arm                                     n     final      best    time
-REFERENCE  old F3x3+2 no-DC            88    92.31 %    92.42 %     14 s
-new  orient+lowpass                   144    93.66 %    93.79 %      6 s
+REFERENCE  old F3x3+2 no-DC            88    92.31 %    92.42 %     12 s
+new  orient+lowpass                   144    93.66 %    93.79 %      5 s
 new  orient+lowpass+A1                171    93.72 %    93.78 %      6 s
 new  orient+lowpass+A1+A2 (all)       198    93.66 %    93.66 %      6 s
 GKS: cannot open display - headless operation mode active
