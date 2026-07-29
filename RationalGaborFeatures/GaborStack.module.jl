@@ -302,9 +302,21 @@ const pad_modes = (:zero, :replicate, :reflect)
     embed(img, fieldsize; mode=:zero)
 
 Centre `img` in a `fieldsize` field. `:zero` is right when the background genuinely is
-zero (it then introduces no step); `:replicate` is the gentlest general choice;
-`:reflect` is conventional but manufactures mirror-symmetric structure at the border,
-which can produce spurious symmetric responses.
+zero (it then introduces no step); `:replicate` is the gentlest general choice and is the
+default; `:reflect` is conventional but manufactures mirror-symmetric structure at the
+border, which can produce spurious symmetric responses.
+
+**`:zero` was the default until this was found to break polarity invariance.** On a
+background that is not zero it surrounds the image with a full-contrast step, and the
+response becomes `R_border + pol·R_stroke`, whose squared magnitude carries a cross term
+`2·pol·Re(R_border·conj(R_stroke))` that flips sign with polarity. Measured on grey-field
+stimuli: features differing by **22 %** between a stroke and its exact contrast-reverse, and
+the orientation block predicting contrast polarity at R² 0.65 when quadrature energy should
+predict nothing at all.
+
+EMNIST hid this completely, because its background *is* zero — on a zero-background image
+`:zero` and `:replicate` produce **bit-identical** output, so no result computed on EMNIST is
+affected by the change of default.
 
 Returns `(field, offset)` where `offset` is the top-left corner of `img` in the field.
 """
@@ -339,7 +351,7 @@ complex response and leaves `|·|²` unchanged. Cropped back to `size(img)` unle
 `crop=false`.
 """
 function energy_stack(img::AbstractMatrix{<:Real}, bank::GaborBank;
-                      mode::Symbol=:zero, crop::Bool=true)
+                      mode::Symbol=:replicate, crop::Bool=true)
     F, (oy, ox) = embed(img, bank.size; mode=mode)
     Ff = fft(F)
     h, w = size(img); H, W = bank.size

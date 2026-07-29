@@ -68,24 +68,10 @@ function build_frontend(N::Int; grid::Int=3)
 end
 
 function _feat(img, bank, wts, grid)
-    # Subtract the background level before filtering.
-    #
-    # The bank zero-pads the image into a larger field. On EMNIST the background *was*
-    # zero, so the padding was seamless and this never mattered. Here the background is
-    # ~0.5, and zero-padding puts a full-contrast step all the way round the image border.
-    # The filter response is then R_border + pol·R_stroke, whose squared magnitude carries
-    # a cross term 2·pol·Re(R_border·conj(R_stroke)) that **flips sign with polarity** —
-    # so the quadrature energy, which is supposed to be blind to the sign of contrast,
-    # stopped being blind to it. Measured: features differing by 29 % between a stroke and
-    # its exact contrast-reverse, and `orient` predicting polarity at R² 0.65 when it
-    # should predict nothing.
-    #
-    # The median is the background level for these stimuli (the stroke covers a small
-    # fraction of the field), so subtracting it makes the padded zeros continuous with the
-    # background and the border step disappears. Oriented channels have no DC, so this
-    # changes nothing about their response to the image interior. The lowpass block keeps
-    # its polarity information, since it now reports ink signed relative to background.
-    img = img .- median(img)
+    # Padding mode is `:replicate` by default in `energy_stack` — see the note on `embed`
+    # in GaborStack. This wrapper previously subtracted the image median to work around
+    # zero-padding breaking polarity invariance; the fix now lives in the front end itself,
+    # where every caller gets it rather than only this one.
     Es = energy_stack(img, bank)
     A, al = and_maps(Es, bank.meta; forms=(:A1, :A2))
     Rm, rl = ray_maps(Es, bank.meta)

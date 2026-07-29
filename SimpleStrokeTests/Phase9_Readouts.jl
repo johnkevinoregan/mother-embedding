@@ -62,6 +62,13 @@ const CURVEARMS = [parse(Int, s) for s in split(get(ENV, "P9_CURVE_ARMS", "1,4")
 # `brokenness` at any sample size.
 const CNNARCH = Symbol(get(ENV, "P9_CNN", "small"))
 const USEGPU  = get(ENV, "P9_GPU", "1") == "1"
+# Pooling grid. 3×3 gives 37 px cells on a 112 px image, which is coarse next to a 3 px gap;
+# `P9_GRID=5` asks whether `brokenness` and `vangle` are limited by the operators or by the
+# pooling. 5×5 takes the feature count from 279 to 775.
+const GRID    = parse(Int, get(ENV, "P9_GRID", "3"))
+# How many independent permutations to average the shuffle control over. One permutation is
+# a sample of size one, and the conjunction-layer claim rests on this control.
+const NSHUF   = parse(Int, get(ENV, "P9_NSHUF", "5"))
 
 # Per-epoch training history, keyed by "<split>/<arm>". Kept for every trained arm, not just
 # the CNN: a final number cannot tell you whether a run had converged, was still climbing,
@@ -359,9 +366,9 @@ end
 
 function main()
     @printf("Phase 9 — %d train, %d test, %d threads\n\n", NTRAIN, NTEST, Threads.nthreads())
-    spec = build_frontend(N)
-    @printf("front end: %d columns  (orient %d, lowpass %d, A1 %d, A2 %d, rays %d)\n\n",
-            spec.n, length(block_cols(spec,"orient")), length(block_cols(spec,"lowpass")),
+    spec = build_frontend(N; grid=GRID)
+    @printf("front end: grid %d, %d columns  (orient %d, lowpass %d, A1 %d, A2 %d, rays %d)\n\n",
+            GRID, spec.n, length(block_cols(spec,"orient")), length(block_cols(spec,"lowpass")),
             length(block_cols(spec,"A1")), length(block_cols(spec,"A2")),
             length(block_cols(spec,"rays")))
 
@@ -396,7 +403,12 @@ function main()
               ("rays", ("rays",)), ("all", ("orient","lowpass","A1","A2","rays")),
               ("all·SHUFFLED", ("orient","lowpass","A1","A2","rays"))]
     battr = Dict{String,Vector{Float64}}()
+    shufruns = Vector{Vector{Float64}}()
     for (nm, bs) in ("blocks" in STAGES ? blocks : [])
+      # the control is averaged over NSHUF independent permutations; the others run once
+      reps = endswith(nm, "SHUFFLED") ? (1:NSHUF) : (1:1)
+      acc = Vector{Vector{Float64}}()
+      for rep in reps
         cols = block_cols(spec, bs...)
         Fw = Feat
         if endswith(nm, "SHUFFLED")
@@ -408,16 +420,32 @@ function main()
             # is `all` minus this, not `all` minus `orient`.
             Fw = copy(Feat)
             bad = block_cols(spec, "A1", "A2", "rays")
-            perm = randperm(MersenneTwister(31), size(Fw, 1))
+            perm = randperm(MersenneTwister(31 + rep), size(Fw, 1))
             Fw[:, bad] = Fw[perm, bad]
         end
         μ, σ = zfit(Fw[tr, cols]); Z = zapply(Fw[:, cols], μ, σ)
         P, _ = ridge(Z[tr, :], Zt, Z[va, :], Zv, Z[NTRAIN+1:end, :])
-        v = [r2(P[:, j] .* σy[j] .+ μy[j], Yte[:, j]) for j in 1:length(PROPS)]
-        battr[nm] = v
-        @printf("%-16s", nm); for x in v; @printf("%11.3f", x); end; println(); flush(stdout)
+        push!(acc, [r2(P[:, j] .* σy[j] .+ μy[j], Yte[:, j]) for j in 1:length(PROPS)])
+      end
+      v = [mean(a[j] for a in acc) for j in 1:length(PROPS)]
+      battr[nm] = v
+      endswith(nm, "SHUFFLED") && (shufruns = acc)
+      @printf("%-16s", nm); for x in v; @printf("%11.3f", x); end
+      if length(acc) > 1
+          sd = [std([a[j] for a in acc]) for j in 1:length(PROPS)]
+          @printf("   (mean of %d perms, max sd %.3f)", length(acc), maximum(sd))
+      end
+      println(); flush(stdout)
     end
-    serialize(joinpath(OUT, "blocks.jls"), battr)
+    if !isempty(shufruns)
+        println("\nshuffle control, per-permutation spread:")
+        @printf("%-16s", "sd over perms")
+        for j in 1:length(PROPS)
+            @printf("%11.3f", std([a[j] for a in shufruns]))
+        end
+        println()
+    end
+    serialize(joinpath(OUT, "blocks.jls"), (battr=battr, shuf=shufruns))
 
     # ── sample-efficiency curve, linear arms only: the readout is the thing being
     # compared, and adding a trained CNN at every k would dominate the runtime.
