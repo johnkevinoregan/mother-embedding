@@ -32,15 +32,23 @@ identity. As an output rather than a category, closure is just another thing to 
 | 1 | `curvedness` | 0–1 | retinal: mean \\|κ\\| of the base in 1/px, squashed |
 | 2 | `brokenness` | 0–1 | gap size **in units of stroke width** |
 | 3 | `closedness` | 0/1 | is it a closed loop |
-| 4 | `angledness` | 0/1 | is there a sharp vertex |
-| 5 | `angle` | 20–160° | **masked** where `angledness = 0` |
-| 6 | `rays` | 2–4 | 2 plain, 3 tee, 4 crossing |
-| 7 | `thickness` | px | stroke width |
-| 8 | `softness` | px | edge ramp width |
-| 9 | `polarity` | ±1 | light or dark stroke |
+| 4 | `corner` | 0–160° | **excess** turn at the vertex; 0 = smooth |
+| 5 | `rays` | 2–4 | 2 plain, 3 tee, 4 crossing |
+| 6 | `thickness` | px | stroke width |
+| 7 | `softness` | px | edge ramp width |
+| 8 | `polarity` | ±1 | light or dark stroke |
 
-`angle` must be masked because it is undefined on a smooth curve; training a network to
-emit an arbitrary value there would corrupt the one output the project cares most about.
+**The corner row is turn, not interior angle, and nothing is masked.** Interior angle is
+undefined on a smooth stroke, so it had to be masked and the target vector carried a hole.
+Turn — 180° minus the interior angle — makes a smooth stroke an honest **0** rather than a
+missing value, so one unmasked row replaces the old `angledness` + `angle` pair and the
+none/obtuse/right/acute readout still falls out by binning.
+
+It is the **excess** turn: what the direction jumps at a point, over and above the turn the
+smooth curvature already accounts for. Measured raw over a 12 px window a cornerless arc of
+κ = 0.045 shows 60° of turn and would read as an obtuse corner, so `curvedness` would leak
+straight into this row. Subtracting the smooth part isolates the singular part, which is
+what a corner is, and is genuinely 0 for a smooth curve of any curvature.
 
 **Curvedness is measured on the base curve, before the event is applied.** A kink is a
 curvature impulse, so computing it afterwards would make every corner register as global
@@ -67,40 +75,48 @@ module Contours
 using Random, Statistics, LinearAlgebra
 
 export PROPS, N_PROPS, Params, sample_params, render_params, contour_batch,
-       targets_of, ANGLE_BANDS, ANGLE_WINDOW, band_of, respec, stimulus, vertex_angle
+       targets_of, TURN_BANDS, band_of, respec, stimulus, excess_turn
 
 "Names of the target vector's entries, in order."
-const PROPS = (:curvedness, :brokenness, :closedness, :angledness,
-               :angle, :rays, :thickness, :softness, :polarity)
+const PROPS = (:curvedness, :brokenness, :closedness, :corner,
+               :rays, :thickness, :softness, :polarity)
 const N_PROPS = length(PROPS)
 
 """
-Named bands for the corner-angle readout, as interior angle in degrees.
+Named bands for the categorical readout, in degrees of **turn at the vertex**.
 
-Sampling puts a third of the kinked stimuli in each band, so the three-way readout is
-balanced while the regression target still sweeps the range continuously. Uniform
-sampling over 20–160° would have left `:right` with 7 % of the data.
+Turn is 180° minus the interior angle, so a smooth stroke is 0 and a sharp corner is large.
+Sampling puts a third of the kinked stimuli in each of the three corner bands; `:none`
+comes from every stimulus that has no kink at all, so it is well populated without needing
+an arbitrary threshold on a continuous quantity.
 """
-const ANGLE_BANDS = (acute = (20.0, 80.0), right = (80.0, 100.0), obtuse = (100.0, 160.0))
+const TURN_BANDS = (obtuse = (10.0, 80.0), right = (80.0, 100.0), acute = (100.0, 160.0))
 
-band_of(deg) = deg < 80 ? :acute : (deg < 100 ? :right : :obtuse)
+"Categorical corner readout, derived from the continuous target by binning."
+band_of(turn) = turn < 10 ? :none : (turn < 80 ? :obtuse : (turn < 100 ? :right : :acute))
 
 """
-Half-width, in pixels, of the window over which the corner angle is measured.
+    excess_turn(base, polys) -> degrees
 
-The corner angle is **measured back out of the geometry** over this window rather than
-taken from the parameter that generated it. On a straight base the two agree exactly, but
-when the arms are themselves curved they do not: the label is the discontinuity in the
-*tangent* at the vertex, while what is visible is the direction of each limb, and a 35 px
-arm on a radius-22 base swings 45° away from its own tangent. Measured against the
-generating parameter, the mean error was 28° on strongly curved bases and **a third of all
-kinked samples fell in a different band than their label**.
+How much the stroke's direction **jumps at a point**, over and above the turn its smooth
+curvature already accounts for: the total signed turn of the drawn figure minus that of the
+base curve it was made from.
 
-A label the image does not carry is not a hard example, it is a wrong one, and no model
-can be scored against it. 12 px is chosen to be comparable to the envelope of the coarsest
-filter in the bank, so the target describes structure at the scale the front end resolves.
+A kink is a rigid rotation of the tail, so every segment direction past the vertex shifts by
+the same amount and the two sums differ by exactly that rotation — the smooth contributions
+cancel term by term, at every curvature, with no window to choose. That is what makes this
+target separable from `curvedness`, and it is why the earlier interior-angle target was not:
+interior angle measured over a finite window necessarily mixed the corner with the arms'
+own bending, which is how a third of the labels ended up in the wrong band.
 """
-const ANGLE_WINDOW = 12
+function excess_turn(base, polys)
+    st(P) = (t = 0.0; @inbounds for i in 2:length(P)-1
+                 a = atan(P[i][1]-P[i-1][1], P[i][2]-P[i-1][2])
+                 b = atan(P[i+1][1]-P[i][1], P[i+1][2]-P[i][2])
+                 t += atan(sin(b-a), cos(b-a))
+             end; t)
+    rad2deg(abs(st(polys[1]) - st(base)))
+end
 
 # ── the parameter space ─────────────────────────────────────────────────────
 
@@ -118,7 +134,7 @@ struct Params
     aspect::Float64     # 1 = circular; < 1 flattens it into an oval
     event::Symbol
     gap::Float64        # px, for :gap
-    angle::Float64      # radians, interior angle, for :kink
+    vturn::Float64      # radians, turn at the vertex, for :kink (0 = smooth)
     branch::Float64     # radians, base-to-stem angle, for :tee / :cross
     w::Float64          # stroke width, px
     ramp::Float64       # edge ramp width, px
@@ -194,8 +210,8 @@ function sample_params(rng; pol=nothing, event=nothing, w=(3.0, 25.0), ramp=(0.8
         Δ = 0.0
     end
 
-    b = rand(rng, keys(ANGLE_BANDS))                 # a third of kinks in each band
-    lo, hi = getfield(ANGLE_BANDS, b)
+    b = rand(rng, keys(TURN_BANDS))                  # a third of kinks in each band
+    lo, hi = getfield(TURN_BANDS, b)
 
     # The gap sweeps from a nick to a clear break, in units of stroke width, with a 1 px
     # floor because anything narrower cannot be rendered. Drawing it as `1.5w + 8·rand`
@@ -228,22 +244,19 @@ The target vector and a mask marking which entries are defined for this stimulus
 stroke is an unmistakable break, the same gap in an 11 px stroke is barely a nick, and the
 target should say so.
 """
-function targets_of(p::Params, meas=(angle=NaN, kappa=p.kappa, closedness=p.turn/2π))
-    kink = p.event === :kink && !isnan(meas.angle)
-    ang = kink ? meas.angle : rad2deg(p.angle)
+function targets_of(p::Params, meas=(corner=0.0, kappa=p.kappa, closedness=p.turn/2π))
     v = Float64[
         squash(meas.kappa, 0.012),                                # curvedness
         p.event === :gap ? squash(p.gap / p.w, 1.0) : 0.0,        # brokenness
         clamp(meas.closedness, 0, 1),                             # closedness
-        p.event === :kink ? 1.0 : 0.0,                            # angledness
-        kink ? ang : 90.0,                                        # angle (masked if not)
+        p.event === :kink ? meas.corner : 0.0,                    # corner (excess turn, deg)
         p.event === :tee ? 3.0 : (p.event === :cross ? 4.0 : 2.0),# rays
         p.w,                                                      # thickness
         p.ramp,                                                   # softness
         Float64(p.pol),                                           # polarity
     ]
-    mask = trues(N_PROPS); mask[5] = kink
-    v, mask
+    # nothing is masked any more: every row is defined for every stimulus
+    v, trues(N_PROPS)
 end
 
 # ── geometry ────────────────────────────────────────────────────────────────
@@ -268,15 +281,16 @@ function apply_gap(q, g, rng)
 end
 
 """
-Rotate the tail about the vertex at index `i` by `sgn·(π − α)`.
+Rotate the tail about the vertex at index `i` by `sgn·vturn`.
 
-Deterministic in `i` and `sgn` so that `solve_kink` can vary `α` alone: the search needs
-the same figure at every trial angle, and drawing the vertex position afresh each time
-would make the measured angle jump around for reasons unrelated to `α`.
+The rotation *is* the target: rotating the tail by `vturn` shifts every direction past the
+vertex by exactly `vturn`, so `excess_turn` recovers it exactly, at any base curvature. No
+search is needed — the earlier interior-angle target had to be solved for by bisection
+because the arms' own bending contaminated it.
 """
-function apply_kink(q, α, i::Int, sgn::Int)
+function apply_kink(q, vturn, i::Int, sgn::Int)
     n = length(q)
-    turn = (π - α) * sgn
+    turn = vturn * sgn
     cy, cx = q[i]; s, c = sin(turn), cos(turn)
     r = copy(q)
     @inbounds for j in i+1:n
@@ -370,64 +384,6 @@ function self_crossing(polys)
 end
 
 """
-    vertex_angle(polys, W = ANGLE_WINDOW)
-
-The angle between the two limbs at the sharpest point of the figure, measured over a
-window of `W` px each side. `NaN` if there is no room to measure.
-
-The vertex is located as the point of maximum turn rather than taken from the index that
-built it, so this is a genuine measurement of the rendered geometry and would catch a
-kink that the construction placed somewhere other than where it was asked to.
-"""
-function vertex_angle(polys, W::Int=ANGLE_WINDOW)
-    P = polys[1]; n = length(P)
-    n < 2W + 3 && return NaN
-    best = 0.0; iv = 0
-    @inbounds for i in 3:n-2
-        a = atan(P[i][1]-P[i-2][1], P[i][2]-P[i-2][2])
-        b = atan(P[i+2][1]-P[i][1], P[i+2][2]-P[i][2])
-        t = abs(atan(sin(b-a), cos(b-a)))
-        t > best && (best = t; iv = i)
-    end
-    (iv == 0 || iv-W < 1 || iv+W > n) && return NaN
-    v1 = (P[iv-W][1]-P[iv][1], P[iv-W][2]-P[iv][2])
-    v2 = (P[iv+W][1]-P[iv][1], P[iv+W][2]-P[iv][2])
-    rad2deg(acos(clamp((v1[1]*v2[1] + v1[2]*v2[2])/(hypot(v1...)*hypot(v2...)), -1, 1)))
-end
-
-"""
-    solve_kink(q, want_deg, i, sgn) -> (polys, measured)
-
-Find the tail rotation whose **measured** corner angle is `want_deg`, by bisection on the
-generating angle.
-
-Needed because measuring the angle rather than asserting it broke the sampling: drawing the
-generating angle a third in each band left the *measured* bands at 0.35 / 0.19 / 0.46,
-since curved arms bias the measurement outward. Inverting the map restores balance without
-touching the curvature distribution — the alternative, rejecting samples whose measured
-band was over-represented, would have thrown away strongly curved arms preferentially and
-coupled `curvedness` to `angle`.
-
-Where the requested angle is unreachable for this figure, the closest attainable one is
-used and its *measured* value returned, so the label still describes the image.
-"""
-function solve_kink(q, want_deg::Float64, i::Int, sgn::Int)
-    lo, hi = deg2rad(1.0), deg2rad(179.0)
-    local best, bestang, bestrr
-    bestrr = Inf
-    for _ in 1:16
-        mid = (lo + hi)/2
-        polys = apply_kink(q, mid, i, sgn)
-        a = vertex_angle(polys)
-        isnan(a) && return polys, a
-        r = abs(a - want_deg)
-        if r < bestrr; bestrr = r; best = polys; bestang = a; end
-        a < want_deg ? (lo = mid) : (hi = mid)
-    end
-    best, bestang
-end
-
-"""
     geometry(p, rng) -> (polys, measured_angle)
 
 Base curve plus its event, and the corner angle measured back out of the result — `NaN`
@@ -442,13 +398,14 @@ function geometry(p::Params, rng; tries::Int=24)
     q = base_curve(p)
     κm, clo = measure_base(q)
     local polys
-    local ang = NaN
+    local ang = 0.0
     for _ in 1:tries
         if p.event === :kink
             n = length(q)
             i = round(Int, n*(0.32 + 0.36rand(rng)))
-            polys, ang = solve_kink(q, rad2deg(p.angle), i, rand(rng, (-1, 1)))
-            (!isnan(ang) && !self_crossing(polys)) && break
+            polys = apply_kink(q, p.vturn, i, rand(rng, (-1, 1)))
+            ang = excess_turn(q, polys)
+            !self_crossing(polys) && break
         else
             polys = if p.event === :none;  [q]
             elseif p.event === :gap;       apply_gap(q, p.gap, rng)
@@ -457,7 +414,7 @@ function geometry(p::Params, rng; tries::Int=24)
             (p.event === :cross || !self_crossing(polys)) && break
         end
     end
-    polys, (angle=ang, kappa=κm, closedness=clo)
+    polys, (corner=ang, kappa=κm, closedness=clo)
 end
 
 # ── rendering ───────────────────────────────────────────────────────────────
@@ -503,8 +460,9 @@ Image together with the target vector and mask **computed from the geometry that
 actually drawn**. This is the entry point the dataset uses; `render_params` is the
 image-only convenience wrapper for figures.
 
-Targets are derived here rather than from `p` alone because the corner angle is measured
-from the rendered figure — see `ANGLE_WINDOW`.
+Targets are derived here rather than from `p` alone because the corner, the curvature and
+the closure are all measured from the geometry that was drawn — see `excess_turn` and
+`measure_base`.
 """
 function stimulus(p::Params, rng; N::Int=112, rot=nothing, at=nothing)
     polys, meas = geometry(p, rng)
