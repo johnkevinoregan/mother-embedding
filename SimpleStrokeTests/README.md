@@ -170,7 +170,7 @@ no longer the bottleneck — feature extraction is.
 
 ```bash
 P9_NTRAIN=12000 P9_NTEST=3000 P9_KS=500,2000,6000,12000 \
-P9_EPOCHS=50 P9_CEPOCHS=12 P9_OUT=results \
+P9_EPOCHS=60 P9_CEPOCHS=60 P9_CNN=big P9_OUT=results_canon3 \
   julia --project=.. -t 16 Phase9_Readouts.jl 2>&1 | tee results_phase9.log
 ```
 
@@ -193,6 +193,13 @@ julia --project=.. Plot_Phase9.jl
 | `P9_CURVE_ARMS` | `1,4` | which arms appear on the sample-efficiency curve |
 | `P9_STAGES` | `iid,blocks,curve,extrap` | which stages to run |
 | `P9_OUT` | `results` | output directory, so parallel runs cannot clobber each other |
+
+**Which results directories are kept.** Only `results_canon3` (grid 3, all arms, all stages),
+`results_canon1` (grid 1) and `results_canon_g2/g4/g5` (the pooling sweep) — every number and
+figure in `RESULTS.md` derives from those, and `Plot_Phase9.jl` reads `results_canon3`. The
+exploratory runs from development were deleted; their printed tables survive in the `.log`
+files beside them, which is the readable record. Do not plot from a directory produced by an
+older code state.
 | `P9_GPU` | `1` | use the GPU when `CUDA.functional()`; `0` forces CPU. Falls back to CPU silently on a machine without one |
 | `P9_CNN` | `small` | `small` = the two strided convolutions the CPU-era results used; `big` = full resolution, four conv stages with pooling and batch norm |
 
