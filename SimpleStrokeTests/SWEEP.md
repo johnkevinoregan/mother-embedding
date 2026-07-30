@@ -1,5 +1,19 @@
 # Capacity sweep — scales, orientation harmonics, orientation count, ray offsets
 
+> ## ⚠ RETRACTION — read `SWEEP_FULLN.md` first
+>
+> This page reports a **reduced-n selection sweep** (3,000/1,000). A full-n confirmation
+> (16,000/4,000) showed its gains are inflated 2–5× and that its headline claim is **false**:
+>
+> * *"Orientation count and ray offsets both move the thickness/fuzziness confound by ~+0.25 —
+>   the first things in the project to touch it."* At full n, `offsets ×3` moves it by
+>   **−0.018**. **Nothing here touches the confound.**
+> * `offsets` brokenness gain: **+0.130 → +0.026**. Harmonics curvedness: **+0.058 → +0.026**.
+>
+> The *rankings* below largely survive; the *magnitudes* do not, and the confound claim is
+> withdrawn entirely. Reduced-n selection systematically overstates capacity gains, because
+> capacity matters most when the baseline is data-starved.
+
 `Sweep_Capacity.jl`, log in `sweep.log`. 3,000 train / 1,000 test, grid 1, MLP readout, 60 epochs,
 one seed. Stimuli are a **prefix of the files in `ConVNextTest/data`**, so every arm sees
 byte-identical images.

@@ -43,6 +43,9 @@ const N     = 112
 const NTR   = parse(Int, get(ENV, "SW_NTRAIN", "3000"))
 const NTE   = parse(Int, get(ENV, "SW_NTEST",  "1000"))
 const SPL   = split(get(ENV, "SW_SPLITS", "iid,fuzziness,thickness"), ",")
+const ARMS  = split(get(ENV, "SW_ARMS", ""), ",", keepempty=false)
+const EPOCHS = parse(Int, get(ENV, "SW_EPOCHS", "60"))
+const CACHE = joinpath(@__DIR__, "sweep_cache")
 const PROPS = [strip(l) for l in readlines(joinpath(DATA, "props.txt")) if !isempty(strip(l))]
 
 "Read the first `n` images from a stimulus file written row-major by ConvNextStimuli.jl."
@@ -67,6 +70,11 @@ const CFGS = [
                              ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(1.0,))),
     ("offsets x3 crossed",  (nori=[8,12,16],  dts=0.75,  harmonics=(2,4),
                              ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(0.5,1.0,2.0))),
+    # The confirmation arm: the two axes that paid, combined. They gained on disjoint rows in the
+    # reduced-n sweep — harmonics on curvedness/vangle, offsets on brokenness/arms — so if those
+    # gains are real and independent this should pick up both columns.
+    ("harmonics+offsets",   (nori=[8,12,16],  dts=0.75,  harmonics=(2,4,6,8),
+                             ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(0.5,1.0,2.0))),
 ]
 
 function score(X, Ytr, Xte, Yte; drop=nothing, linear=true)
@@ -76,7 +84,7 @@ function score(X, Ytr, Xte, Yte; drop=nothing, linear=true)
     Zt = zapply(Ytr[tr, :], μy, σy); Zv = zapply(Ytr[va, :], μy, σy)
     μ, σ = zfit(X[tr, :]); A = zapply(X, μ, σ); T = zapply(Xte, μ, σ)
     P = linear ? ridge(A[tr,:], Zt, A[va,:], Zv, T)[1] :
-                 mlp(A[tr,:], Zt, A[va,:], Zv, T; epochs=60)[1]
+                 mlp(A[tr,:], Zt, A[va,:], Zv, T; epochs=EPOCHS)[1]
     pred = P .* σy' .+ μy'
     [(drop !== nothing && PROPS[j] == String(drop)) ? NaN : r2(pred[:,j], Yte[:,j])
      for j in 1:size(Yte,2)]
@@ -85,7 +93,7 @@ end
 fmt(x) = isnan(x) ? @sprintf("%10s","—") : @sprintf("%10.3f", x)
 
 function main()
-    @printf("Capacity sweep — %d train / %d test, grid 1, %d threads\n", NTR, NTE, Threads.nthreads())
+    @printf("Capacity sweep — %d train / %d test, grid 1, %d epochs, %d threads\n", NTR, NTE, EPOCHS, Threads.nthreads())
     @printf("splits: %s\n", join(SPL, ", "))
     for split in SPL
         drop = split == "iid" ? nothing : Symbol(split)
@@ -96,10 +104,14 @@ function main()
         println("\n" * "="^116); println("$split split — test R² (MLP readout)"); println("="^116)
         @printf("%-22s%6s", "config", "nfeat")
         for p in PROPS; @printf("%10s", p[1:min(9,end)]); end; println(); println("-"^116)
-        for (nm, c) in CFGS
+        for (nm, c) in (isempty(ARMS) ? CFGS : [x for x in CFGS if x[1] in ARMS])
             sp = build_frontend(N; grid=1, ladder=c.ladder, nori=c.nori, betas=c.betas,
                                 dts=c.dts, d_factors=c.d_factors, harmonics=c.harmonics)
-            t = @elapsed (Ftr = featurize(itr, sp); Fte = featurize(ite, sp))
+            mkpath(CACHE)
+            ck = joinpath(CACHE, "$(replace(nm," "=>"_"))_$(split)_$(NTR)_$(NTE).jls")
+            t = @elapsed ((Ftr, Fte) = isfile(ck) ? deserialize(ck) :
+                          (a = featurize(itr, sp); b = featurize(ite, sp);
+                           serialize(ck, (a, b)); (a, b)))
             v = score(Ftr, Ytr, Fte, Yte; drop=drop, linear=false)
             @printf("%-22s%6d", nm, sp.n); for x in v; print(fmt(x)); end
             @printf("   %5.0fs\n", t); flush(stdout)
