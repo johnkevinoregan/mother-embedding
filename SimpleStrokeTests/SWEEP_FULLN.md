@@ -1,5 +1,9 @@
 # Capacity sweep — full-n confirmation
 
+> **Start with [`FINDINGS.md`](FINDINGS.md)** — a plain-language summary of what these
+> experiments found. This file is the detailed tables.
+
+
 `Sweep_Capacity.jl` with `SW_NTRAIN=16000 SW_NTEST=4000 SW_EPOCHS=100`, log in `confirm.log`.
 Grid 1, MLP readout, four splits. Supersedes the reduced-n numbers in `SWEEP.md`.
 

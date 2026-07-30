@@ -1,5 +1,9 @@
 # Cross-scale features and the thickness/fuzziness confound
 
+> **Start with [`FINDINGS.md`](FINDINGS.md)** — a plain-language summary of what these
+> experiments found. This file is the detailed tables.
+
+
 `Sweep_Capacity.jl` with `cross_scale=`, log in `xscale.log`. 16,000/4,000, grid 1, 100 epochs.
 
 **The hypothesis.** Thickness and fuzziness are confounded because both are read from how energy

@@ -1,5 +1,9 @@
 # Capacity sweep — scales, orientation harmonics, orientation count, ray offsets
 
+> **Start with [`FINDINGS.md`](FINDINGS.md)** — a plain-language summary of what these
+> experiments found. This file is the detailed tables.
+
+
 > ## ⚠ RETRACTION — read `SWEEP_FULLN.md` first
 >
 > This page reports a **reduced-n selection sweep** (3,000/1,000). A full-n confirmation
