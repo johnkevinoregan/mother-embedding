@@ -58,10 +58,51 @@ would largely have survived that; the prediction below about the pooling grid wo
 
 **It already returns 1-based labels.** Adding one more put them out of range.
 
+## Published benchmarks — what to score against
+
+From the literature review by Bbouzidi, Hcini, Jdey and Drira, *Convolutional Neural Networks
+and Vision Transformers for Fashion MNIST Classification: A Literature Review*
+([arXiv:2406.03478](https://arxiv.org/abs/2406.03478)), which tabulates results across a large
+number of papers:
+
+| family | reported range | the cluster that replicates |
+|:--|:--|:--|
+| classical / linear | ~85 % | linear classifier **85.17 %** |
+| CNNs | 90.1 – 99.18 % | **93.7 / 94.04 / 94.11 / 94.62** |
+| Vision Transformers | 87.3 – 95.25 % | **92.6 / 92.6 / 92.71 / 93.57** |
+| hybrids | 95.0 – 96.56 % | 95 – 96.6 |
+
+**Score against the middle column, not the maxima.** Several of the headline figures are not
+credible for this dataset: Zalando's own benchmark tops out near 96.7 % with heavy
+augmentation, so `CNN-dropout-3` at 99.1 % and `CNNTuner` at 99.18 % sit ~2.5 points above the
+best independently reproduced result. `LeNet` at 98.4 % is almost certainly wrong — LeNet-5 on
+Fashion-MNIST is normally 89–91 %, and the same table has a modern CNN at 93.7 %, so a 1998
+architecture is shown beating it by 4.7 points without comment. The review aggregates claims
+rather than auditing them.
+
+**Part of the inflation is measurable.** *Training on test data: Removing near duplicates in
+Fashion-MNIST* ([arXiv:1906.08255](https://arxiv.org/abs/1906.08255)) found that **≈ 5.98 % of
+the 10,000 test images are near-duplicates of training images** — matched by CNN feature
+distance, then verified by a human against explicit criteria (outlines 90 % similar, differing
+by at most one feature such as buttons or print). Removing them costs about 0.4 points, e.g.
+Random Forest 84.4 % → 84.0 %. Small, but it means every number here is slightly optimistic,
+and comparisons *between* published numbers inherit it unevenly.
+
+**There is no human baseline.** No study appears to have measured human accuracy on
+Fashion-MNIST, which is a pity: the shirt / T-shirt / pullover / coat cluster is where models
+lose most of their remaining accuracy, and whether people find those hard too would say
+whether the ceiling is perceptual or an artefact of 28×28.
+
+**One observation from the tables that bears on this project.** Vision Transformers come in
+*below* CNNs — 92.6–93.6 against 93.7–94.6 — on 60,000 small images. That is the
+inductive-bias argument one rung down from the ConvNeXt and NFNet results: a weaker prior
+costs accuracy when data is limited, and 60k 28×28 images is a small-data regime by modern
+standards. Consistent with the claim that a designed front end should help most at small `n`.
+
 ## Predictions, recorded before the first full run
 
-1. The features land between the published MLP and CNN numbers, **≈ 88–91 %**, because texture
-   suits multi-scale oriented energy.
+1. The features land between the published MLP (~88 %) and the replicating CNN cluster
+   (~94 %), so **≈ 88–91 %**, because texture suits multi-scale oriented energy.
 2. **The AND layer adds ≈ 0**, as on EMNIST — silhouettes contain few junctions.
 3. **Grid 3 beats grid 1**, the reverse of `SimpleStrokeTests`. Grid 1 won there only because
    position was randomised, making a fixed grid pure liability; here garments are centred with

@@ -156,3 +156,64 @@ pixels·MLP          -2.747     -1.491     -5.025     -3.668     -6.981     -8.3
 CNN                  0.116     -0.262      0.841     -2.107     -0.057     -1.485     -0.108          —
 ours·linear          0.689      0.322      0.985      0.598      0.842      0.642      0.627          —
 ours·MLP             0.859      0.616      0.998      0.873      0.921      0.669      0.678          —
+      cnn[big] epoch   5  loss 0.5098  val R² 0.443
+      cnn[big] epoch  10  loss 0.3902  val R² -0.968
+      cnn[big] epoch  15  loss 0.3413  val R² 0.358
+      cnn[big] epoch  20  loss 0.3044  val R² 0.138
+      cnn[big] epoch  25  loss 0.2610  val R² -0.129
+      cnn[big] epoch  30  loss 0.1981  val R² -0.648
+      cnn[big] epoch  35  loss 0.1486  val R² 0.192
+      cnn[big] epoch  40  loss 0.1024  val R² 0.641
+      cnn[big] epoch  45  loss 0.0711  val R² 0.721
+      cnn[big] epoch  50  loss 0.0549  val R² -1.062
+      cnn[big] epoch  55  loss 0.0462  val R² 0.097
+      cnn[big] epoch  60  loss 0.0403  val R² 0.737
+      cnn[big] best val R² 0.737 after 60 epochs
+
+============================================================================================
+extrapolation: fuzziness — trained on sharp edges (ramp ≤ 3 px), tested on blurred (≥ 8 px)
+============================================================================================
+
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial              0.000      0.005      0.378      0.071      0.024      0.019    -10.968      0.097
+--------------------------------------------------------------------------------------------
+pixels·linear       -0.001     -0.001     -0.004     -0.001     -0.004     -0.003          —      0.753
+pixels·MLP          -0.074     -0.196      0.772     -0.083     -0.003     -0.124          —      0.728
+CNN                  0.277     -0.071      0.917      0.103      0.675     -0.620          —      0.966
+ours·linear          0.681     -0.029      0.979      0.580      0.823     -2.370          —     -0.000
+ours·MLP             0.807      0.387      0.986      0.816      0.884     -1.799          —     -0.106
+      cnn[big] epoch   5  loss 0.5661  val R² 0.409
+      cnn[big] epoch  10  loss 0.5225  val R² 0.469
+      cnn[big] epoch  15  loss 0.5063  val R² 0.102
+      cnn[big] epoch  20  loss 0.4920  val R² 0.473
+      cnn[big] epoch  25  loss 0.4819  val R² 0.339
+      cnn[big] epoch  30  loss 0.4582  val R² -0.904
+      cnn[big] epoch  35  loss 0.4277  val R² 0.429
+      cnn[big] epoch  40  loss 0.3871  val R² 0.216
+      cnn[big] epoch  45  loss 0.3535  val R² 0.481
+      cnn[big] epoch  50  loss 0.3236  val R² 0.277
+      cnn[big] epoch  55  loss 0.3052  val R² 0.429
+      cnn[big] epoch  60  loss 0.2992  val R² 0.441
+      cnn[big] best val R² 0.507 after 60 epochs
+
+============================================================================================
+extrapolation: thickness — trained on thin strokes (≤ 6 px), tested on thick (≥ 8 px)
+============================================================================================
+
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial             -0.001     -0.006     -0.435     -0.086     -0.035    -20.898     -0.911      0.116
+--------------------------------------------------------------------------------------------
+pixels·linear       -0.002      0.003     -0.001     -0.000     -0.004          —     -0.004      0.295
+pixels·MLP          -0.232     -0.171      0.527     -0.230     -0.016          —     -0.543      0.353
+CNN                  0.148      0.035      0.569      0.169      0.571          —      0.239      0.940
+ours·linear          0.634      0.262      0.978      0.504      0.783          —     -2.157     -0.001
+ours·MLP             0.751      0.408      0.974      0.703      0.869          —     -2.650     -0.246
+  Activating project at `~/claude-code/mother-embedding`
+
+wrote /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/results_canon3/  (including per-epoch history for every trained arm)
+########## grid 1, all arms, iid + blocks ##########
+Phase 9 — 12000 train, 3000 test, 12 threads
+
+front end: grid 1, 31 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 9)
+
+generated 15000 images in 3s
