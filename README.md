@@ -45,6 +45,26 @@ throughout the earlier work turns out to understate features by ~24 points and, 
 recorded case, to have manufactured a qualitative conclusion that a stronger
 classifier does not reproduce.
 
+**Start with [`PHASES.md`](PHASES.md)** if you are arriving cold. It maps the whole
+project — what each phase asked, what it found, and where the code and results live —
+including the corrections, since several published numbers were later found not to
+reproduce and two apparent results turned out to be artefacts of missing controls.
+
+A caution about scope: `PHASES.md` numbers the phases from the start of
+`RationalGaborFeatures/`, so **everything above this line happened before Phase 0** — the
+Fourier tic-tac-toe grid, the Zernike moments, the MLP re-evaluation that overturned the
+leave-one-out conclusions, the pixel-permutation experiments, and the few-shot comparison of
+§7.11. Those are covered by the `PROGRESS_*.md` journal rather than by the phase map.
+
+Three directories carry the phased work, each with its own `README.md` for how to run it and
+`RESULTS.md` for the tables:
+
+| directory | phases | dataset |
+|:--|:--|:--|
+| `RationalGaborFeatures/` | 0–8 | EMNIST-Balanced, plus synthetic gates |
+| `SimpleStrokeTests/` | 9 | synthetic single strokes with graded properties |
+| `FashionMNIST/` | 10 | Fashion-MNIST |
+
 **`RationalGaborFeatures/`** is the current build: a bio-inspired early-vision front end
 (dense log-Gabor oriented energy, exactly polarity-invariant, with an ablatable layer of
 pointwise conjunctions applied *before* spatial pooling). Its scale ladder is derived from

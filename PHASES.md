@@ -1,8 +1,20 @@
 # The phases — what each one asked, and what it found
 
-A map of the whole project. Phases **0–4** are design and validation, carried out in the
+A map of the phased work. Phases **0–4** are design and validation, carried out in the
 validator notebooks rather than as experiment scripts; **5 onward** are experiments, one
 script each.
+
+**What came before Phase 0.** The numbering starts with `RationalGaborFeatures/`, so it does
+not cover the earlier lines of work: the dense-Gabor keypoint detector (`Dense_Gabors/`,
+superseded), junction type by linear projection (`New_Gabor_FPE/`), the Fourier grid
+(`ExptsWithGlobalFourier/`), Zernike moments (`ExptsWithZernike/`), and the MLP re-evaluation
+in `TestFeaturesWithMLP/` that overturned the leave-one-out nearest-class-mean conclusions
+used throughout the earlier work. Those are documented in the root `README.md` and the
+`PROGRESS_*.md` journal. Two results from that period matter for reading what follows: the
+leave-one-out protocol **understated features by ~24 points** and in one case manufactured a
+qualitative conclusion a stronger classifier does not reproduce; and §7.11 of
+`TestFeaturesWithMLP/README_MLP_FPE_Experiment.md` is the few-shot comparison whose missing
+control became Phase 6.
 
 Directories: `RationalGaborFeatures/` (the front end and the EMNIST phases),
 `SimpleStrokeTests/` (Phase 9), `FashionMNIST/` (Phase 10). Each has its own `README.md` for
