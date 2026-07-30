@@ -19,6 +19,8 @@ functions, not editing constants.
 | `Validate_AndLayer.jl` | **Pluto notebook** | ✅ |
 | `Validate_Pooling.jl` | **Pluto notebook** | ✅ |
 | `Validate_i1D.jl` | plain script — gate only, no notebook | ✅ |
+| `GaborStackGPU.module.jl` | **plain module** | ⚠ do not open in Pluto |
+| `Validate_GPU.jl` | plain script — gate only, no notebook | ✅ |
 
 The four modules are `include`d and `using`-ed by the notebooks, so they must stay plain
 `.jl` — a Pluto notebook cannot supply `module … end`. **Opening a plain module in Pluto
@@ -32,15 +34,22 @@ julia --project=. RationalGaborFeatures/Validate_GaborStack.jl
 julia --project=. RationalGaborFeatures/Validate_AndLayer.jl
 julia --project=. RationalGaborFeatures/Validate_Pooling.jl
 cd RationalGaborFeatures && julia --project=.. Validate_i1D.jl   # exits 1 on failure
+cd RationalGaborFeatures && julia --project=.. Validate_GPU.jl   # skips cleanly with no CUDA
 ```
 
-**`Validate_i1D.jl` currently exits 1, by design.** It tests the criterion the whole conjunction
-layer rests on — Zetzsche & Barth (Vision Research 30:1111–1117, 1990) prove no linear filter can
-be i2D-selective, and require the quadratic kernel to vanish on collinear frequency pairs — and
-finds A₁ leaking 4.6 × 10⁻² of its crossing response on exactly-i1D input at ρ = 2, against
-1.6 × 10⁻⁴ and 6.1 × 10⁻⁸ at the two finer scales. That is a recorded design decision, not an
-unfixed bug: see `RESULTS.md` for the mechanism (the ±45° channel pair, not the 90° partner) and
-for why neither fix is free.
+**`Validate_i1D.jl`** tests the criterion the whole conjunction layer rests on — Zetzsche & Barth
+(Vision Research 30:1111–1117, 1990) prove no linear filter can be i2D-selective, and require the
+quadratic kernel to vanish on collinear frequency pairs. It found A₁ leaking 4.6 × 10⁻² of its
+crossing response on exactly-i1D input at ρ = 2, from the ±45° channel pair rather than the 90°
+partner. **That is now fixed**: `a1_maps` subtracts the closed-form i1D floor by default and the
+gate passes at 9.1 × 10⁻⁴. Run `I1D_FLOOR=none` to see the original operator still fail — kept
+runnable because that failure is the evidence for the change.
+
+**`Validate_GPU.jl`** asserts the CUDA path matches the CPU reference: oriented energy to
+1.4 × 10⁻⁵, A₁ to ~1 × 10⁻⁵, A₂ to 2.5 × 10⁻³, and zero pixels differing by more than 5 % of RMS
+so the winner-take-all tie-break provably agrees. It exits 0 with a message when there is no GPU.
+The CPU path stays the reference — CUFFT's rounding is not FFTW's, so the GPU path cannot inherit
+claims like "bit-identical on EMNIST".
 
 ## Design, and the measurements behind it
 

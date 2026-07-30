@@ -36,9 +36,11 @@ include(joinpath(@__DIR__, "..", "RationalGaborFeatures", "GaborStack.module.jl"
 include(joinpath(@__DIR__, "..", "RationalGaborFeatures", "AndLayer.module.jl"))
 include(joinpath(@__DIR__, "..", "RationalGaborFeatures", "RayHarmonics.module.jl"))
 include(joinpath(@__DIR__, "..", "RationalGaborFeatures", "Pooling.module.jl"))
-using .GaborStack, .AndLayer, .RayHarmonics, .Pooling
+include(joinpath(@__DIR__, "..", "RationalGaborFeatures", "GaborStackGPU.module.jl"))
+using .GaborStack, .AndLayer, .RayHarmonics, .Pooling, .GaborStackGPU
+using CUDA
 
-export build_frontend, featurize, block_cols, FrontendSpec
+export build_frontend, featurize, featurize_gpu, block_cols, FrontendSpec
 
 "The rational scale ladder and its per-scale angular resolution, as validated in RESULTS.md."
 const LADDER = [2.0, 3.742, 7.0]
@@ -163,5 +165,49 @@ alone; `block_cols(spec, "lowpass")` is the block that should carry polarity.
 """
 block_cols(spec::FrontendSpec, names::AbstractString...) =
     findall(l -> any(startswith(l, n * ".") || startswith(l, n) for n in names), spec.labels)
+
+
+"""
+    featurize_gpu(imgs, spec; batch=32, blocks=(:orient,:lowpass,:A1,:A2))
+
+CUDA-accelerated `featurize` for the blocks `GaborStackGPU` covers.
+
+The FFTs and the `A₁`/`A₂` operators run batched on the device; the maps come back to the host
+and **`Pooling.assemble` runs unchanged**, so the feature vector is produced by the same code as
+`featurize` and cannot drift from it. `RationalGaborFeatures/Validate_GPU.jl` gates the maps
+against the CPU reference.
+
+**The ray block is not available here** — it is not ported. Requesting it is an error rather than
+a silent fallback, because a silent CPU fallback would move the whole energy stack back across
+PCIe and quietly undo the speedup. Use `featurize` for ray configurations.
+
+**Not bit-identical to `featurize`.** CUFFT's rounding is not FFTW's; measured agreement is
+~1.4e-5 relative on oriented energy and ~2.5e-3 on `A₂`, whose conditioned denominator amplifies
+it. Say which backend produced a table.
+"""
+function featurize_gpu(imgs::Vector{Matrix{Float32}}, spec::FrontendSpec;
+                       batch::Int=32, blocks=(:orient, :lowpass, :A1, :A2))
+    :rays in blocks && error("featurize_gpu: the ray block is not ported to GPU — use featurize")
+    CUDA.functional() || error("featurize_gpu: CUDA is not functional")
+    N = size(first(imgs), 1)
+    gb = upload_bank(spec.bank)
+    ps = PoolSpec(grid=spec.grid, blocks=blocks)
+    F = nothing
+    for lo in 1:batch:length(imgs)
+        hi = min(lo + batch - 1, length(imgs))
+        chunk = reshape(reduce(hcat, [vec(im) for im in imgs[lo:hi]]), N, N, hi - lo + 1)
+        E = energy_batch(CuArray(chunk), gb; crop_to=N)
+        A, alab = and_batch(E, spec.bank.meta; a1_floor=spec.a1_floor,
+                            a1_floor_fn=AndLayer.a1_i1d_floor)
+        Eh = Array(E); Ah = Array(A)
+        E = nothing; A = nothing; CUDA.reclaim()
+        for b in 1:(hi - lo + 1)
+            f, _ = assemble(Eh[:, :, :, b], spec.bank.meta, Ah[:, :, :, b], alab, ps; Wts=spec.wts)
+            F === nothing && (F = zeros(Float32, length(imgs), length(f)))
+            F[lo + b - 1, :] = f
+        end
+    end
+    F
+end
 
 end # module

@@ -1,0 +1,28 @@
+  Activating project at `~/claude-code/mother-embedding`
+Validating the CUDA front end against the CPU reference
+  NVIDIA GeForce RTX 4090
+
+8 stimuli in one batch: empty, bar 0°, bar 37°, corner, cross, tee, noise, grating
+
+quantity                      rel error    tolerance    verdict
+orient ρ=3.74 θ= 45°           1.02e-05      1.0e-04       pass
+orient ρ=3.74 θ=120°           1.20e-05      1.0e-04       pass
+orient ρ=3.74 θ=135°           1.34e-05      1.0e-04       pass
+orient ρ=7.00 θ= 45°           1.03e-05      1.0e-04       pass
+orient ρ=7.00 θ=124°           1.18e-05      1.0e-04       pass
+orient ρ=7.00 θ=135°           1.44e-05      1.0e-04       pass
+energy, worst channel          1.44e-05      1.0e-04       pass
+A1 ρ=2.00                      7.32e-06      3.0e-03       pass
+A1 ρ=3.74                      1.06e-05      3.0e-03       pass
+A1 ρ=7.00                      7.71e-06      3.0e-03       pass
+A2 ρ=2.00                      8.09e-06      3.0e-03       pass
+A2 ρ=3.74                      2.54e-03      3.0e-03       pass
+A2 ρ=7.00                      6.38e-06      3.0e-03       pass
+
+pixels differing by >5% of RMS: 0 of 602112 (0.0000 %)
+
+========================================================================
+ALL GATES PASSED — the CUDA path matches the CPU reference within tolerance.
+The CPU implementation remains the reference. Tables produced on the GPU path should say
+so: agreement here is numerical, not bit-exact, and CUFFT's rounding is not FFTW's.
+Not covered: the ray transform, which is not ported — see GaborStackGPU.
