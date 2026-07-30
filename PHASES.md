@@ -5,7 +5,8 @@ validator notebooks rather than as experiment scripts; **5 onward** are experime
 script each.
 
 Directories: `RationalGaborFeatures/` (the front end and the EMNIST phases),
-`SimpleStrokeTests/` (Phase 9), `FashionMNIST/` (Phase 10).
+`SimpleStrokeTests/` (Phase 9), `FashionMNIST/` (Phase 10). Each has its own `README.md` for
+how to run it and `RESULTS.md` for the tables; this file is the map across all of them.
 
 ---
 
@@ -77,7 +78,7 @@ a trained classifier cannot separate them.
 
 ## 9 — changing the question
 
-`SimpleStrokeTests`. Phases 5–8 asked *can a classifier separate these*, and on synthetic
+`SimpleStrokeTests/`. Phases 5–8 asked *can a classifier separate these*, and on synthetic
 stimuli the answer is nearly always yes, which is why Phase 8 produced no information.
 
 Phase 9 asks instead: **fit a linear readout and see how much of each property it recovers** —
@@ -107,9 +108,10 @@ design choice that depends on image statistics.
 
 ## 10 — something that is not characters
 
-`FashionMNIST`. Silhouettes with texture rather than line drawings, and **published baselines**
-to calibrate against instead of only our own arms. See `README.md` here for the benchmark
-numbers and the three predictions recorded before the run.
+`FashionMNIST/`. Silhouettes with texture rather than line drawings, and **published
+baselines** to calibrate against instead of only our own arms. See `FashionMNIST/README.md`
+for the benchmark numbers — including which of the published figures are not credible — and
+the three predictions recorded before the run.
 
 **What it still will not settle:** black uniform background, one centred object, contrast
 barely varying within a frame, 28×28 upsampled. Those are exactly the conditions under which
