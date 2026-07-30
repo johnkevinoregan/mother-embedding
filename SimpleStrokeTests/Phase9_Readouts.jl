@@ -66,6 +66,7 @@ const USEGPU  = get(ENV, "P9_GPU", "1") == "1"
 # `P9_GRID=5` asks whether `brokenness` and `vangle` are limited by the operators or by the
 # pooling. 5×5 takes the feature count from 279 to 775.
 const GRID    = parse(Int, get(ENV, "P9_GRID", "3"))
+const SCALEMODE = Symbol(get(ENV, "P9_SCALEMODE", "per_scale"))
 # How many independent permutations to average the shuffle control over. One permutation is
 # a sample of size one, and the conjunction-layer claim rests on this control.
 const NSHUF   = parse(Int, get(ENV, "P9_NSHUF", "5"))
@@ -366,7 +367,7 @@ end
 
 function main()
     @printf("Phase 9 — %d train, %d test, %d threads\n\n", NTRAIN, NTEST, Threads.nthreads())
-    spec = build_frontend(N; grid=GRID)
+    spec = build_frontend(N; grid=GRID, scale_mode=SCALEMODE)
     @printf("front end: grid %d, %d columns  (orient %d, lowpass %d, A1 %d, A2 %d, rays %d)\n\n",
             GRID, spec.n, length(block_cols(spec,"orient")), length(block_cols(spec,"lowpass")),
             length(block_cols(spec,"A1")), length(block_cols(spec,"A2")),

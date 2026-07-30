@@ -1,0 +1,12 @@
+##### grid 1  scale_mode per_scale #####
+front end: grid 1, 31 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 9)
+ours·linear          0.685      0.224      0.889      0.543      0.729      0.537      0.561     -0.000
+ours·MLP             0.925      0.737      0.998      0.938      0.954      0.687      0.714     -0.099
+##### grid 1  scale_mode max #####
+front end: grid 1, 26 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 4)
+ours·linear          0.682      0.202      0.873      0.504      0.689      0.516      0.530     -0.002
+ours·MLP             0.912      0.698      0.997      0.912      0.935      0.643      0.668     -0.081
+##### grid 3  scale_mode per_scale #####
+front end: grid 3, 279 columns  (orient 135, lowpass 9, A1 27, A2 27, rays 81)
+ours·linear          0.694      0.318      0.986      0.580      0.848      0.582      0.618     -0.000
+ours·MLP             0.835      0.592      0.993      0.835      0.905      0.635      0.657     -0.169

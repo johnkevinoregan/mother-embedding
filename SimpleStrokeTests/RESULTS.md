@@ -81,12 +81,22 @@ existed, and the pixel probe has 45× more free parameters than our feature prob
 | pixels·linear | −0.000 | −0.001 | −0.000 | −0.000 | 0.000 | −0.002 | −0.000 | **0.709** |
 | pixels·MLP | −0.183 | −0.404 | 0.721 | −0.137 | 0.108 | 0.007 | −0.222 | **0.787** |
 | CNN | 0.449 | 0.254 | 0.947 | 0.291 | **0.874** | **0.874** | **0.922** | **0.986** |
-| **ours·linear** | **0.682** | **0.340** | **0.985** | **0.567** | 0.859 | 0.576 | 0.625 | −0.000 |
-| ours·MLP | **0.829** | **0.615** | **0.992** | **0.831** | **0.916** | 0.599 | 0.656 | −0.115 |
+| **ours·linear** | **0.694** | **0.318** | **0.986** | **0.580** | 0.848 | 0.582 | 0.618 | −0.000 |
+| ours·MLP | **0.835** | **0.592** | **0.993** | **0.835** | **0.905** | 0.635 | 0.657 | −0.169 |
+| **ours·MLP, grid 1 (31 features)** | **0.925** | **0.737** | **0.998** | **0.938** | **0.954** | 0.687 | 0.714 | −0.099 |
 
 *CNN = full-resolution, four conv stages with pooling and batch norm, 60 epochs on a GPU.
 The earlier CPU-era numbers, from two strided convolutions trained for 12 epochs, are in
 "What the weaker CNN cost" below — the difference is large and the caveat was justified.*
+
+**The best configuration is the last row — 31 globally pooled features with a small MLP**,
+which beats the CNN on every structural property, by 0.938 to 0.291 on `vangle` and 0.737 to
+0.254 on `brokenness`. See the pooling-grid section for why coarser pooling wins.
+
+**The CNN row has ~0.03 of run-to-run variance.** Two runs at identical settings gave `arms`
+0.874 and 0.843, presumably non-deterministic cuDNN kernels. Differences in the CNN column
+below about 0.05 should not be read as real, and the earlier description of `arms` as "a dead
+heat at 0.842 against 0.843" was over-reading the third decimal.
 
 **The result splits along the structural/photometric line.** On geometry our fixed features
 with a *linear* readout still beat a CNN trained end-to-end on these targets — on four of
@@ -361,6 +371,56 @@ imposing a grid.
 pooling loses nothing — there is only one thing to pool. On an image with several objects it
 would confound them, and the grid would start earning its place again. This result is about
 this dataset, not about pooling in general.
+
+---
+
+## The ray transform is not thickness-invariant
+
+A limitation of the operator, found by asking what happens when the arms of a junction differ
+in width. `|c₂|/c₀` should be ~0 for a four-ray crossing and ~1 for a straight line:
+
+| stimulus | \|c₂\|/c₀ at ρ = 2.00 / 3.74 / 7.00 | reads as |
+|:--|:--|:--|
+| X, both bars 13 px | 0.05 / 0.00 / 0.16 | 4 rays ✓ |
+| **X, 4 px × 15 px** | **0.70 / 0.52 / 0.71** | **2 rays ✗** |
+| X, 6 px × 15 px | 0.57 / **0.29** / 0.73 | mixed |
+| straight, 13 px | 0.78 / 0.88 / 0.90 | 2 rays ✓ |
+
+**A crossing of unequal bars reads as a straight line.** The cause is not scale selection:
+`|c₂|/c₀ = (a−b)/(a+b)` for lobes `a` and `b`, so 0.70 means the thin arm contributes 22 % of
+what the thick one does. The harmonics compare lobes on **raw magnitude**, and a 15 px bar
+simply produces more energy than a 4 px bar at any scale.
+
+Note the middle scale reads the 6/15 case at **0.29** while the coarsest reads 0.73 — the
+information is present, in one scale, which is an argument for keeping the scales separate.
+
+*This cannot show on the stroke dataset, where every image has a single stroke width by
+construction, and it did not show on EMNIST either. It needs a stimulus built for it.*
+
+### Two designs tried against it, and what the dataset said
+
+**Max over scale** — one profile per direction, taking the strongest scale, each probed at its
+own offset. Attractive because `dₛ ∝ λₛ`, so the winning scale brings its own offset and the
+probe radius tracks local stroke width **with no preliminary measurement of the image** — the
+objection to anchoring `d` to a measured structure scale, since nothing in biology performs a
+global pass before setting a receptive field.
+
+On the dataset it **loses on every row**:
+
+| grid 1 | features | curvedness | brokenness | closedness | vangle | arms |
+|:--|--:|--:|--:|--:|--:|--:|
+| **per-scale** | 31 | **0.925** | **0.737** | **0.998** | **0.938** | **0.954** |
+| max over scale | 26 | 0.912 | 0.698 | 0.997 | 0.912 | 0.935 |
+
+Collapsing the scales discards something real, and saves five features out of 31. Kept in the
+code behind `scale_mode = :max`, off by default.
+
+**Divisive normalisation** — `R′(φ) = R(φ)/(R(φ) + κ·maxφ R)`, which must *saturate*: dividing
+every lobe by the same number leaves their ratio unchanged, so no linear rescaling can rescue
+a thin arm swamped by a thick one. On the five-stimulus diagnostic it took the 4/15 crossing
+from 0.638 to 0.298 at κ = 0.10. **Untested on any dataset**, and κ is a fitted constant of
+exactly the kind `d_factor` turned out to be — chosen by eye on five noiseless images read at
+one pixel. Available as `normalize = :divisive`, off by default.
 
 ---
 

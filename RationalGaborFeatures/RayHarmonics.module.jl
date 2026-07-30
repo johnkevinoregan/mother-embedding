@@ -109,13 +109,120 @@ published number; `:structure` from a caller-supplied scale measured off the ima
 the right anchoring when the image content does not scale with the frame.
 """
 function ray_maps(E::Array{Float32,3}, meta; nphi=nothing, d=:auto, d_factor::Real=1.0,
-                  d_anchor::Symbol=:envelope, structure_scale::Union{Nothing,Real}=nothing)
+                  d_anchor::Symbol=:envelope, structure_scale::Union{Nothing,Real}=nothing,
+                  scale_mode::Symbol=:per_scale, normalize::Symbol=:none,
+                  kappa::Float32=0.25f0)
     H, W, _ = size(E)
     d_anchor in (:envelope, :structure) ||
         error("d_anchor must be :envelope (default, reproduces published numbers) or :structure")
     d_anchor === :structure && structure_scale === nothing &&
         error("d_anchor = :structure needs structure_scale")
+    scale_mode in (:per_scale, :max, :cross) ||
+        error("scale_mode must be :per_scale, :max or :cross")
+    normalize in (:none, :divisive) ||
+        error("normalize must be :none or :divisive")
+
+    """
+    Divisive normalisation of a ray profile, in place.
+
+        R'(φ) = R(φ) / (R(φ) + κ·maxφ R)
+
+    Needed because the harmonics compare lobes on **raw magnitude**, so a junction whose arms
+    differ in thickness reads as fewer rays: a 4 px bar crossing a 15 px bar gave
+    |c₂|/c₀ = 0.638 (two rays) where an equal-thickness X gives 0.047. The weak arm's
+    response was 22 % of the strong one's and the profile was dominated by one axis.
+
+    A plain rescaling cannot fix this — dividing every lobe by the same number leaves their
+    ratio unchanged. The nonlinearity has to **saturate**, so that a present-but-weak ray
+    counts nearly as much as a strong one. That is divisive normalisation, which is also what
+    V1 is generally modelled as doing.
+    """
+    function normprofile!(R::AbstractVector{Float32}, κ)
+        M = maximum(R); M <= 0 && return R
+        @inbounds for j in eachindex(R); R[j] = R[j] / (R[j] + κ*M); end
+        R
+    end
     maps = Matrix{Float32}[]; labels = NamedTuple[]
+
+    # ── :max — one scale-invariant ray profile instead of one per scale ─────
+    #
+    # For each direction φ, take the largest response over scales, each probed at its own
+    # offset dₛ. Because dₛ ∝ λₛ, **the winning scale brings its own offset with it**: a
+    # thick stroke wins at a coarse scale with a large d, a thin one at a fine scale with a
+    # small d. So the offset tracks the local structure without any preliminary measurement
+    # of the image — which is the objection to anchoring d to a measured structure scale,
+    # since nothing in biology performs a global pass before setting a receptive field.
+    #
+    # It also explains the drift recorded in RESULTS.md §3, where the best d_factor moved 4×
+    # across w/λ. That sweep held the stimulus fixed and varied the filter scale, forcing the
+    # operator *off* the diagonal. A max over scales keeps it on the diagonal by
+    # construction, so one constant suffices.
+    #
+    # The max is meaningful only because the bank is RMS-normalised and responses are
+    # comparable across scales; without that it would simply select the loudest filter.
+    #
+    # `argmax` is emitted alongside as `Rs`: which scale won is a **local stroke-width
+    # estimate**, the structure scale recovered as an output rather than assumed as an input.
+    if scale_mode === :max
+        ρs = scales_of(meta)
+        # Angular resolution set by the FINEST scale, not the first one. The scales carry 8,
+        # 12 and 16 orientations and share one profile, so sampling at twice the coarsest
+        # count would probe the finest scale in half the directions it can resolve — and the
+        # fine scale is where junction detail lives.
+        K = nphi === nothing ? 2 * maximum(length(chan_of(meta, ρ)) for ρ in ρs) : Int(nphi)
+        Rmax = zeros(Float32, H, W, K); Sbest = zeros(Float32, H, W)
+        best = fill(-1f0, H, W)
+        for ρ in ρs
+            ch = chan_of(meta, ρ); m1 = first(m for m in meta if m.kind === :oriented && m.rho0 ≈ ρ)
+            dρ = d !== :auto ? Float64(d) :
+                 d_anchor === :structure ? d_factor * Float64(structure_scale) :
+                 d_factor * m1.imwidth / (2π * ρ * m1.sigma_phi)
+            for j in 1:K
+                φ = 2π*(j-1)/K; want = mod(φ + π/2, π)
+                bi = 1; bd = Inf
+                for (k,(_,θ)) in enumerate(ch)
+                    δ = abs(atan(sin(θ-want), cos(θ-want))); δ < bd && (bd = δ; bi = k)
+                end
+                Ej = @view E[:, :, ch[bi][1]]
+                dy = dρ*sin(φ); dx = dρ*cos(φ)
+                @inbounds for x in 1:W, y in 1:H
+                    v = bilin(Ej, y + dy, x + dx)
+                    v > Rmax[y,x,j] && (Rmax[y,x,j] = v)
+                end
+            end
+            # track which scale gives the strongest response anywhere in the profile
+            @inbounds for x in 1:W, y in 1:H
+                s = 0f0; for j in 1:K; s += Rmax[y,x,j]; end
+                if s > best[y,x]; best[y,x] = s; Sbest[y,x] = Float32(ρ); end
+            end
+        end
+        C0 = zeros(Float32,H,W); C1r = zeros(Float32,H,W); C1i = zeros(Float32,H,W)
+        C2r = zeros(Float32,H,W); C2i = zeros(Float32,H,W)
+        prof = Vector{Float32}(undef, K)
+        @inbounds for x in 1:W, y in 1:H
+            for j in 1:K; prof[j] = Rmax[y,x,j]; end
+            normalize === :divisive && normprofile!(prof, kappa)
+            for j in 1:K
+                φ = 2π*(j-1)/K; v = prof[j]
+                C0[y,x]  += v
+                C1r[y,x] += v*Float32(cos(φ));  C1i[y,x] -= v*Float32(sin(φ))
+                C2r[y,x] += v*Float32(cos(2φ)); C2i[y,x] -= v*Float32(sin(2φ))
+            end
+        end
+        m1m = Matrix{Float32}(undef,H,W); m2m = Matrix{Float32}(undef,H,W)
+        @inbounds for p in eachindex(C0)
+            m1m[p] = sqrt(C1r[p]^2 + C1i[p]^2)/K; m2m[p] = sqrt(C2r[p]^2 + C2i[p]^2)/K
+            C0[p] /= K
+        end
+        push!(maps, C0);   push!(labels, (form=:R0, rho0=0.0, d=0.0))
+        push!(maps, m1m);  push!(labels, (form=:R1, rho0=0.0, d=0.0))
+        push!(maps, m2m);  push!(labels, (form=:R2, rho0=0.0, d=0.0))
+        push!(maps, Sbest);push!(labels, (form=:Rs, rho0=0.0, d=0.0))
+        out = Array{Float32,3}(undef, H, W, length(maps))
+        for (k,M) in enumerate(maps); out[:,:,k] = M; end
+        return out, labels
+    end
+
     for ρ in scales_of(meta)
         ch = chan_of(meta, ρ); n = length(ch)
         K = nphi === nothing ? 2n : Int(nphi)

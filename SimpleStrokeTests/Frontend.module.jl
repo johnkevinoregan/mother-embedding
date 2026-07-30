@@ -51,6 +51,7 @@ struct FrontendSpec
     labels::Vector{String}
     n::Int
     grid::Int
+    scale_mode::Symbol
 end
 
 """
@@ -59,22 +60,22 @@ end
 Bank, pooling weights and column labels for `N×N` input. Padding is sized from both the
 across- and along-contour extents, and rounded to a length FFTW factors well.
 """
-function build_frontend(N::Int; grid::Int=3)
+function build_frontend(N::Int; grid::Int=3, scale_mode::Symbol=:per_scale)
     HF, WF, _ = field_for((N, N), LADDER; n_orient=NORI, beta=BETAS)
     bank = make_bank((HF, WF), LADDER; imwidth=N, n_orient=NORI, beta=BETAS)
     wts  = grid_weights(N, N, grid)
-    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid)
-    FrontendSpec(bank, wts, lab, length(f), grid)
+    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid, scale_mode)
+    FrontendSpec(bank, wts, lab, length(f), grid, scale_mode)
 end
 
-function _feat(img, bank, wts, grid)
+function _feat(img, bank, wts, grid, scale_mode=:per_scale)
     # Padding mode is `:replicate` by default in `energy_stack` — see the note on `embed`
     # in GaborStack. This wrapper previously subtracted the image median to work around
     # zero-padding breaking polarity invariance; the fix now lives in the front end itself,
     # where every caller gets it rather than only this one.
     Es = energy_stack(img, bank)
     A, al = and_maps(Es, bank.meta; forms=(:A1, :A2))
-    Rm, rl = ray_maps(Es, bank.meta)
+    Rm, rl = ray_maps(Es, bank.meta; scale_mode=scale_mode)
     f1, l1 = assemble(Es, bank.meta, A, al,
                       PoolSpec(grid=grid, blocks=(:orient, :lowpass, :A1, :A2)); Wts=wts)
     # `ray_maps` returns c₀, |c₁| and |c₂| unnormalised; the ratios are formed **here**, from
@@ -89,6 +90,21 @@ function _feat(img, bank, wts, grid)
     PR = pool_maps(Rm, wts)
     nc = grid*grid
     fr = Float32[]; lr = String[]
+    # `:max` emits one scale-invariant profile plus `Rs`, the winning scale — a local
+    # stroke-width estimate obtained with no preliminary pass over the image.
+    if scale_mode === :max
+        k0 = findfirst(l -> l.form === :R0, rl); k1 = findfirst(l -> l.form === :R1, rl)
+        k2 = findfirst(l -> l.form === :R2, rl); ks = findfirst(l -> l.form === :Rs, rl)
+        fl = 1f-3 * max(mean(@view PR[:, k0]), 1f-12)
+        for c in 1:nc
+            den = PR[c, k0] + fl
+            push!(fr, PR[c,k0]);       push!(lr, "rays.R0.max.cell$(c)")
+            push!(fr, PR[c,k1]/den);   push!(lr, "rays.R1.max.cell$(c)")
+            push!(fr, PR[c,k2]/den);   push!(lr, "rays.R2.max.cell$(c)")
+            push!(fr, PR[c,ks]);       push!(lr, "rays.Rs.max.cell$(c)")
+        end
+        return vcat(f1, fr), vcat(l1, lr)
+    end
     ρs = unique(l.rho0 for l in rl)
     for ρ in ρs
         k0 = findfirst(l -> l.rho0 == ρ && l.form === :R0, rl)
@@ -115,7 +131,7 @@ threads are left at 1 and the parallelism is taken at the image level instead.
 function featurize(imgs::Vector{Matrix{Float32}}, spec::FrontendSpec)
     F = zeros(Float32, length(imgs), spec.n)
     Threads.@threads for i in eachindex(imgs)
-        F[i, :] = _feat(imgs[i], spec.bank, spec.wts, spec.grid)[1]
+        F[i, :] = _feat(imgs[i], spec.bank, spec.wts, spec.grid, spec.scale_mode)[1]
     end
     F
 end
