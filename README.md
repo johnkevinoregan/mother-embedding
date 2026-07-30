@@ -37,7 +37,7 @@ about 100 examples per class (3.5 % of EMNIST). Expressed as data rather than ac
 saving is under 2×, and no arm was given augmentation, which would favour the CNN. Run it
 with `FewShotComparison.jl`.
 
-See `PROGRESS_2026-07-26.md` for the latest writeup (and the earlier
+See `PROGRESS_2026-07-30.md` for the latest writeup (and the earlier
 `PROGRESS_*.md` files for the history) — what's implemented, what's still to come,
 and the reasoning behind the changes. Its §9 is worth reading before trusting any
 older accuracy comparison: the leave-one-out nearest-class-mean protocol used
