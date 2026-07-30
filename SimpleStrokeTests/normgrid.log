@@ -1,0 +1,13 @@
+##### scale_mode=per_scale  normalize=none  (kappa 0.10) #####
+front end: grid 1, 31 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 9)
+ours·linear          0.685      0.224      0.889      0.543      0.729      0.537      0.561     -0.000
+ours·MLP             0.925      0.737      0.998      0.938      0.954      0.687      0.714     -0.099
+##### scale_mode=per_scale  normalize=divisive  (kappa 0.10) #####
+front end: grid 1, 31 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 9)
+ours·linear          0.685      0.224      0.889      0.543      0.729      0.537      0.561     -0.000
+ours·MLP             0.925      0.737      0.998      0.938      0.954      0.687      0.714     -0.099
+##### scale_mode=max  normalize=none  (kappa 0.10) #####
+front end: grid 1, 26 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 4)
+ours·linear          0.682      0.203      0.874      0.503      0.687      0.517      0.531     -0.002
+ours·MLP             0.912      0.687      0.996      0.915      0.936      0.646      0.677     -0.095
+##### scale_mode=max  normalize=divisive  (kappa 0.10) #####

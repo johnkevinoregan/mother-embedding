@@ -59,10 +59,20 @@ function allblocks(img28)
     Rm, rl = ray_maps(Es, BANK.meta)
     f1, l1 = assemble(Es, BANK.meta, A, al,
                       PoolSpec(grid=3, blocks=(:orient,:lowpass,:A1,:A2)); Wts=WTS)
-    PR = pool_maps(Rm, WTS)                                    # 9 cells × 9 ray channels
-    fr = Float32[]; lr = String[]
-    for (k,l) in enumerate(rl), c in 1:9
-        push!(fr, PR[c,k]); push!(lr, "$(l.form).ρ$(round(l.rho0,digits=2)).cell$(c)")
+    # ray_maps returns c₀, |c₁|, |c₂| unnormalised; the ratios are formed after pooling, with
+    # a relative floor. Dividing per pixel and averaging weighted every low-energy location
+    # equally with a strong contour — see RayHarmonics and SimpleStrokeTests/RESULTS.md.
+    PR = pool_maps(Rm, WTS); fr = Float32[]; lr = String[]
+    for ρ in unique(l.rho0 for l in rl)
+        k0 = findfirst(l -> l.rho0 == ρ && l.form === :R0, rl)
+        k1 = findfirst(l -> l.rho0 == ρ && l.form === :R1, rl)
+        k2 = findfirst(l -> l.rho0 == ρ && l.form === :R2, rl)
+        fl = 1f-3 * max(mean(@view PR[:, k0]), 1f-12)
+        for c in 1:9
+            push!(fr, PR[c,k0]);               push!(lr, "R0.ρ$(round(ρ,digits=2)).cell$(c)")
+            push!(fr, PR[c,k1]/(PR[c,k0]+fl)); push!(lr, "R1.ρ$(round(ρ,digits=2)).cell$(c)")
+            push!(fr, PR[c,k2]/(PR[c,k0]+fl)); push!(lr, "R2.ρ$(round(ρ,digits=2)).cell$(c)")
+        end
     end
     vcat(f1, fr), vcat(l1, lr)
 end

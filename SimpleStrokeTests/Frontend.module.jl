@@ -52,6 +52,8 @@ struct FrontendSpec
     n::Int
     grid::Int
     scale_mode::Symbol
+    normalize::Symbol
+    kappa::Float32
 end
 
 """
@@ -60,22 +62,23 @@ end
 Bank, pooling weights and column labels for `N×N` input. Padding is sized from both the
 across- and along-contour extents, and rounded to a length FFTW factors well.
 """
-function build_frontend(N::Int; grid::Int=3, scale_mode::Symbol=:per_scale)
+function build_frontend(N::Int; grid::Int=3, scale_mode::Symbol=:per_scale,
+                        normalize::Symbol=:none, kappa::Float32=0.10f0)
     HF, WF, _ = field_for((N, N), LADDER; n_orient=NORI, beta=BETAS)
     bank = make_bank((HF, WF), LADDER; imwidth=N, n_orient=NORI, beta=BETAS)
     wts  = grid_weights(N, N, grid)
-    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid, scale_mode)
-    FrontendSpec(bank, wts, lab, length(f), grid, scale_mode)
+    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid, scale_mode, normalize, kappa)
+    FrontendSpec(bank, wts, lab, length(f), grid, scale_mode, normalize, kappa)
 end
 
-function _feat(img, bank, wts, grid, scale_mode=:per_scale)
+function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kappa=0.10f0)
     # Padding mode is `:replicate` by default in `energy_stack` — see the note on `embed`
     # in GaborStack. This wrapper previously subtracted the image median to work around
     # zero-padding breaking polarity invariance; the fix now lives in the front end itself,
     # where every caller gets it rather than only this one.
     Es = energy_stack(img, bank)
     A, al = and_maps(Es, bank.meta; forms=(:A1, :A2))
-    Rm, rl = ray_maps(Es, bank.meta; scale_mode=scale_mode)
+    Rm, rl = ray_maps(Es, bank.meta; scale_mode=scale_mode, normalize=normalize, kappa=kappa)
     f1, l1 = assemble(Es, bank.meta, A, al,
                       PoolSpec(grid=grid, blocks=(:orient, :lowpass, :A1, :A2)); Wts=wts)
     # `ray_maps` returns c₀, |c₁| and |c₂| unnormalised; the ratios are formed **here**, from
@@ -131,7 +134,8 @@ threads are left at 1 and the parallelism is taken at the image level instead.
 function featurize(imgs::Vector{Matrix{Float32}}, spec::FrontendSpec)
     F = zeros(Float32, length(imgs), spec.n)
     Threads.@threads for i in eachindex(imgs)
-        F[i, :] = _feat(imgs[i], spec.bank, spec.wts, spec.grid, spec.scale_mode)[1]
+        F[i, :] = _feat(imgs[i], spec.bank, spec.wts, spec.grid, spec.scale_mode,
+                        spec.normalize, spec.kappa)[1]
     end
     F
 end

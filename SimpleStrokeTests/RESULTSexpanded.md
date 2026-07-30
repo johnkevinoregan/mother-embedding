@@ -337,7 +337,29 @@ Our 279 numbers are not homogeneous. They come in blocks:
 - **`orient`** (135) — conventional oriented-energy statistics. How much edge energy at each
   place, orientation and scale. This is roughly what standard approaches compute.
 - **`A1`, `A2`** (54) — the **conjunction layer**. Designed to detect where two orientations
-  *meet at a point* rather than merely both being present nearby.
+  *meet at a point* rather than merely both being present nearby. What they actually do:
+
+  **`A1`** — at every location the front end already knows how much edge energy there is in
+  each direction. `A1` multiplies the amount in each direction by the amount at right angles
+  to it, and adds those products up. A product is only large when **both** are large, so `A1`
+  is large only where two perpendicular edges genuinely coincide. Merely having a horizontal
+  edge somewhere in the neighbourhood and a vertical edge somewhere else does not produce it.
+
+  That multiplication is the entire idea, and the order matters: multiplying at each point
+  and averaging afterwards is not the same as averaging first and multiplying after. The
+  difference between them is exactly the information about whether the two edges are in the
+  *same place*, and it is thrown away by any method that summarises a region before combining.
+
+  **`A2`** — at every location, find the strongest edge direction, then look a fixed distance
+  *along* that edge in both directions. If the edge runs through, both readings are similar.
+  At the end of a line, one reading is strong and the other is empty. That mismatch is the
+  output, so `A2` responds at line endings and stays quiet along a continuous stroke.
+
+  One thing `A1` cannot do, by construction: an edge direction and the same direction turned
+  180° are indistinguishable — a line has no "which way". So a T-junction and an X-crossing
+  contain the same set of directions, and `A1` reports the same value for both. Counting how
+  many branches actually radiate from a point needs the direction, not just the orientation,
+  which is what the **ray** block is for.
 - **`rays`** (81) — counts how many contour branches radiate from a point.
 - **`lowpass`** (9) — coarse average brightness.
 

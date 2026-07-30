@@ -55,6 +55,55 @@ so `n` cancels out of angular coverage. At 1.5 the coarse channel has `σ_along 
 **longer than any EMNIST stroke**, so no stroke ever looks uniform and end-stopping cannot
 work. The field also drops 320 → 224.
 
+### What A₁ and A₂ actually compute
+
+Both are evaluated **at every pixel, per scale**, and pooled afterwards. `Eₖ` is the
+quadrature energy in orientation channel `k`; the `n` channels span 0–180°, so a shift of
+`n/2` channels is exactly **90°**.
+
+**A₁ — orientation-profile autocorrelation at 90° lag**
+
+```
+C₀ = Σₖ Eₖ                        total energy over orientations
+S  = Σₖ Eₖ · E₍ₖ₊ₙ⁄₂₎              each channel × the one 90° away
+A₁ = S / C₀
+```
+
+With `pₖ = Eₖ/C₀` the normalised profile this is `A₁ = C₀ · Σₖ pₖ pₖ₊ₙ⁄₂` — the profile's
+autocorrelation at 90° lag, multiplied back by `C₀`. Large only where two perpendicular
+orientations are present **at the same point**. The `C₀` factor converts a dimensionless
+shape measure into an energy, which is what makes a spatial mean of it meaningful and makes
+`0` the correct value where there is no energy.
+
+**A₁ cannot count rays.** The orientation profile is π-periodic, so a T-junction and an
+X-crossing have identical content `{0°, 90°}`. Ray count is a 2π property, which is why
+`RayHarmonics` exists.
+
+**A₂ — end-stopping along the stroke**
+
+At each pixel take the **locally dominant** orientation channel; its carrier is `θ_c`, so the
+stroke runs along `θ_s = θ_c + 90°`. Probe that same channel a distance `d` each way *along*
+the stroke:
+
+```
+E₊ = E(x + d·u(θ_s))              bilinear
+E₋ = E(x − d·u(θ_s))
+A₂ = E(x) · |E₊ − E₋| / (E₊ + E₋ + κ·E(x))          κ = 0.5
+```
+
+A stroke that continues both ways gives `E₊ ≈ E₋` and `A₂ ≈ 0`; at a line end one side has
+energy and the other does not. The offset `d` is `d_factor · imwidth/(2πρσ_φ)` under the
+default `:envelope` anchor — 17.0 / 13.6 / 9.7 px on a 112 px image.
+
+Three details in that formula were each a bug once:
+
+* **dominant orientation, not max over orientations** — the max version gave 2.5×
+  end-versus-interior, the dominant-channel version gives **10.4×**;
+* **`κ·E(x)` is relative conditioning** — an absolute ε there collapsed A₂ to plain energy;
+* **the leading `E(x)`** makes A₂ an energy rather than a bare ratio, which is why mean
+  pooling is valid for it and why it needs none of the ratio-after-pooling treatment the ray
+  harmonics do.
+
 **The AND layer is the point.** Multiplication and pooling do not commute; their difference
 is the within-window covariance `Cov_x(e₁,e₂)`, which *is* the co-location signal. No
 statistic of already-pooled orientation energy can represent it — including a
