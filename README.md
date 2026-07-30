@@ -37,8 +37,7 @@ after.
 | `TestFeaturesWithMLP/` | Score those features with a **real** classifier on the official EMNIST split instead of a deliberately weak one | Overturned earlier conclusions; see the methodological warning below. `README_MLP_FPE_Experiment.md` is self-contained |
 | `New_Gabor_FPE/` | Junction type by **linear projection only** — ray profiles → circular harmonics | The ray transform survives into the current front end. Diagnosed *why* orientation energy alone cannot count rays |
 | `Dense_Gabors/` | Dense per-pixel Gabor sampling with peak-counting and ring analysis | **Superseded.** Kept as a baseline and a cautionary tale: its thresholds were patching a hole in the representation |
-
-| `EarlyGaborLifting/` | The **first attempt** — a Gabor lifting and a hand-built T-junction detector | Superseded, and the diagnosis of *why* is what produced the ray transform. See the last section |
+| `EarlyGaborLifting/` | The **first attempt** — a Gabor lifting and a hand-built T-junction detector | Superseded, and the diagnosis of *why* produced the ray transform. See the last section |
 
 ---
 
