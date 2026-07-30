@@ -106,17 +106,19 @@ fine ones, because its edges are crisp. A thin blurry stroke has energy only in 
 So we added a number recording **what fraction of the energy sits in the finer filters** — two
 extra numbers in total.
 
-**On its own, it barely helped.** But **combined with the other improvements it moved the problem
-by about 0.16, in both directions, and that replicated almost exactly** (+0.161 one way, +0.160
-the other). That's the first thing in the whole project to shift this.
+**It did not work.** A first attempt appeared to improve the problem by about 0.16 in both
+directions, and that was written up as the first real progress on it. Re-running with the
+operator implemented correctly, the improvement disappears: +0.02 in one direction and −0.27 in
+the other. The apparent success came from a mistake in our own code — we had written a new
+version of a measurement the codebase already contained, and the two differed in a small way
+(one takes a square root, the other does not) that turned out to matter.
 
-Why only in combination? Most likely because the fine-versus-coarse fraction means different
-things at different stroke widths — so it is only interpretable once the readout also knows the
-width, which the extra probe distances supply. That's a plausible story, not something we've
-proved.
+**So nothing yet fixes this weakness.** The measurement we added does capture something — it
+improves ordinary accuracy on thickness and blurriness — but it does not help when the range
+shifts, which is the actual problem.
 
-**It is reduced, not fixed.** The scores are still deeply negative (−1.90 and −2.29). A readout
-trained on one range remains badly wrong on the other.
+The scores remain deeply negative (−2.04 and −2.72), so a readout trained on one range is still
+badly wrong on the other.
 
 ---
 
@@ -125,10 +127,10 @@ trained on one range remains badly wrong on the other.
 | if you care most about | use | numbers |
 |:--|:--|--:|
 | shape under changing conditions | harmonics + probe distances | 54 |
-| the thickness/blur weakness, and ordinary accuracy | the above **plus** cross-scale | 58 |
+| ordinary accuracy | the above **plus** cross-scale | 58 |
 
-**No single setting wins everything** — the second buys the thickness/blur improvement at a small
-cost to the shape readings. Which to prefer depends on the eventual application, not on the front
+**No single setting wins everything** — the second is better on ordinary accuracy but worse on the
+shape readings when conditions change, and neither repairs the thickness/blur weakness. Which to prefer depends on the eventual application, not on the front
 end.
 
 Both are better than the 31-number original on essentially every measure.
@@ -143,10 +145,12 @@ gain **vanished entirely**. Small-scale trials systematically exaggerate the ben
 capacity, because extra capacity helps most when data is scarce. They are useful for deciding
 *what to test properly*, never for the size of an effect.
 
-**We declared an idea dead too early.** The cross-scale measurement was tested on its own, failed,
-and was written off — and the very next test showed it working when combined with the others. An
-ingredient that does nothing alone can still matter in company, so testing it alone is not a fair
-test of the idea.
+**We declared an idea dead too early, then revived it on bad evidence.** The cross-scale
+measurement was tested alone, failed, and was written off — then appeared to work in combination,
+so the write-off was withdrawn. Both moves were wrong: the combination result came from a coding
+mistake. The real lesson is narrower and duller than either — **check that you are running the
+thing you say you are running.** The codebase already contained this measurement; we wrote a
+second version without noticing, and the two were not identical.
 
 ---
 

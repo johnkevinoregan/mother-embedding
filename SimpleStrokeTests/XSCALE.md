@@ -1,5 +1,33 @@
 # Cross-scale features and the thickness/fuzziness confound
 
+> ## ⚠ RETRACTED — the cross-scale confound result was an implementation artefact
+>
+> This page reported that cross-scale features move the thickness/fuzziness confound by
+> **+0.161 and +0.160**, replicated in both directions. **That is wrong.**
+>
+> I said I was enabling `A₃`, the cross-scale operator that already existed in `AndLayer`, and
+> instead reimplemented the formula inline in `Frontend._feat`. The two are not the same feature:
+> `Pooling.assemble` emits **`sqrt(pooled)`** for every A-block, so `A₃` is amplitude-like and
+> consistent with A₁ and A₂, while the inline copy was energy-like. After standardisation those
+> are different features.
+>
+> Re-run through the real `a3_maps` path:
+>
+> | | thickness (blur split) | fuzziness (thickness split) |
+> |:--|--:|--:|
+> | baseline | −2.060 | −2.448 |
+> | adopted + **A₃ (correct)** | −2.041 (+0.019) | **−2.718 (−0.270)** |
+> | adopted + inline variant | −1.899 (+0.161) | −2.288 (+0.160) |
+>
+> **`A₃` does not move the confound.** Alone it makes it *worse* in both directions (−0.159,
+> −0.196). Nothing tested so far fixes it.
+>
+> The inline variant's effect was real and replicated — but it is a **raw pooled cross-scale
+> product**, not `A₃`, and dropping the `sqrt` for one block while keeping it for the others is an
+> inconsistency rather than a design. It is recoverable from commit `094ed0e` and would need its
+> own justification before being taken seriously.
+
+
 > **Start with [`FINDINGS.md`](FINDINGS.md)** — a plain-language summary of what these
 > experiments found. This file is the detailed tables.
 

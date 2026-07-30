@@ -111,7 +111,13 @@ function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kap
     # zero-padding breaking polarity invariance; the fix now lives in the front end itself,
     # where every caller gets it rather than only this one.
     Es = energy_stack(img, bank)
-    A, al = and_maps(Es, bank.meta; forms=(:A1, :A2), a1_floor=a1_floor)
+    # `:A3` is the EXISTING cross-scale operator in AndLayer — C₀(k)·C₀(k+1) — and it goes
+    # through `and_maps`/`assemble` like A₁ and A₂ rather than being recomputed here. An earlier
+    # version of this file reimplemented the same formula inline, which was not merely duplication:
+    # `assemble` emits `sqrt(pooled)` for every A-block, so the inline copy was energy-like where
+    # A₁, A₂ and A₃ are amplitude-like, and after standardisation that is a different feature.
+    a3on = cross_scale in (:product, :both)
+    A, al = and_maps(Es, bank.meta; forms=(a3on ? (:A1, :A2, :A3) : (:A1, :A2)), a1_floor=a1_floor)
     # One ray_maps call per offset factor. With length(d_factors) > 1 this is the crossed
     # d × λ design: each offset is applied at every wavelength, so the labels carry the factor
     # to keep the columns distinguishable.
@@ -124,7 +130,10 @@ function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kap
         push!(extraR, (m, l, df))
     end
     f1, l1 = assemble(Es, bank.meta, A, al,
-                      PoolSpec(grid=grid, blocks=(:orient, :lowpass, :A1, :A2), harmonics=harmonics); Wts=wts)
+                      PoolSpec(grid=grid,
+                               blocks=(a3on ? (:orient, :lowpass, :A1, :A2, :A3) :
+                                              (:orient, :lowpass, :A1, :A2)),
+                               harmonics=harmonics); Wts=wts)
     # `ray_maps` returns c₀, |c₁| and |c₂| unnormalised; the ratios are formed **here**, from
     # the pooled energies, rather than per pixel. Dividing per pixel and then averaging gave
     # every low-energy location the same weight as a strong contour, and — because the old
@@ -189,9 +198,8 @@ function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kap
     # amounts, which pooling then averages. A thick sharp stroke has energy at coarse AND fine
     # scales; a thin blurred one has coarse only. Two numbers, one axis.
     #
-    #   :product — C₀(k)·C₀(k+1), the existing `a3_maps` form. An energy, so mean pooling is
-    #              valid and it needs no ratio treatment. Expected to FAIL: a product is large
-    #              whenever both scales carry energy and does not separate the four cases.
+    #   :product — handled ABOVE by `a3_maps` through the normal A-block path, so it gets the
+    #              same `sqrt(pooled)` treatment as A₁ and A₂. Only the ratio is computed here.
     #   :ratio   — C₀(k+1) / (C₀(k)+C₀(k+1)), the fraction of energy at the finer scale. This is
     #              a **bounded, scale-free** quantity, so by the rule established when the ray
     #              ratios turned out to be wrong it is pooled NUMERATOR AND DENOMINATOR
@@ -209,12 +217,6 @@ function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kap
                end for ρ in ρsx]
         for k in 1:length(ρsx)-1
             tag = "$(round(ρsx[k],digits=2))_$(round(ρsx[k+1],digits=2))"
-            if cross_scale in (:product, :both)
-                P = pool_maps(reshape(C0s[k] .* C0s[k+1], size(Es,1), size(Es,2), 1), wts)
-                for c in 1:nc
-                    push!(fr, P[c,1]); push!(lr, "xscale.prod.$(tag).cell$(c)")
-                end
-            end
             if cross_scale in (:ratio, :both)
                 Pn = pool_maps(reshape(C0s[k+1],               size(Es,1), size(Es,2), 1), wts)
                 Pd = pool_maps(reshape(C0s[k] .+ C0s[k+1],     size(Es,1), size(Es,2), 1), wts)
