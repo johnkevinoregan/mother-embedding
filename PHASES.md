@@ -103,7 +103,8 @@ extrapolation splits, everything scored against a trivial three-scalar baseline.
 **What it found:**
 
 * A linear readout on our features beats a two-hidden-layer MLP on 12,544 raw pixels on every
-  structural property, and a properly trained CNN on four of five.
+  structural property, and a CNN trained on the task on four of five — but that CNN arm did not
+  converge (see Phase 11), so it bounds nothing.
 * **The conjunction layer finally pays** — +0.16 to +0.21 over a shuffle control whose spread
   across five permutations is ≤ 0.002. On EMNIST the same layer was worth +0.01.
 * **Perfect transfer to inverted polarity**, where both pixel arms fall below chance and the

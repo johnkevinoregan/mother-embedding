@@ -1,0 +1,140 @@
+torch 2.13.0+cu126  cuda=True  device=cuda
+  NVIDIA GeForce RTX 4090
+splits: ['iid', 'polarity', 'fuzziness', 'thickness']
+
+convnext_tinyrand: 28.6M parameters, stage channels [96, 192, 384, 768]
+  iid        train  16000 imgs     8.6 s (0.5 ms/img)
+  iid        test    4000 imgs     2.7 s (0.7 ms/img)
+  polarity   train  16000 imgs     7.7 s (0.5 ms/img)
+  polarity   test    4000 imgs     1.9 s (0.5 ms/img)
+  fuzziness  train  16000 imgs     7.8 s (0.5 ms/img)
+  fuzziness  test    4000 imgs     1.9 s (0.5 ms/img)
+  thickness  train  16000 imgs     7.8 s (0.5 ms/img)
+  thickness  test    4000 imgs     1.9 s (0.5 ms/img)
+convnext_baserand: 88.6M parameters, stage channels [128, 256, 512, 1024]
+  iid        train  16000 imgs    19.6 s (1.2 ms/img)
+  iid        test    4000 imgs     5.5 s (1.4 ms/img)
+  polarity   train  16000 imgs    18.8 s (1.2 ms/img)
+  polarity   test    4000 imgs     4.7 s (1.2 ms/img)
+  fuzziness  train  16000 imgs    18.9 s (1.2 ms/img)
+  fuzziness  test    4000 imgs     4.7 s (1.2 ms/img)
+  thickness  train  16000 imgs    18.9 s (1.2 ms/img)
+  thickness  test    4000 imgs     4.7 s (1.2 ms/img)
+
+wrote /home/kevin/claude-code/mother-embedding/ConVNextTest/features
+=== RANDOM-INIT EXTRACTION DONE ===
+Frozen ConvNeXt vs our front end on the Phase 9 stroke properties
+grid 1 for our arm (Phase 9's best), 100 MLP epochs, GPU yes
+
+
+============================================================================================================
+i.i.d. split — test R² per property
+============================================================================================================
+
+arm                       nfeat curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial baseline              3      0.007      0.006      0.458      0.065      0.028      0.197      0.152      0.060
+-----------------------------------------------------------------------------------------------------------------------
+pixels·linear             12544     -0.000     -0.001     -0.001     -0.001      0.000     -0.001     -0.000      0.712
+ours·linear                  31      0.687      0.213      0.887      0.549      0.732      0.547      0.555     -0.002
+ours·MLP                     31      0.930      0.730      0.998      0.944      0.958      0.709      0.729     -0.063
+convnext_tiny s4 ·lin       768      0.969      0.675      0.988      0.835      0.947      0.916      0.971      0.992
+convnext_tiny s4 ·MLP       768      0.980      0.828      0.999      0.960      0.981      0.943      0.979      0.998
+convnext_tiny s3 ·lin       384      0.960      0.674      0.988      0.789      0.944      0.899      0.966      0.983
+convnext_tiny s1-4 ·lin    1440      0.973      0.723      0.993      0.858      0.960      0.932      0.976      0.994
+convnext_base s4 ·lin      1024      0.976      0.750      0.990      0.882      0.963      0.932      0.974      0.991
+convnext_base s4 ·MLP      1024      0.984      0.865      0.998      0.976      0.987      0.952      0.982      0.998
+convnext_base s3 ·lin       512      0.970      0.742      0.991      0.843      0.957      0.927      0.972      0.987
+convnext_base s1-4 ·lin    1920      0.978      0.775      0.994      0.890      0.969      0.941      0.977      0.993
+convnext_tinyrand s4 ·l     768      0.000     -0.009      0.051      0.004      0.001      0.005      0.001      0.354
+convnext_tinyrand s4 ·M     768     -0.010     -0.085      0.387      0.038      0.032      0.075      0.121      0.814
+convnext_tinyrand s3 ·l     384     -0.000     -0.007      0.028      0.003      0.001      0.006      0.001      0.369
+convnext_tinyrand s1-4 ·   1440      0.001     -0.003      0.206      0.028      0.000      0.006      0.001      0.530
+convnext_baserand s4 ·l    1024     -0.000     -0.001      0.049      0.003      0.000      0.003      0.001      0.302
+convnext_baserand s4 ·M    1024     -0.014     -0.057      0.315      0.031      0.028      0.076      0.078      0.816
+convnext_baserand s3 ·l     512     -0.000     -0.005      0.021      0.001      0.001      0.005      0.001      0.309
+convnext_baserand s1-4 ·   1920     -0.000     -0.002      0.211      0.027      0.002      0.012      0.005      0.508
+
+============================================================================================================
+extrapolation: polarity — trained on one range, tested on the other
+============================================================================================================
+
+arm                       nfeat curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial baseline              3      0.009      0.008      0.459      0.069      0.023      0.200      0.176          —
+-----------------------------------------------------------------------------------------------------------------------
+pixels·linear             12544     -0.127     -0.099     -2.441     -0.527     -1.722     -2.917     -0.858          —
+ours·linear                  31      0.682      0.251      0.882      0.544      0.728      0.596      0.555          —
+ours·MLP                     31      0.933      0.776      0.999      0.952      0.961      0.742      0.746          —
+convnext_tiny s4 ·lin       768      0.903     -0.635      0.893      0.367      0.797      0.530      0.749          —
+convnext_tiny s4 ·MLP       768      0.937      0.049      0.969      0.807      0.888      0.576      0.778          —
+convnext_tiny s3 ·lin       384      0.787     -1.033      0.883      0.578      0.825      0.659      0.607          —
+convnext_tiny s1-4 ·lin    1440      0.913     -0.943      0.918      0.433      0.773      0.030      0.794          —
+convnext_base s4 ·lin      1024      0.857     -2.116      0.780      0.104      0.721      0.736      0.700          —
+convnext_base s4 ·MLP      1024      0.918      0.098      0.876      0.839      0.931      0.585      0.720          —
+convnext_base s3 ·lin       512      0.895     -3.677      0.750      0.246      0.840      0.757      0.705          —
+convnext_base s1-4 ·lin    1920      0.880     -4.824      0.741      0.035      0.783      0.127      0.698          —
+convnext_tinyrand s4 ·l     768     -0.007     -0.000     -1.085     -0.168     -0.003      0.002     -0.583          —
+convnext_tinyrand s4 ·M     768     -0.122     -0.153     -2.380     -0.190     -0.362     -0.449     -0.575          —
+convnext_tinyrand s3 ·l     384     -0.003     -0.000     -1.063     -0.164     -0.000      0.003     -0.606          —
+convnext_tinyrand s1-4 ·   1440     -0.008     -0.000     -2.398     -0.201     -0.004     -0.036     -1.971          —
+convnext_baserand s4 ·l    1024     -0.009     -0.000     -0.860     -0.125     -0.003      0.001     -0.435          —
+convnext_baserand s4 ·M    1024     -0.241     -0.376     -5.013     -0.221     -0.922     -0.134     -0.197          —
+convnext_baserand s3 ·l     512     -0.003     -0.000     -0.736     -0.106     -0.000      0.001     -0.442          —
+convnext_baserand s1-4 ·   1920     -0.010     -0.000     -2.067     -0.196     -0.003      0.002     -2.123          —
+
+============================================================================================================
+extrapolation: fuzziness — trained on one range, tested on the other
+============================================================================================================
+
+arm                       nfeat curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial baseline              3      0.003     -0.001      0.368      0.073      0.028      0.024    -10.912      0.096
+-----------------------------------------------------------------------------------------------------------------------
+pixels·linear             12544     -0.000     -0.001     -0.001     -0.000     -0.008     -0.002          —      0.746
+ours·linear                  31      0.661      0.037      0.879      0.526      0.697     -1.859          —     -0.000
+ours·MLP                     31      0.892      0.400      0.991      0.866      0.922     -1.994          —     -0.035
+convnext_tiny s4 ·lin       768      0.823     -0.746      0.950      0.475      0.773      0.396          —      0.860
+convnext_tiny s4 ·MLP       768      0.871      0.105      0.911      0.701      0.761      0.374          —      0.871
+convnext_tiny s3 ·lin       384      0.859     -0.427      0.948     -1.198      0.129      0.392          —      0.892
+convnext_tiny s1-4 ·lin    1440      0.822     -0.239      0.969      0.434      0.636      0.387          —      0.902
+convnext_base s4 ·lin      1024      0.907      0.020      0.944     -0.289      0.690      0.336          —      0.947
+convnext_base s4 ·MLP      1024      0.938      0.241      0.958      0.839      0.905      0.391          —      0.962
+convnext_base s3 ·lin       512      0.797     -0.092      0.927     -0.837      0.711      0.448          —      0.950
+convnext_base s1-4 ·lin    1920      0.920      0.198      0.977      0.272      0.577      0.340          —      0.950
+convnext_tinyrand s4 ·l     768     -0.000     -0.002      0.056      0.004      0.000      0.001          —      0.195
+convnext_tinyrand s4 ·M     768      0.005     -0.024      0.255      0.029      0.068     -0.027          —      0.714
+convnext_tinyrand s3 ·l     384     -0.001     -0.001      0.027      0.004      0.000      0.001          —      0.198
+convnext_tinyrand s1-4 ·   1440     -0.001     -0.002      0.202      0.013      0.000     -0.011          —      0.416
+convnext_baserand s4 ·l    1024     -0.001     -0.002      0.066      0.003     -0.000      0.000          —      0.156
+convnext_baserand s4 ·M    1024     -0.015     -0.067      0.251      0.028      0.038     -0.251          —      0.767
+convnext_baserand s3 ·l     512     -0.001     -0.002      0.022      0.002     -0.000      0.001          —      0.144
+convnext_baserand s1-4 ·   1920     -0.001     -0.002      0.179      0.012      0.002     -0.014          —      0.410
+
+============================================================================================================
+extrapolation: thickness — trained on one range, tested on the other
+============================================================================================================
+
+arm                       nfeat curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial baseline              3     -0.003     -0.010     -0.461     -0.087     -0.028    -20.761     -0.895      0.119
+-----------------------------------------------------------------------------------------------------------------------
+pixels·linear             12544     -0.002      0.001     -0.001     -0.002     -0.004          —     -0.001      0.306
+ours·linear                  31      0.654      0.171      0.814      0.464      0.479          —     -2.622     -0.001
+ours·MLP                     31      0.799      0.248      0.984      0.848      0.926          —     -2.254     -0.087
+convnext_tiny s4 ·lin       768      0.943      0.488      0.956      0.720      0.885          —      0.817      0.981
+convnext_tiny s4 ·MLP       768      0.951      0.732      0.987      0.887      0.924          —      0.869      0.982
+convnext_tiny s3 ·lin       384      0.926      0.507      0.953      0.682      0.893          —      0.805      0.965
+convnext_tiny s1-4 ·lin    1440      0.950      0.531      0.966      0.745      0.911          —      0.821      0.984
+convnext_base s4 ·lin      1024      0.954      0.538      0.954      0.782      0.925          —      0.794      0.981
+convnext_base s4 ·MLP      1024      0.952      0.733      0.989      0.923      0.941          —      0.894      0.989
+convnext_base s3 ·lin       512      0.938      0.359      0.952      0.620      0.918          —      0.807      0.975
+convnext_base s1-4 ·lin    1920      0.958      0.544      0.963      0.758      0.924          —      0.823      0.987
+convnext_tinyrand s4 ·l     768     -0.002      0.000      0.075      0.002      0.000          —     -0.004      0.353
+convnext_tinyrand s4 ·M     768     -0.001     -0.115      0.310      0.009     -0.093          —     -0.126      0.806
+convnext_tinyrand s3 ·l     384     -0.001      0.000      0.041      0.001      0.000          —     -0.002      0.364
+convnext_tinyrand s1-4 ·   1440     -0.002      0.000      0.258      0.017      0.000          —     -0.022      0.533
+convnext_baserand s4 ·l    1024     -0.001     -0.000      0.084      0.001      0.000          —     -0.002      0.300
+convnext_baserand s4 ·M    1024      0.001     -0.067      0.312      0.044     -0.029          —     -0.200      0.833
+convnext_baserand s3 ·l     512     -0.001      0.001      0.040      0.001     -0.000          —     -0.000      0.299
+convnext_baserand s1-4 ·   1920     -0.002      0.000      0.259      0.004      0.001          —     -0.002      0.517
+  Activating project at `~/claude-code/mother-embedding`
+
+wrote /home/kevin/claude-code/mother-embedding/ConVNextTest/results
+=== READOUT DONE ===

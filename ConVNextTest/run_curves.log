@@ -1,0 +1,33 @@
+Frozen ConvNeXt vs our front end on the Phase 9 stroke properties
+grid 1 for our arm (Phase 9's best), 100 MLP epochs, GPU yes
+
+
+============================================================================================================
+i.i.d. split — test R² per property
+============================================================================================================
+
+arm                       nfeat curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial baseline              3      0.007      0.006      0.458      0.065      0.028      0.197      0.152      0.060
+-----------------------------------------------------------------------------------------------------------------------
+pixels·linear             12544     -0.000     -0.001     -0.001     -0.001      0.000     -0.001     -0.000      0.712
+ours·linear                  31      0.687      0.213      0.887      0.549      0.732      0.547      0.555     -0.002
+ours·MLP                     31      0.930      0.730      0.998      0.944      0.958      0.709      0.729     -0.063
+convnext_tiny s4 ·lin       768      0.969      0.675      0.988      0.835      0.947      0.916      0.971      0.992
+convnext_tiny s4 ·MLP       768      0.980      0.828      0.999      0.960      0.981      0.943      0.979      0.998
+convnext_tiny s3 ·lin       384      0.960      0.674      0.988      0.789      0.944      0.899      0.966      0.983
+convnext_tiny s1-4 ·lin    1440      0.973      0.723      0.993      0.858      0.960      0.932      0.976      0.994
+convnext_base s4 ·lin      1024      0.976      0.750      0.990      0.882      0.963      0.932      0.974      0.991
+convnext_base s4 ·MLP      1024      0.984      0.865      0.998      0.976      0.987      0.952      0.982      0.998
+convnext_base s3 ·lin       512      0.970      0.742      0.991      0.843      0.957      0.927      0.972      0.987
+convnext_base s1-4 ·lin    1920      0.978      0.775      0.994      0.890      0.969      0.941      0.977      0.993
+convnext_tinyrand s4 ·l     768      0.000     -0.009      0.051      0.004      0.001      0.005      0.001      0.354
+convnext_tinyrand s4 ·M     768     -0.010     -0.085      0.387      0.038      0.032      0.075      0.121      0.814
+convnext_tinyrand s3 ·l     384     -0.000     -0.007      0.028      0.003      0.001      0.006      0.001      0.369
+convnext_tinyrand s1-4 ·   1440      0.001     -0.003      0.206      0.028      0.000      0.006      0.001      0.530
+convnext_baserand s4 ·l    1024     -0.000     -0.001      0.049      0.003      0.000      0.003      0.001      0.302
+convnext_baserand s4 ·M    1024     -0.014     -0.057      0.315      0.031      0.028      0.076      0.078      0.816
+convnext_baserand s3 ·l     512     -0.000     -0.005      0.021      0.001      0.001      0.005      0.001      0.309
+convnext_baserand s1-4 ·   1920     -0.000     -0.002      0.211      0.027      0.002      0.012      0.005      0.508
+  Activating project at `~/claude-code/mother-embedding`
+
+wrote /home/kevin/claude-code/mother-embedding/ConVNextTest/results

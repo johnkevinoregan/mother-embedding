@@ -5,3 +5,18 @@
 # Extracted-feature caches. Reproducible from the scripts, 84 MB for Phase 10 alone, and tied
 # to the Julia version that wrote them. The `.log` files beside them are the durable record.
 FashionMNIST/cache/
+
+# ConvNeXt experiment: a Python venv (~5 GB), 4 GB of raw stimuli, and derived features.
+# All regenerable by the three scripts; the `.log` files are the durable record.
+ConVNextTest/.venv/
+ConVNextTest/data/
+ConVNextTest/features/
+ConVNextTest/cache/
+ConVNextTest/results/
+ConVNextTest/pipinstall.log
+__pycache__/
+
+# Self-contained HTML viewers built around a figure. The PNG beside them is the tracked
+# artefact; these embed the same image as base64, so tracking both puts the figure in git
+# twice and fills diffs with base64. Rebuild from the plotting script when needed.
+ConVNextTest/figures/*.html

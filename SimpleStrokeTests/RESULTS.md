@@ -358,12 +358,41 @@ different numbers, and any readout on it must learn to undo that from data. Glob
 has it for free.
 
 **The best configuration in this experiment is therefore 31 features, globally pooled, with a
-small MLP** — and it beats the properly trained CNN by a wide margin:
+small MLP** — and it beats the CNN by a wide margin:
 
 | | `curvedness` | `brokenness` | `closedness` | `vangle` | `arms` |
 |:--|--:|--:|--:|--:|--:|
 | CNN (full-res, 60 epochs, GPU) | 0.410 | 0.236 | 0.959 | 0.248 | 0.843 |
 | **grid 1 + MLP (31 features)** | **0.903** | **0.663** | **0.996** | **0.898** | **0.930** |
+
+> ### ⚠ Correction — "properly trained" is not supportable, and this table is not a ceiling
+>
+> This file described the CNN arm as *properly trained* throughout. Reading the saved
+> per-epoch history in `results_canon3/history.jls` shows it **did not converge**, and not in
+> the benign sense of a curve still climbing. Mean validation R² over the 60 epochs:
+>
+> ```
+> e5  0.343   e20 0.444   e35  0.647   e50 0.695
+> e10 0.543   e25 0.457   e40  0.558   e55 0.668
+> e15 0.587   e30 −0.536  e45  0.334   e60 0.667
+> ```
+>
+> It swings from **−0.536 at epoch 30** to 0.647 five epochs later, and `curvedness` reads
+> −0.010 at epoch 40 against 0.414 at epoch 50. Best-epoch-on-validation then selects a spike
+> out of a noisy trajectory, so the CNN's numbers here are **where an unstable run happened to
+> be sampled, not what the architecture can represent.** Ours over the same run is smooth and
+> saturated — argmax at epoch 20, then a gentle monotone decline.
+>
+> The likely cause is in `cnn()`: Adam at a constant `1f-3`, batch 64, BatchNorm, no
+> learning-rate schedule, on a regression target. A cosine decay would probably stabilise it
+> and might raise these numbers materially.
+>
+> **What survives:** the CNN arm is a fair *reference point* for a conventional network trained
+> under this budget, and the rebuild from the strided CPU-era `:small` was a real improvement.
+> **What is withdrawn:** any reading of this table as a statement about what a CNN can learn
+> on this task. `ConVNextTest/RESULTS.md` makes the point independently — a *frozen* ConvNeXt
+> that never saw a stroke reaches 0.976 on `vangle`, so 0.248 is plainly not a ceiling for
+> convolutional architectures.
 
 **Two things this costs us.** The "explicit under a *linear* readout" framing — the whole
 premise of the phase — describes the 3×3 configuration, not the best one. And the
