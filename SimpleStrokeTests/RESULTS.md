@@ -430,8 +430,23 @@ from 0.638 to 0.298 at κ = 0.10.
 | max over scale, divisive | 0.899 | 0.646 | 0.995 | 0.894 | 0.916 |
 
 The two costs are separate and roughly additive: collapsing the scales costs ~0.05 on
-`brokenness`, normalising costs ~0.09, both cost ~0.09. **The existing default wins every
-cell**, so both changes are kept in the code and left off.
+`brokenness`, normalising costs ~0.09, both cost ~0.09. The existing default wins every cell
+here, so both changes are kept in the code and left off **for this dataset**.
+
+> **This is not a general verdict, and should not be read as one.** Divisive normalisation
+> exists to handle spatially varying local contrast, and these stimuli have essentially none:
+> one stroke, one width, one contrast, on a flat field. The mechanism is being scored on a
+> problem the benchmark does not contain while paying its cost on every image.
+>
+> The project's target is a general front end for greyscale images, where local contrast
+> varies enormously within a single frame, several scales coexist at the same location, and
+> there is no empty background. Divisive normalisation is standard in V1 models for exactly
+> those conditions. **The right reading is "not needed on single strokes", not "not needed".**
+> It stays behind `normalize = :divisive` for that reason.
+>
+> The same caution applies to the pooling-grid result below — grid 1 wins here because there
+> is one object per image — and, more weakly, to per-scale beating max, which was tested only
+> on stimuli with a single stroke width.
 
 **Why the diagnostic pointed the wrong way.** It measured one mixed-thickness crossing, and
 this dataset contains none — every image has a single stroke width by construction. So
