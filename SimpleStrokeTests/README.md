@@ -194,6 +194,37 @@ julia --project=.. Plot_Phase9.jl
 | `P9_STAGES` | `iid,blocks,curve,extrap` | which stages to run |
 | `P9_OUT` | `results` | output directory, so parallel runs cannot clobber each other |
 
+### Reading the `.jls` files
+
+```bash
+julia --project=.. read_results.jl                        # every file in results_canon3
+julia --project=.. read_results.jl results_canon1         # another directory
+julia --project=.. read_results.jl results_canon3/iid.jls # one file
+```
+
+`.jls` is Julia's own `Serialization` format — compact and exact, and unreadable without
+Julia. It exists so figures can be redrawn without re-running an experiment. It is **not** an
+archival format: it is tied to the Julia version and to the types in scope when it was
+written, so an old file may simply refuse to load. **The `.log` files are the durable record;
+treat the `.jls` as a cache.**
+
+From the REPL directly:
+
+```julia
+using Serialization
+r = deserialize("results_canon3/iid.jls")
+r.R        # 5x8, arms x properties
+r.arms     # arm names
+r.props    # property names
+```
+
+| file | structure |
+|:--|:--|
+| `iid.jls`, `extrap_*.jls` | `(R, base, props, arms)` — R is arms × properties |
+| `curve.jls` | `Dict{Int, Matrix}` — training size → arms × properties |
+| `blocks.jls` | `(battr, shuf)` — block name → 8 values, plus the raw permutations |
+| `history.jls` | `Dict{String, (val, loss, props, best)}` — `val` is epochs × properties |
+
 **Which results directories are kept.** Only `results_canon3` (grid 3, all arms, all stages),
 `results_canon1` (grid 1) and `results_canon_g2/g4/g5` (the pooling sweep) — every number and
 figure in `RESULTS.md` derives from those, and `Plot_Phase9.jl` reads `results_canon3`. The

@@ -1,0 +1,25 @@
+########## Phase 8 — REQUIRED, uses ray_maps whose API changed ##########
+  Activating project at `~/claude-code/mother-embedding`
+Phase 8 — at what gap can each representation still tell touching from not?
+
+============================================================================
+Gap sweep — gap measured from the bar's SURFACE; stroke width is 9–15 px
+============================================================================
+
+gap (px)     orient+lp        A₁+A₂         rays orient+A+rays
+16             100.00 %      100.00 %      100.00 %      100.00 %
+12             100.00 %      100.00 %      100.00 %      100.00 %
+8              100.00 %      100.00 %      100.00 %      100.00 %
+5              100.00 %      100.00 %      100.00 %      100.00 %
+3              100.00 %      100.00 %      100.00 %      100.00 %
+2               99.87 %      100.00 %       99.87 %       99.92 %
+chance          50.00 %       50.00 %       50.00 %       50.00 %
+
+Read the columns downward. Whichever representation stays above chance at the smallest gap
+is the one that resolves co-location most finely. If they degrade together, co-location is
+not a separable dimension at this pooling resolution — it is entangled with local ink
+density, which any per-cell energy statistic already reports.
+GKS: cannot open display - headless operation mode active
+
+wrote figures/phase8_gapsweep.png
+########## Phase 5b — finer grid ##########
