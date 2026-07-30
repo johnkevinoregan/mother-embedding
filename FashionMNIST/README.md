@@ -99,10 +99,13 @@ inductive-bias argument one rung down from the ConvNeXt and NFNet results: a wea
 costs accuracy when data is limited, and 60k 28×28 images is a small-data regime by modern
 standards. Consistent with the claim that a designed front end should help most at small `n`.
 
-> **Run complete — see `RESULTS.md`.** Features reach **89.66 %** at grid 3, the calibration
-> arm lands at 87.70 % against a published ≈ 88 %, and **grid 3 beats grid 1 by 8 points**,
-> the reverse of Phase 9. Prediction 2 was wrong: the AND layer adds +0.67 rather than ≈ 0,
-> though without a shuffle control that is not yet attributable to conjunction.
+> **Run complete — see `RESULTS.md`.** Features reach **89.70 %** at grid 3 from 198 numbers;
+> the calibration arm lands at 87.70 % against a published ≈ 88 % and a CNN trained here at
+> 93.10 %. **Grid 3 beats grid 1 by 8 points**, the reverse of Phase 9, which settles that
+> earlier result as being about position randomisation. Prediction 2 was wrong: against a
+> 5-permutation shuffle control the AND layer is worth **+1.62 at grid 3 and +2.85 at grid 1**
+> (σ ≤ 0.27), where EMNIST gave +0.01 — the first time the conjunction layer has paid on a
+> dataset this project did not construct.
 
 ## Predictions, recorded before the first full run
 

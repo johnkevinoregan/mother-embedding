@@ -1,3 +1,7 @@
 .claude/
 *.jl.cov
 *.jl.mem
+
+# Extracted-feature caches. Reproducible from the scripts, 84 MB for Phase 10 alone, and tied
+# to the Julia version that wrote them. The `.log` files beside them are the durable record.
+FashionMNIST/cache/

@@ -123,21 +123,29 @@ design choice that depends on image statistics.
 `FashionMNIST/`. Silhouettes with texture rather than line drawings, and **published
 baselines** to calibrate against instead of only our own arms.
 
-**The front end works off line drawings: 89.66 % from 279 numbers**, above an MLP on 12,544
-raw pixels (87.70 %, matching the published ≈ 88 % and so validating the harness) and about
-four points below a good CNN. A₁+A₂ alone reach 86.51 % from 54 numbers, on a task neither
-was designed for.
+**The front end works off line drawings: 89.70 % from 198 numbers**, above an MLP on 12,544
+raw pixels (87.70 %, matching the published ≈ 88 % and so validating the harness) and 3.4
+points below a CNN trained here under the same protocol (93.10 %). A₁+A₂ alone reach 86.51 %
+from 54 numbers, on a task neither was designed for.
 
-Of the three predictions recorded beforehand, two held and one did not. The features landed in
-the predicted 88–91 % band. **Grid 3 beat grid 1 by 8 points** — the reverse of Phase 9, which
-settles what that result meant: it was about *position randomisation* in the stroke dataset, not
-about pooling in general. And the AND layer added **+0.67** rather than the predicted ≈ 0,
-though with no shuffle control that is not yet attributable to conjunction rather than to 54
-extra columns.
+**And the conjunction layer pays on a dataset this project did not construct** — the strongest
+form of the Phase 9 result. Against a 5-permutation shuffle control, A₁+A₂ are worth **+1.62 at
+grid 3 and +2.85 at grid 1** (σ ≤ 0.27), where EMNIST gave +0.01. The control is what makes the
+number: read naively against the base the layer looks worth +0.67, but 54 *shuffled* columns
+cost −0.95 here (EMNIST measured −0.75 for the same block), so the naive reading understates
+conjunction by a factor of 2.5 and would have confirmed the wrong prediction.
 
-**What it still does not settle:** black uniform background, one centred object, contrast
-barely varying within a frame, 28×28 upsampled. Divisive normalisation remains untested for
-want of an image whose local contrast varies.
+Of the three predictions recorded beforehand, two held and one was wrong. The features landed
+in the predicted 88–91 % band. **Grid 3 beat grid 1 by 8 points** — the reverse of Phase 9,
+which settles what that result meant: it was about *position randomisation* in the stroke
+dataset, not about pooling in general. The prediction that the AND layer would add ≈ 0 failed;
+its reasoning (silhouettes have few junctions) was sound, but A₁ is i2D-selective and fabric
+texture is full of i2D structure that is not a junction.
+
+The **ray block, by contrast, does not earn its columns here**: +0.54 over the base alone, and
+−0.04 when added on top of A₁+A₂. Eighty-one features for nothing — expected on silhouettes with
+no junctions to count, and concrete support for the standing complaint that the ray harmonics
+are expensive relative to their return.
 
 **What it still will not settle:** black uniform background, one centred object, contrast
 barely varying within a frame, 28×28 upsampled. Those are exactly the conditions under which
