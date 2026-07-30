@@ -80,6 +80,19 @@ operators, near-collinear *on handwriting*.
 
 ### Phase 8 — a task where co-location is decisive
 
+**The stimuli.** Three designs, each built so that the *only* difference between classes is
+whether two orientations meet **at a point** or merely fall in the same pooling window — which
+is precisely what `A₁` claims to detect and what pooled orientation energy provably cannot:
+
+| design | positive | negative | intended contrast |
+|:--|:--|:--|:--|
+| **crossing vs. near-miss** | two bars intersecting | the same two bars, one displaced so they pass without touching | co-location, orientation content identical |
+| **gap sweep** | a corner with the arms joined | the same corner opened by a gap of 2–12 px | how close is "at a point" |
+| **junction type** | L / T / X at matched total ink | one another | ray count at fixed energy |
+
+Stroke width 9–15 px, and in the third design total ink was **held constant across classes**,
+because Phase 3's junction ordering had already turned out to track ink rather than ray count.
+
 **Attempted three times, all three failed.** Everything solves it — including plain pooled
 orientation energy — down to a 2 px gap against a 9–15 px stroke.
 
@@ -99,6 +112,60 @@ Phase 9 asks instead: **fit a linear readout and see how much of each property i
 because a property needing a hidden layer to extract is present in the representation but has
 not been made *available* by it. Eight graded properties per image, five arms, three
 extrapolation splits, everything scored against a trivial three-scalar baseline.
+
+### The stimuli
+
+One item on a uniform grey field, 112×112, generated parametrically by `Contours.module.jl`, so
+a test image is a **fresh draw** rather than a held-out slice — leakage is impossible by
+construction. Each image carries **eight graded values, not a class label**:
+
+| property | range | what varies |
+|:--|:--|:--|
+| `curvedness` | 0–1 | straight through arc, capped at 2π/3 of total turn |
+| `brokenness` | 0–1 | gap size as a fraction of arclength |
+| `closedness` | 0/1 | open arc or closed oval (aspect 0.62–1.0) |
+| `vangle` | 32–170° | the kink angle, if there is a kink |
+| `arms` | 2–4 | plain stroke, T-junction, or crossing |
+| `thickness` | 3–12 px | stroke width, **log-uniform** |
+| `fuzziness` | 0.8–20 px | edge ramp, **log-uniform** |
+| `polarity` | ±1 | lighter or darker than the background |
+
+Position and rotation are randomised; background level varies 0.40–0.60; arclength has a 68 px
+floor. For T-junctions and crossings both strokes share the same curvature type.
+
+### Why each of those choices
+
+**Graded values rather than classes** — because Phase 8 showed a classifier will find *any* cue
+that separates classes, and local ink density always co-varies. A graded target with a linear
+readout measures how much of the property is *available*, which a class boundary cannot.
+
+**A uniform grey background, not black** — the single most consequential choice. It is what
+exposed the polarity-invariance bug: zero-padding a **non-zero** background puts a full-contrast
+step round the image, and EMNIST could never have revealed it because its background *is* zero.
+The project's target is general greyscale images, so an empty background would have tested the
+wrong thing.
+
+**Polarity varied**, so invariance is measurable rather than assumed — and so an extrapolation
+split can train on light strokes and test on dark.
+
+**Contrast set as a fraction of the available headroom**, `0.88·min(bg, 1−bg)`, so nothing
+clips and mean luminance does not give the answer away. An earlier version had darker
+backgrounds for dark strokes, which was visible in the contact sheet and would have made
+`polarity` readable from the mean.
+
+**Thickness and edge ramp log-uniform**, because both act multiplicatively on scale; uniform
+sampling would have concentrated the range at the coarse end.
+
+**Position randomised** — which is why grid 1 beats every larger pooling grid here, and why
+Fashion-MNIST reverses that: a fixed grid is a liability only when parts do not land in
+consistent places.
+
+**Curvature capped at 2π/3 of turn**, so an "open arc" cannot close on itself and be
+indistinguishable from an oval with two gaps.
+
+**The vertex angle measured from the geometry** (`excess_turn`, the signed-turn difference
+against the un-kinked base) rather than from the construction parameter — the parameter was
+wrong by 28° on curved bases, putting 33 % of images in the wrong angle band.
 
 **What it found:**
 

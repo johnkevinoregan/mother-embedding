@@ -70,6 +70,7 @@ struct FrontendSpec
     a1_floor::Symbol
     d_factors
     harmonics::Tuple
+    cross_scale::Symbol
 end
 
 """
@@ -82,7 +83,8 @@ function build_frontend(N::Int; grid::Int=3, scale_mode::Symbol=:per_scale,
                         normalize::Symbol=:none, kappa::Float32=0.10f0,
                         a1_floor::Symbol=A1_FLOOR,
                         ladder=LADDER, nori=NORI, betas=BETAS, dts::Real=0.75,
-                        d_factors=(1.0,), harmonics::Tuple=(2, 4))
+                        d_factors=(1.0,), harmonics::Tuple=(2, 4),
+                        cross_scale::Symbol=:none)
     # `ladder`/`nori`/`betas`/`dts`/`d_factors` exist so the three capacity axes — scales,
     # orientations, ray offsets — can be swept. Defaults reproduce every published table.
     #
@@ -97,12 +99,13 @@ function build_frontend(N::Int; grid::Int=3, scale_mode::Symbol=:per_scale,
     HF, WF, _ = field_for((N, N), ladder; n_orient=nori, beta=betas, dtheta_on_sigma=dts)
     bank = make_bank((HF, WF), ladder; imwidth=N, n_orient=nori, beta=betas, dtheta_on_sigma=dts)
     wts  = grid_weights(N, N, grid)
-    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid, scale_mode, normalize, kappa, a1_floor, d_factors, harmonics)
-    FrontendSpec(bank, wts, lab, length(f), grid, scale_mode, normalize, kappa, a1_floor, d_factors, harmonics)
+    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid, scale_mode, normalize, kappa, a1_floor, d_factors, harmonics, cross_scale)
+    FrontendSpec(bank, wts, lab, length(f), grid, scale_mode, normalize, kappa, a1_floor, d_factors, harmonics, cross_scale)
 end
 
 function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kappa=0.10f0,
-               a1_floor=A1_FLOOR, d_factors=(1.0,), harmonics::Tuple=(2, 4))
+               a1_floor=A1_FLOOR, d_factors=(1.0,), harmonics::Tuple=(2, 4),
+               cross_scale::Symbol=:none)
     # Padding mode is `:replicate` by default in `energy_stack` — see the note on `embed`
     # in GaborStack. This wrapper previously subtracted the image median to work around
     # zero-padding breaking polarity invariance; the fix now lives in the front end itself,
@@ -180,6 +183,48 @@ function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kap
             end
         end
     end
+    # ── CROSS-SCALE, the operator the thickness/fuzziness confound calls for ────────────
+    # Both properties are read from how energy distributes across scale at a point, and nothing
+    # else in this feature set encodes the RELATIONSHIP between scales — only the per-scale
+    # amounts, which pooling then averages. A thick sharp stroke has energy at coarse AND fine
+    # scales; a thin blurred one has coarse only. Two numbers, one axis.
+    #
+    #   :product — C₀(k)·C₀(k+1), the existing `a3_maps` form. An energy, so mean pooling is
+    #              valid and it needs no ratio treatment. Expected to FAIL: a product is large
+    #              whenever both scales carry energy and does not separate the four cases.
+    #   :ratio   — C₀(k+1) / (C₀(k)+C₀(k+1)), the fraction of energy at the finer scale. This is
+    #              a **bounded, scale-free** quantity, so by the rule established when the ray
+    #              ratios turned out to be wrong it is pooled NUMERATOR AND DENOMINATOR
+    #              SEPARATELY and divided afterwards, with a relative floor. Dividing per pixel
+    #              and averaging would weight empty background equally with contour and make the
+    #              pooled value scale with ink coverage.
+    if cross_scale !== :none
+        ρsx = sort(unique(Float64(m.rho0) for m in bank.meta if m.kind === :oriented))
+        C0s = [begin
+                   M = zeros(Float32, size(Es, 1), size(Es, 2))
+                   for (i, m) in enumerate(bank.meta)
+                       m.kind === :oriented && Float64(m.rho0) ≈ ρ && (M .+= @view Es[:, :, i])
+                   end
+                   M
+               end for ρ in ρsx]
+        for k in 1:length(ρsx)-1
+            tag = "$(round(ρsx[k],digits=2))_$(round(ρsx[k+1],digits=2))"
+            if cross_scale in (:product, :both)
+                P = pool_maps(reshape(C0s[k] .* C0s[k+1], size(Es,1), size(Es,2), 1), wts)
+                for c in 1:nc
+                    push!(fr, P[c,1]); push!(lr, "xscale.prod.$(tag).cell$(c)")
+                end
+            end
+            if cross_scale in (:ratio, :both)
+                Pn = pool_maps(reshape(C0s[k+1],               size(Es,1), size(Es,2), 1), wts)
+                Pd = pool_maps(reshape(C0s[k] .+ C0s[k+1],     size(Es,1), size(Es,2), 1), wts)
+                fl = 1f-3 * max(mean(@view Pd[:,1]), 1f-12)
+                for c in 1:nc
+                    push!(fr, Pn[c,1] / (Pd[c,1] + fl)); push!(lr, "xscale.frac.$(tag).cell$(c)")
+                end
+            end
+        end
+    end
     vcat(f1, fr), vcat(l1, lr)
 end
 
@@ -195,7 +240,7 @@ function featurize(imgs::Vector{Matrix{Float32}}, spec::FrontendSpec)
     Threads.@threads for i in eachindex(imgs)
         F[i, :] = _feat(imgs[i], spec.bank, spec.wts, spec.grid, spec.scale_mode,
                         spec.normalize, spec.kappa, spec.a1_floor, spec.d_factors,
-                        spec.harmonics)[1]
+                        spec.harmonics, spec.cross_scale)[1]
     end
     F
 end

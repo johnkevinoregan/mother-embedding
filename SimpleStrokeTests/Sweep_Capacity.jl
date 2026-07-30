@@ -60,21 +60,28 @@ end
 
 const CFGS = [
     ("baseline",            (nori=[8,12,16],  dts=0.75,  harmonics=(2,4),
-                             ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(1.0,))),
+                             ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(1.0,), cross_scale=:none)),
+    # ── the cross-scale arms: the operator the thickness/fuzziness confound calls for ──
+    ("xscale product",      (nori=[8,12,16], dts=0.75, harmonics=(2,4), ladder=[2.0,3.742,7.0],
+                             betas=[2.0,1.6,1.2], d_factors=(1.0,), cross_scale=:product)),
+    ("xscale ratio",        (nori=[8,12,16], dts=0.75, harmonics=(2,4), ladder=[2.0,3.742,7.0],
+                             betas=[2.0,1.6,1.2], d_factors=(1.0,), cross_scale=:ratio)),
+    ("adopted+xscale",      (nori=[8,12,16], dts=0.75, harmonics=(2,4,6,8), ladder=[2.0,3.742,7.0],
+                             betas=[2.0,1.6,1.2], d_factors=(0.5,1.0,2.0), cross_scale=:both)),
     ("scales 5",            (nori=[8,10,12,14,16], dts=0.75, harmonics=(2,4),
                              ladder=[2.0,2.86,3.742,5.1,7.0], betas=[2.0,1.85,1.6,1.4,1.2],
-                             d_factors=(1.0,))),
+                             d_factors=(1.0,), cross_scale=:none)),
     ("harmonics +C6C8",     (nori=[8,12,16],  dts=0.75,  harmonics=(2,4,6,8),
-                             ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(1.0,))),
+                             ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(1.0,), cross_scale=:none)),
     ("orient x2 +C6C8",     (nori=[16,24,32], dts=0.375, harmonics=(2,4,6,8),
-                             ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(1.0,))),
+                             ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(1.0,), cross_scale=:none)),
     ("offsets x3 crossed",  (nori=[8,12,16],  dts=0.75,  harmonics=(2,4),
-                             ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(0.5,1.0,2.0))),
+                             ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(0.5,1.0,2.0), cross_scale=:none)),
     # The confirmation arm: the two axes that paid, combined. They gained on disjoint rows in the
     # reduced-n sweep — harmonics on curvedness/vangle, offsets on brokenness/arms — so if those
     # gains are real and independent this should pick up both columns.
     ("harmonics+offsets",   (nori=[8,12,16],  dts=0.75,  harmonics=(2,4,6,8),
-                             ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(0.5,1.0,2.0))),
+                             ladder=[2.0,3.742,7.0], betas=[2.0,1.6,1.2], d_factors=(0.5,1.0,2.0), cross_scale=:none)),
 ]
 
 function score(X, Ytr, Xte, Yte; drop=nothing, linear=true)
@@ -106,7 +113,8 @@ function main()
         for p in PROPS; @printf("%10s", p[1:min(9,end)]); end; println(); println("-"^116)
         for (nm, c) in (isempty(ARMS) ? CFGS : [x for x in CFGS if x[1] in ARMS])
             sp = build_frontend(N; grid=1, ladder=c.ladder, nori=c.nori, betas=c.betas,
-                                dts=c.dts, d_factors=c.d_factors, harmonics=c.harmonics)
+                                dts=c.dts, d_factors=c.d_factors, harmonics=c.harmonics,
+                                cross_scale=c.cross_scale)
             mkpath(CACHE)
             ck = joinpath(CACHE, "$(replace(nm," "=>"_"))_$(split)_$(NTR)_$(NTE).jls")
             t = @elapsed ((Ftr, Fte) = isfile(ck) ? deserialize(ck) :
