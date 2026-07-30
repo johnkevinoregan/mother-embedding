@@ -18,19 +18,29 @@ functions, not editing constants.
 | `Validate_GaborStack.jl` | **Pluto notebook** | ✅ |
 | `Validate_AndLayer.jl` | **Pluto notebook** | ✅ |
 | `Validate_Pooling.jl` | **Pluto notebook** | ✅ |
+| `Validate_i1D.jl` | plain script — gate only, no notebook | ✅ |
 
 The four modules are `include`d and `using`-ed by the notebooks, so they must stay plain
 `.jl` — a Pluto notebook cannot supply `module … end`. **Opening a plain module in Pluto
 rewrites the file and leaves a `<name> backup 1.jl` beside it.** Each one carries a marker
 comment on its first line as a reminder.
 
-Both notebooks also run headless as gates:
+The notebooks also run headless as gates, and `Validate_i1D.jl` only does:
 
 ```bash
 julia --project=. RationalGaborFeatures/Validate_GaborStack.jl
 julia --project=. RationalGaborFeatures/Validate_AndLayer.jl
 julia --project=. RationalGaborFeatures/Validate_Pooling.jl
+cd RationalGaborFeatures && julia --project=.. Validate_i1D.jl   # exits 1 on failure
 ```
+
+**`Validate_i1D.jl` currently exits 1, by design.** It tests the criterion the whole conjunction
+layer rests on — Zetzsche & Barth (Vision Research 30:1111–1117, 1990) prove no linear filter can
+be i2D-selective, and require the quadratic kernel to vanish on collinear frequency pairs — and
+finds A₁ leaking 4.6 × 10⁻² of its crossing response on exactly-i1D input at ρ = 2, against
+1.6 × 10⁻⁴ and 6.1 × 10⁻⁸ at the two finer scales. That is a recorded design decision, not an
+unfixed bug: see `RESULTS.md` for the mechanism (the ±45° channel pair, not the 90° partner) and
+for why neither fix is free.
 
 ## Design, and the measurements behind it
 

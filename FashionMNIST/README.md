@@ -46,6 +46,24 @@ julia --project=.. -t 16 Phase10_FashionMNIST.jl 2>&1 | tee phase10.log
 | `F_NTRAIN` / `F_NTEST` | 0 | 0 = all 60,000 / 10,000 |
 | `F_EPOCHS` | 25 | |
 | `F_GRIDS` | `1,3` | pooling grids to compare |
+| `F_CEPOCHS` | 40 | CNN epochs (at native 28×28) |
+| `F_NSHUF` | 5 | permutations for the shuffle control |
+
+Extracted features are cached under `cache/` (gitignored, ~84 MB), keyed by grid and split
+sizes, because extraction is ~29 minutes and every fit on the page takes seconds. Delete the
+directory to force re-extraction.
+
+## Phase 10b — the follow-up
+
+```bash
+cd ~/claude-code/mother-embedding/FashionMNIST
+julia --project=.. -t 16 Phase10b_Collinearity.jl 2>&1 | tee collinearity2.log
+```
+
+Recomputes `R²(A ← orient)` on **both** Fashion-MNIST and EMNIST with one estimator, to test
+whether Phase 7's 0.933 explains why the conjunction layer pays here and not there. It does not
+— see `RESULTS.md`. `C_NEMNIST` sets the EMNIST subset (default 20,000; the full 112,800 is not
+needed, since 20k reproduces the published median to 0.002) and `C_EMNIST=0` skips that half.
 
 ## Two traps in reusing the EMNIST reader
 

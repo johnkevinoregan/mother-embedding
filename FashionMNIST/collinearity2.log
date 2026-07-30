@@ -1,0 +1,45 @@
+Phase 10b — R²(A ← orient), Fashion-MNIST against EMNIST
+
+==============================================================================
+FASHION-MNIST, grid 3
+==============================================================================
+  60000 train, 10000 test   |   orient+lowpass 144 cols, A 54 cols, rays 81 cols
+
+  R²(A  ← orient)   median 0.943   mean 0.933   [0.795, 0.987]
+      columns R² > 0.9:  44 of  54      > 0.75:  54
+      (same in Float32: median 0.943 — precision is not carrying this)
+
+  R²(rays ← orient)   median 0.942   mean 0.864   [0.497, 0.978]
+      columns R² > 0.9:  52 of  81      > 0.75:  62
+      (same in Float32: median 0.942 — precision is not carrying this)
+
+  per scale and form — testing the i1D-leakage hypothesis
+  form      ρ=2.0   ρ=3.74    ρ=7.0   i1D leakage of A₁
+  A1        0.957    0.913    0.883   4.6e-02   1.6e-04   6.1e-08
+  A2        0.970    0.963    0.953   (not an orientation AND)
+
+  EMNIST extraction 278 s (13.9 ms/img)
+
+==============================================================================
+EMNIST balanced, grid 3
+==============================================================================
+  20000 train, 10000 test   |   orient+lowpass 144 cols, A 54 cols, rays 81 cols
+
+  R²(A  ← orient)   median 0.931   mean 0.923   [0.805, 0.978]
+      columns R² > 0.9:  42 of  54      > 0.75:  54
+      (same in Float32: median 0.931 — precision is not carrying this)
+
+  R²(rays ← orient)   median 0.930   mean 0.891   [0.596, 0.993]
+      columns R² > 0.9:  47 of  81      > 0.75:  70
+      (same in Float32: median 0.930 — precision is not carrying this)
+
+  per scale and form — testing the i1D-leakage hypothesis
+  form      ρ=2.0   ρ=3.74    ρ=7.0   i1D leakage of A₁
+  A1        0.951    0.909    0.856   4.6e-02   1.6e-04   6.1e-08
+  A2        0.936    0.918    0.947   (not an orientation AND)
+  Activating project at `~/claude-code/mother-embedding`
+
+==============================================================================
+READ: high R² ⇒ the marginal orientation profile already predicts the
+co-location signal on this image set. Low R² ⇒ it does not, and the
+conjunction layer has independent structure to contribute.

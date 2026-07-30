@@ -54,6 +54,20 @@ orientation fibre `E(x, y, θ)` is **π-periodic**, while junction type is a **2
 it is about which rays *leave* a point, and mod-π orientation cannot distinguish east from
 west. Measured cosine similarity of `E(θ)` at the centre of canonical figures:
 
+> **Priority note.** A closely related limitation was proved by **Zetzsche & Barth**,
+> *Fundamental limits of linear filters in the visual processing of two-dimensional signals*,
+> Vision Research 30:1111–1117 (1990): an i1D signal has its spectrum on a line through the
+> origin, every linear filter's passband has area and so meets some such line, therefore **no
+> linear filter is i2D-selective** — and selectivity requires a quadratic kernel that vanishes on
+> collinear frequency pairs. Quadrature energy *is* such a kernel with support exactly on the
+> collinear diagonal `f₂ = −f₁`, which is why it cannot work.
+>
+> The two results are complementary rather than the same. Zetzsche restricts the **operator
+> class** (linear) and quantifies over all signals; the argument below restricts the **input
+> representation** (the local orientation fibre) and quantifies over *all* operators on it. Ours
+> is stronger in ruling out arbitrary nonlinearities, weaker in being about one representation.
+> `RationalGaborFeatures/Validate_i1D.jl` tests our A₁ against Zetzsche's criterion directly.
+
 ```
 L-corner   vs T-junction : 0.9031
 L-corner   vs X-crossing : 0.8868

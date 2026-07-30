@@ -285,8 +285,63 @@ This is the measurement that settles the wording. **A is ~93 % linearly recovera
 orient on EMNIST** — so "strongly correlated in this image set" is exactly right, and
 "redundant" was wrong, because Phase 3 shows the same two operators dissociating by 4.9×
 (pooled) on stimuli built to require it. **They are different operators that become
-near-collinear on handwritten characters.** Real letters do not produce the configurations
-that separate them.
+near-collinear on handwritten characters.**
+
+> ### ⚠ Correction, Phase 10b — the last sentence of that paragraph was wrong
+>
+> It used to continue *"Real letters do not produce the configurations that separate them"*,
+> i.e. it read this R² as **the explanation** for why the conjunction layer adds ≈ 0 on EMNIST.
+> That inference does not survive a matched measurement.
+>
+> | dataset, grid 3 | median R²(A ← orient) | conjunction gain vs shuffle control |
+> |:--|--:|--:|
+> | EMNIST balanced | 0.931 | **+0.01** |
+> | Fashion-MNIST | **0.943** | **+1.62** |
+>
+> Fashion-MNIST is **more** collinear, not less, and the layer is worth 160× more there. So
+> `R²(A ← orient)` does not predict whether conjunction helps, and cannot be the reason for the
+> EMNIST null.
+>
+> The error is a standard one: R² measures how much of A's **variance** is linearly
+> predictable, and variance is not information about the label. A 5.7 % residual can carry all
+> of the class-relevant signal, and on garments it evidently does.
+>
+> The EMNIST number itself reproduces — 0.931 against 0.933 here, mean 0.923 against 0.924,
+> and 42 of 54 columns above 0.9 in both — so this is a correction to the *inference*, not to
+> the measurement. What remains true: A and orient are strongly correlated on EMNIST, and
+> Phase 3 shows they are different operators. What is withdrawn: that the correlation explains
+> the null. See `FashionMNIST/RESULTS.md` §Phase 10b.
+
+### Is the correlation an artefact of A₁ leaking on straight lines?
+
+Asked because Zetzsche & Barth (Vision Research, 1990) prove no linear filter can be
+i2D-selective and give the design criterion — the quadratic kernel must vanish on **collinear**
+frequency pairs. If A₁ leaks i1D energy it is partly a function of orientation energy *by
+construction*, which would make the R² above a fact about our implementation. `Validate_i1D.jl`
+measures it:
+
+| ρ | orientations | σφ | A₁ on exact i1D, ÷ crossing response |
+|--:|--:|--:|--:|
+| 2.00 | 8 | 30° | **4.6 × 10⁻²** ← leaks |
+| 3.74 | 12 | 20° | 1.6 × 10⁻⁴ |
+| 7.00 | 16 | 15° | 6.1 × 10⁻⁸ |
+
+**The coarsest scale leaks ~5 %; the other two are exact to four and eight decimal places.**
+The mechanism is not the obvious one. The 90° partner of the active channel sits 3σφ away and
+contributes `exp(−9) = 1.2 × 10⁻⁴`; the leak is the **pair straddling the line at ±45°**, each
+1.5σφ away, retaining `exp(−2.25) = 0.105` of the energy and exactly 90° apart, so A₁
+multiplies them. Closed-form prediction from the angular tuning alone matches measurement to
+**within 2 % at every scale**, so the diagnosis is settled rather than plausible.
+
+**But it does not explain the R².** A₁ at ρ = 7, where leakage is 6.1 × 10⁻⁸ and so effectively
+absent, is still 0.856 (EMNIST) / 0.883 (Fashion) predictable from orient. Removing leakage
+entirely would not move the headline number.
+
+Two fixes exist and both cost something, so this is left as a recorded design decision rather
+than changed: raising the orientation count at ρ = 2 lengthens `σ_along = W/(2πρσφ)` from 17 to
+26 px, and *"filters longer than any stroke"* is a bug already fixed once; subtracting the
+analytic floor `c(n,σφ)·C₀` is exact and image-independent but changes every table in this
+file. Nothing in the project's conclusions turns on 5 % at one scale.
 
 ---
 
@@ -498,14 +553,25 @@ supply.
 converge on ≈ 0: full data (+0.01), finer pooling (recovers 3.1 points of A signal, adds
 nothing), sample size (flat at every k from 200 images to 112,800), the binary `F`/`f`
 probe (worse than orient), and a synthetic benchmark built specifically to require
-co-location (orient 100 %, three designs). And Phase 7 says why: `R²(A ← orient) = 0.933`.
+co-location (orient 100 %, three designs).
+
+**Why remains open.** Phase 7 offered `R²(A ← orient) = 0.933`, and Phase 10b withdrew it:
+Fashion-MNIST is *more* collinear at 0.943 and the layer is worth +1.62 there against +0.01
+here. Whatever distinguishes the two datasets, it is not the linear predictability of A from
+orient. The surviving candidate is simply **how much i2D structure the images contain** —
+EMNIST strokes are i1D almost everywhere with a handful of junctions, garments are woven
+texture — but that is a hypothesis, not a measurement.
 
 **Open, in the order that would settle the most:**
 
 1. ~~A binary `F`-vs-`f` probe~~ — **done, Phase 7.** No operator beats orient; all three
    sit at 67–70 % on a balanced binary task.
-2. ~~`R²(A ← orient)`~~ — **done, Phase 7.** Median 0.933 across 40 classes. Different
-   operators, near-collinear on this data.
+2. ~~`R²(A ← orient)`~~ — **measured, Phase 7; its interpretation withdrawn, Phase 10b.**
+   Median 0.933 across 40 classes, reproduced at 0.931. Different operators, near-collinear on
+   this data — but Fashion-MNIST is *more* collinear (0.943) with a 160× larger conjunction
+   gain, so this number does not explain the EMNIST null and should not be cited as doing so.
+   Nor is it a leakage artefact: `Validate_i1D.jl` shows A₁ at ρ = 7 leaks 6.1 × 10⁻⁸ on exact
+   i1D input and is still 0.856 predictable.
 3. ~~Why is `F`/`f` at 69.9 % for every representation?~~ — **answered.** Nothing solves it;
    a CNN on raw pixels does worse, and with augmentation converges on the same 69.88 %.
    `F`/`f` is near-undecidable, and should probably join the homoglyph merge list.

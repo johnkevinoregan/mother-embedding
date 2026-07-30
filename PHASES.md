@@ -32,7 +32,9 @@ how to run it and `RESULTS.md` for the tables; this file is the map across all o
 | **4** | Does pooling preserve it, and is there a control? | Soft 3×3 Gaussian pooling, with `shuffle_block!` — same columns, same marginals, correspondence destroyed — built in from the start. | `Validate_Pooling.jl` |
 
 Later additions: `Validate_ScaleFree.jl`, `Validate_RayHarmonics.jl`, `Validate_Convention.jl`
-(that `theta` is the carrier everywhere, checked to 1.0° on a full 2π ray-direction recovery).
+(that `theta` is the carrier everywhere, checked to 1.0° on a full 2π ray-direction recovery),
+and `Validate_i1D.jl` (Phase 10b — that A₁ really does vanish on i1D input; it does at two
+scales out of three).
 
 ---
 
@@ -146,6 +148,20 @@ The **ray block, by contrast, does not earn its columns here**: +0.54 over the b
 −0.04 when added on top of A₁+A₂. Eighty-one features for nothing — expected on silhouettes with
 no junctions to count, and concrete support for the standing complaint that the ray harmonics
 are expensive relative to their return.
+
+**Phase 10b asked why, and eliminated both available answers.** Phase 7 had explained the
+EMNIST null with `R²(A ← orient) = 0.933`. Recomputed by one script across both datasets:
+EMNIST 0.931, **Fashion-MNIST 0.943** — *more* collinear, with 160× the conjunction gain. So
+that number does not predict whether conjunction helps, and Phase 7's inference is withdrawn
+(the measurement reproduces exactly; R² is variance, and variance is not label information).
+
+The second candidate came from Zetzsche & Barth's i2D criterion, and produced a genuine finding
+about the front end: `Validate_i1D.jl` shows **A₁ does leak on exactly-i1D input at the coarsest
+scale** — 4.6 × 10⁻² of its crossing response at ρ = 2, against 1.6 × 10⁻⁴ and 6.1 × 10⁻⁸ at
+ρ = 3.74 and ρ = 7. The culprit is not the 90° partner but the **±45° pair straddling the line**,
+predicted in closed form to within 2 %. It is not the explanation either: ρ = 7 has no leakage
+and is still 0.856 predictable. What is left is the plain hypothesis — EMNIST strokes are i1D
+almost everywhere, fabric is i2D almost everywhere — and that has not been measured.
 
 **What it still will not settle:** black uniform background, one centred object, contrast
 barely varying within a frame, 28×28 upsampled. Those are exactly the conditions under which

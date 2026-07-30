@@ -84,11 +84,56 @@ with published baselines, and the layer earns +1.62 to +2.85 on it. The EMNIST r
 (+0.01 across five lines of evidence) now looks clearly like a fact about handwriting rather
 than about the operators.
 
-**And it points at a specific test.** Phase 7 explained the EMNIST null with
-`R²(A ← orient) = 0.933` — A and orientation energy near-collinear *on handwriting*. If that is
-the explanation, then the same regression on Fashion-MNIST should give a substantially lower
-R², and the two numbers together would account for the whole difference between +0.01 and
-+1.62. That is a cheap run on features already cached, and it is the first item under *Open*.
+---
+
+## Phase 10b — why? Not for the reason Phase 7 gave
+
+`Phase10b_Collinearity.jl`, log in `collinearity2.log`. Phase 7 explained the EMNIST null with
+`R²(A ← orient) = 0.933` — A and orientation energy near-collinear *on handwriting*, so "real
+letters do not produce the configurations that separate them". If that is the explanation,
+garments must come out markedly **lower**.
+
+Same estimator as Phase 7, both halves recomputed by the same code on the same day, grid 3:
+
+| dataset | median R²(A ← orient) | mean | cols > 0.9 | conjunction gain vs control |
+|:--|--:|--:|--:|--:|
+| EMNIST balanced, 20k/10k | 0.931 | 0.923 | 42 / 54 | **+0.01** |
+| Fashion-MNIST, 60k/10k | **0.943** | 0.933 | 44 / 54 | **+1.62** |
+
+**Fashion-MNIST is *more* collinear, and the layer is worth 160× more there.** The hypothesis is
+refuted, and cleanly: `R²(A ← orient)` does not predict whether conjunction helps.
+
+The EMNIST figure reproduces Phase 7 to 0.002, with the column counts matching to the integer,
+so this is a correction to the **inference** and not to the measurement. The error is a standard
+one — R² measures how much of A's *variance* is linearly predictable, and variance is not
+information about the label. A 5.7 % residual can carry all of the class-relevant signal, and
+on garments it evidently does.
+
+### Nor is it A₁ leaking on straight lines
+
+The second candidate, from Zetzsche & Barth's i2D criterion — if A₁ responds to i1D input it is
+partly a function of orientation energy by construction. `RationalGaborFeatures/Validate_i1D.jl`
+measures it, and A₁ **does** leak at the coarsest scale (4.6 × 10⁻² of the crossing response at
+ρ = 2, against 1.6 × 10⁻⁴ and 6.1 × 10⁻⁸ at ρ = 3.74 and ρ = 7). But per-scale R² settles it:
+
+| | ρ = 2.0 | ρ = 3.74 | ρ = 7.0 |
+|:--|--:|--:|--:|
+| i1D leakage of A₁ | 4.6e−02 | 1.6e−04 | 6.1e−08 |
+| median R²(A₁ ← orient), Fashion | 0.957 | 0.913 | **0.883** |
+| median R²(A₁ ← orient), EMNIST | 0.951 | 0.909 | **0.856** |
+
+Leakage spans **six orders of magnitude** across the three scales; R² moves by 0.07. The scale
+with effectively no leakage is still 86–88 % predictable. So leakage contributes at most a few
+points at ρ = 2 and is not what makes A predictable.
+
+### What is left standing
+
+The surviving explanation is the plain one: **how much i2D structure the images contain.**
+EMNIST strokes are i1D almost everywhere with a handful of junctions per character; woven fabric
+is i2D nearly everywhere. A₁ simply has more to report on garments — consistent with A₁+A₂ alone
+reaching 86.51 % here, and with the gain being larger at grid 1 (+2.85), where the base
+representation is most starved. That is a hypothesis with a measurement attached to it, not yet
+a result.
 
 ---
 
@@ -171,16 +216,14 @@ BSDS boundary detection remains the intended target.
 
 ## Open
 
-1. **`R²(A ← orient)` on Fashion-MNIST**, against Phase 7's 0.933 on EMNIST. If it is markedly
-   lower, the collinearity explanation accounts for the whole +0.01 → +1.62 difference. The
-   features are cached, so this is minutes.
-2. **An i1D response gate on A₁.** Zetzsche & Barth (Vision Research, 1990) prove no linear
-   filter can be i2D-selective, and give the design criterion: the quadratic kernel must vanish
-   on collinear frequency pairs. A₁ should therefore read ≈ 0 on a straight line at *every*
-   orientation, and it will not be exactly 0 because orientation channels have bandwidth. If it
-   leaks, then A₁ is partly a function of orientation energy by construction, and Phase 7's
-   0.933 is a fact about our implementation rather than about handwriting. This bears directly
-   on item 1.
+1. **Measure i2D content directly** and check it against the conjunction gain. That is now the
+   only surviving explanation for +0.01 on EMNIST against +1.62 here, and unlike the two
+   hypotheses Phase 10b eliminated it has not been tested at all. The natural statistic is the
+   fraction of above-threshold energy at which A₁/C₀ exceeds its i1D floor, per dataset.
+2. **A₁'s i1D floor at ρ = 2 is 4.6 %**, from the ±45° channel pair. Two fixes, both with costs
+   — more orientations lengthens the coarsest filter from σ_along 17 → 26 px, and subtracting
+   the closed-form floor `c(n,σφ)·C₀` invalidates every table in this project. Left as a
+   recorded decision; nothing here turns on it.
 3. **The near-duplicate correction.** About 6 % of the test set are near-duplicates of training
    images (arXiv:1906.08255), so every number on this page, ours included, is slightly
    optimistic. It costs ~0.4 points where it has been measured, and it applies to all arms, so
