@@ -247,6 +247,56 @@ it is independent confirmation that they do not.
 ConvNeXt ≈ 1.0, so including it made ours look 0.22 worse for succeeding at its design goal.
 Excluded, the gap is 0.10. The first version of this figure got that wrong.
 
+---
+
+## Where in the network does it live? (stage probe)
+
+`CX_STAGEPROBE=1`, log in `stageprobe.log`. The first version of this file scored only s4, s3 and
+s1-4 concatenated, so it could not say whether ConvNeXt's advantage came from **low-level filters**
+or from **mid-level combinations**. Each stage is now read out alone.
+
+The stages double in width with depth (Tiny: 96 / 192 / 384 / 768), which confounds *which stage*
+with *how many columns the readout gets* — and the confound points the same way as the effect. So
+every stage is also reduced to a common 96 dimensions by PCA fitted on the training split.
+
+**Dimension-matched (PCA-96), linear readout:**
+
+| stage | curved | broken | vangle | arms | thick | fuzzy | polarity |
+|:--|--:|--:|--:|--:|--:|--:|--:|
+| **s1** | 0.002 | 0.003 | 0.126 | 0.231 | 0.567 | 0.706 | **0.762** |
+| **s2** | 0.232 | 0.057 | 0.159 | 0.665 | 0.734 | 0.836 | 0.876 |
+| **s3** | **0.949** | **0.518** | **0.684** | **0.914** | 0.856 | 0.949 | 0.969 |
+| **s4** | 0.951 | 0.430 | 0.690 | 0.897 | 0.844 | 0.943 | 0.978 |
+| ours (31, native) | 0.687 | 0.213 | 0.549 | 0.732 | 0.547 | 0.555 | −0.002 |
+
+**The advantage is not in the low-level features.** Stage 1 reads curvedness at **0.002** and
+brokenness at **0.003**. Stage 2 barely improves. Everything arrives at **stage 3**, and stage 4
+adds nothing beyond it.
+
+**A clean dissociation.** Stage 1 is already strong on the *photometric* rows — polarity 0.762,
+fuzziness 0.706, thickness 0.567 — while carrying no geometry whatever. Contrast, blur and scale
+are low-level; **shape is a mid-level construction** in this network.
+
+**Which reframes the headline comparison.** With the MLP readout, at native widths:
+
+| | nfeat | curved | broken | vangle |
+|:--|--:|--:|--:|--:|
+| convnext_tiny s1 | 96 | 0.477 | 0.002 | 0.151 |
+| convnext_tiny s1-2 | 288 | 0.743 | 0.364 | 0.412 |
+| **ours** | **31** | **0.930** | **0.730** | **0.944** |
+| convnext_tiny s3 | 384 | 0.981 | 0.817 | 0.964 |
+
+**Our 31 hand-designed features beat ConvNeXt's first two stages combined — 288 features — on
+every geometric property, and are overtaken only at stage 3.** So the earlier claim needs
+qualifying: a frozen ImageNet model makes geometry more linearly explicit than our operators do
+*at its mid level*. Against its **low-level** representation, which is the level our front end
+actually occupies, ours wins decisively.
+
+**And prediction 4 was half-right after all.** Marked "wrong" above because s4 ≥ s3 at native
+width — but that is the width confound. Dimension-matched, **s3 beats s4 on brokenness (0.518 vs
+0.430)** and ties on vangle. ImageNet's last stage is tuned to object category and does lose
+geometric detail; the 384-vs-768 column difference was hiding it.
+
 ## Prediction scorecard
 
 | | prediction | outcome |

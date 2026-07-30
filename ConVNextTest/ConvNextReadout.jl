@@ -84,6 +84,28 @@ end
 
 stage_dims(m) = parse.(Int, split(strip(read(joinpath(FEAT, "$(m)_dims.txt"), String))))
 
+"""
+    pca_project(Xtr, Xte, k) -> (Ztr, Zte)
+
+Project both splits onto the top `k` principal components of the **training** features.
+
+Needed because the ConvNeXt stages double in width with depth — 96 / 192 / 384 / 768 for Tiny —
+so scoring each at its native size confounds *which stage* with *how many columns the readout
+gets*, and the confound points the same way as the effect being measured. Reducing every stage to
+the width of the narrowest removes it.
+
+Fitted on train only, so it is a legitimate part of the pipeline rather than a peek at the test
+set. It is still mildly generous to ConvNeXt: these `k` directions are chosen for variance *on
+this dataset*, where our own 31 features are fixed a priori.
+"""
+function pca_project(Xtr, Xte, k)
+    μ = vec(mean(Xtr, dims=1))
+    A = Xtr .- μ'
+    F = svd(A)
+    V = F.V[:, 1:min(k, size(F.V, 2))]
+    (A * V, (Xte .- μ') * V)
+end
+
 "Concatenate the requested ConvNeXt stages into one feature matrix."
 function convnext_features(model, split, kind, n; stages)
     dims = stage_dims(model)
@@ -185,12 +207,27 @@ function main()
         # convnext, per model: stage 4 alone (the standard frozen feature), stage 3, and all four
         for m in MODELS
             isfile(joinpath(FEAT, "$(m)_dims.txt")) || continue
-            for (label, stages) in (("s4", [4]), ("s3", [3]), ("s1-4", [1,2,3,4]))
+            probe = get(ENV, "CX_STAGEPROBE", "0") == "1"
+            stagesets = probe ?
+                [("s1", [1]), ("s2", [2]), ("s3", [3]), ("s4", [4]),
+                 ("s1-2", [1,2]), ("s1-3", [1,2,3]), ("s1-4", [1,2,3,4])] :
+                [("s4", [4]), ("s3", [3]), ("s1-4", [1,2,3,4])]
+            for (label, stages) in stagesets
                 Ctr = convnext_features(m, split, "train", ntr; stages=stages)
                 Cte = convnext_features(m, split, "test",  nte; stages=stages)
                 add!("convnext_$m $label ·lin", size(Ctr, 2), Ctr, Cte; drop=drop, linear=true)
-                if stages == [4]
+                if stages == [4] || probe
                     add!("convnext_$m $label ·MLP", size(Ctr, 2), Ctr, Cte; drop=drop, linear=false)
+                end
+                # dimension-matched: every stage reduced to the width of the narrowest, so the
+                # comparison is between stages rather than between column counts.
+                if probe && length(stages) == 1
+                    kdim = parse(Int, get(ENV, "CX_PCA", "96"))
+                    Ptr, Pte = pca_project(Float64.(Ctr), Float64.(Cte), kdim)
+                    add!("convnext_$m $label pca$kdim ·lin", size(Ptr, 2),
+                         Float32.(Ptr), Float32.(Pte); drop=drop, linear=true)
+                    add!("convnext_$m $label pca$kdim ·MLP", size(Ptr, 2),
+                         Float32.(Ptr), Float32.(Pte); drop=drop, linear=false)
                 end
                 Ctr = nothing; Cte = nothing; GC.gc()
             end
