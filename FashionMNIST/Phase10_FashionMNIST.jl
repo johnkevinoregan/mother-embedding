@@ -1,5 +1,5 @@
 # ── PLAIN SCRIPT, not a Pluto notebook ──────────────────────────────────────
-# `julia --project=.. -t 16 Phase10_FashionMNIST.jl`
+# `julia --project=.. -t 16 Phase10_FashionMNIST.jl`   (from the FashionMNIST directory)
 #
 # Phase 10 — does the front end work on something that is not characters?
 #
@@ -37,7 +37,10 @@ using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 using Statistics, Printf, Random, LinearAlgebra, Serialization, FFTW
 using Flux, OneHotArrays, Plots
 include(joinpath(@__DIR__, "..", "LoadEMNIST.module.jl"))     # IDX reader; format is identical
-include(joinpath(@__DIR__, "Frontend.module.jl"))
+# `Frontend` is the shared wrapper round RationalGaborFeatures. It lives under
+# SimpleStrokeTests for historical reasons rather than good ones; it is general and belongs
+# somewhere neutral, but moving it would break paths in a run that is currently going.
+include(joinpath(@__DIR__, "..", "SimpleStrokeTests", "Frontend.module.jl"))
 using .LoadEMNIST, .Frontend
 
 const DIR    = joinpath(homedir(), "Julia", "DATABASES", "FashionMNIST")

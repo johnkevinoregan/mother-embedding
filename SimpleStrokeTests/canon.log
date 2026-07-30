@@ -16,3 +16,143 @@ featurised in 241s (16.1 ms/img)
       cnn[big] epoch  45  loss 0.0655  val R² 0.334
       cnn[big] epoch  50  loss 0.0563  val R² 0.695
       cnn[big] epoch  55  loss 0.0502  val R² 0.668
+      cnn[big] epoch  60  loss 0.0436  val R² 0.667
+      cnn[big] best val R² 0.718 after 60 epochs
+
+============================================================================================
+i.i.d. split — test R² per property, all 12000 training images
+============================================================================================
+
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial              0.009      0.008      0.457      0.066      0.029      0.195      0.152      0.063
+--------------------------------------------------------------------------------------------
+pixels·linear       -0.000     -0.001     -0.000     -0.000      0.000     -0.002     -0.000      0.709
+pixels·MLP          -0.179     -0.292      0.563     -0.071      0.125     -0.165     -0.026      0.731
+CNN                  0.411      0.298      0.962      0.290      0.859      0.893      0.936      0.990
+ours·linear          0.694      0.318      0.986      0.580      0.848      0.582      0.618     -0.000
+ours·MLP             0.835      0.592      0.993      0.835      0.905      0.635      0.657     -0.169
+
+============================================================================================
+Block attribution — linear readout on one block at a time (test R²)
+============================================================================================
+
+block            curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+orient                0.632      0.155      0.944      0.385      0.642      0.507      0.455     -0.000
+lowpass               0.036      0.051      0.659      0.048      0.238      0.309      0.072     -0.000
+A1+A2                 0.172      0.065      0.775      0.262      0.510      0.507      0.440     -0.000
+rays                  0.357      0.124      0.891      0.367      0.690      0.487      0.363     -0.000
+all                   0.694      0.318      0.986      0.580      0.848      0.582      0.618     -0.000
+all·SHUFFLED          0.630      0.162      0.948      0.393      0.697      0.507      0.466     -0.000   (mean of 5 perms, max sd 0.002)
+all·noRAYS            0.655      0.263      0.960      0.514      0.735      0.540      0.525     -0.000   (mean of 5 perms, max sd 0.001)
+all·noA               0.664      0.260      0.984      0.521      0.826      0.563      0.592     -0.001   (mean of 5 perms, max sd 0.002)
+all·noR0              0.693      0.292      0.985      0.577      0.836      0.573      0.546     -0.001   (mean of 5 perms, max sd 0.001)
+all·noR1              0.673      0.299      0.978      0.576      0.832      0.576      0.609     -0.000   (mean of 5 perms, max sd 0.001)
+all·noR2              0.680      0.299      0.984      0.548      0.811      0.565      0.612     -0.000   (mean of 5 perms, max sd 0.001)
+rays.R0               0.055      0.044      0.545      0.053      0.186      0.381      0.280     -0.000
+rays.R1               0.210      0.042      0.711      0.296      0.539      0.104      0.074     -0.004
+rays.R2               0.273      0.064      0.627      0.287      0.472      0.123      0.061     -0.004
+
+shuffle control, per-permutation spread:
+sd over perms         0.001      0.002      0.000      0.002      0.001      0.001      0.001      0.000
+
+============================================================================================
+Sample efficiency (linear readouts)
+============================================================================================
+      cnn[big] epoch   5  loss 0.8857  val R² -0.050
+      cnn[big] epoch  10  loss 0.7573  val R² 0.126
+      cnn[big] epoch  15  loss 0.6748  val R² 0.103
+      cnn[big] epoch  20  loss 0.6228  val R² 0.197
+      cnn[big] epoch  25  loss 0.5550  val R² 0.167
+      cnn[big] epoch  30  loss 0.5056  val R² 0.187
+      cnn[big] epoch  35  loss 0.4565  val R² 0.163
+      cnn[big] epoch  40  loss 0.4017  val R² 0.175
+      cnn[big] epoch  45  loss 0.3523  val R² 0.141
+      cnn[big] epoch  50  loss 0.2937  val R² 0.162
+      cnn[big] epoch  55  loss 0.2823  val R² 0.112
+      cnn[big] epoch  60  loss 0.2178  val R² 0.121
+      cnn[big] best val R² 0.197 after 60 epochs
+
+  k = 500    curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+    pixels·linear     -0.008     -0.014     -0.198     -0.019      0.001     -0.013     -0.008      0.689
+    CNN             -0.065     -0.093      0.644     -0.026      0.040      0.079      0.127      0.695
+    ours·linear      0.624      0.109      0.969      0.408      0.766      0.468      0.494     -0.013
+      cnn[big] epoch   5  loss 0.7598  val R² 0.120
+      cnn[big] epoch  10  loss 0.6551  val R² 0.201
+      cnn[big] epoch  15  loss 0.5664  val R² 0.281
+      cnn[big] epoch  20  loss 0.5177  val R² 0.236
+      cnn[big] epoch  25  loss 0.4269  val R² 0.236
+      cnn[big] epoch  30  loss 0.3560  val R² 0.026
+      cnn[big] epoch  35  loss 0.3278  val R² 0.317
+      cnn[big] epoch  40  loss 0.2606  val R² 0.322
+      cnn[big] epoch  45  loss 0.2610  val R² 0.139
+      cnn[big] epoch  50  loss 0.1819  val R² 0.206
+      cnn[big] epoch  55  loss 0.1501  val R² 0.338
+      cnn[big] epoch  60  loss 0.1516  val R² 0.170
+      cnn[big] best val R² 0.369 after 60 epochs
+
+  k = 2000   curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+    pixels·linear     -0.004     -0.003     -0.001     -0.002     -0.002     -0.008      0.000      0.703
+    CNN             -0.077     -0.253      0.873     -0.065      0.455      0.553      0.522      0.910
+    ours·linear      0.651      0.248      0.984      0.503      0.822      0.542      0.569     -0.000
+      cnn[big] epoch   5  loss 0.5984  val R² 0.385
+      cnn[big] epoch  10  loss 0.4700  val R² 0.528
+      cnn[big] epoch  15  loss 0.4034  val R² 0.396
+      cnn[big] epoch  20  loss 0.3554  val R² -0.207
+      cnn[big] epoch  25  loss 0.3260  val R² 0.488
+      cnn[big] epoch  30  loss 0.2630  val R² 0.533
+      cnn[big] epoch  35  loss 0.2121  val R² 0.534
+      cnn[big] epoch  40  loss 0.1676  val R² 0.497
+      cnn[big] epoch  45  loss 0.1151  val R² 0.423
+      cnn[big] epoch  50  loss 0.0839  val R² 0.344
+      cnn[big] epoch  55  loss 0.0831  val R² 0.500
+      cnn[big] epoch  60  loss 0.0552  val R² 0.467
+      cnn[big] best val R² 0.562 after 60 epochs
+
+  k = 6000   curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+    pixels·linear     -0.001     -0.002     -0.000     -0.000      0.001     -0.003     -0.000      0.708
+    CNN              0.151     -0.007      0.955      0.163      0.666      0.611      0.861      0.944
+    ours·linear      0.686      0.304      0.986      0.562      0.843      0.574      0.609     -0.000
+      cnn[big] epoch   5  loss 0.5052  val R² 0.320
+      cnn[big] epoch  10  loss 0.4147  val R² 0.526
+      cnn[big] epoch  15  loss 0.3642  val R² 0.401
+      cnn[big] epoch  20  loss 0.3164  val R² 0.380
+      cnn[big] epoch  25  loss 0.2539  val R² 0.549
+      cnn[big] epoch  30  loss 0.1881  val R² 0.593
+      cnn[big] epoch  35  loss 0.1310  val R² 0.615
+      cnn[big] epoch  40  loss 0.0914  val R² 0.623
+      cnn[big] epoch  45  loss 0.0667  val R² -0.290
+      cnn[big] epoch  50  loss 0.0561  val R² 0.498
+      cnn[big] epoch  55  loss 0.0522  val R² 0.703
+      cnn[big] epoch  60  loss 0.0483  val R² -0.110
+      cnn[big] best val R² 0.703 after 60 epochs
+
+  k = 12000  curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+    pixels·linear     -0.000     -0.001     -0.000     -0.000      0.000     -0.002     -0.000      0.709
+    CNN              0.437      0.319      0.949      0.288      0.855      0.820      0.916      0.978
+    ours·linear      0.694      0.318      0.986      0.580      0.848      0.582      0.618     -0.000
+      cnn[big] epoch   5  loss 0.4514  val R² 0.410
+      cnn[big] epoch  10  loss 0.3563  val R² 0.551
+      cnn[big] epoch  15  loss 0.3197  val R² 0.484
+      cnn[big] epoch  20  loss 0.2554  val R² 0.424
+      cnn[big] epoch  25  loss 0.1737  val R² 0.104
+      cnn[big] epoch  30  loss 0.1148  val R² 0.609
+      cnn[big] epoch  35  loss 0.0783  val R² 0.329
+      cnn[big] epoch  40  loss 0.0628  val R² 0.711
+      cnn[big] epoch  45  loss 0.0479  val R² 0.656
+      cnn[big] epoch  50  loss 0.0401  val R² -0.395
+      cnn[big] epoch  55  loss 0.0323  val R² 0.797
+      cnn[big] epoch  60  loss 0.0324  val R² 0.797
+      cnn[big] best val R² 0.826 after 60 epochs
+
+============================================================================================
+extrapolation: polarity — trained on light strokes, tested on dark
+============================================================================================
+
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial              0.008      0.009      0.437      0.070      0.031      0.204      0.184        NaN
+--------------------------------------------------------------------------------------------
+pixels·linear       -0.130     -0.112     -2.352     -0.532     -1.773     -2.931     -0.889          —
+pixels·MLP          -2.747     -1.491     -5.025     -3.668     -6.981     -8.319     -4.060          —
+CNN                  0.116     -0.262      0.841     -2.107     -0.057     -1.485     -0.108          —
+ours·linear          0.689      0.322      0.985      0.598      0.842      0.642      0.627          —
+ours·MLP             0.859      0.616      0.998      0.873      0.921      0.669      0.678          —
