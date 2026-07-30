@@ -269,15 +269,17 @@ is dropped from that split, and shown as `—`. Reporting a number there would b
 | *trivial baseline* | 0.009 | 0.008 | 0.457 | 0.066 | 0.029 |
 | pixels · linear | −0.000 | −0.001 | −0.000 | −0.000 | 0.000 |
 | pixels · MLP | −0.183 | −0.404 | 0.721 | −0.137 | 0.108 |
-| CNN | 0.449 | 0.254 | 0.947 | 0.291 | **0.874** |
-| **ours · linear** | **0.682** | **0.340** | **0.985** | **0.567** | 0.859 |
-| ours · MLP | **0.829** | **0.615** | **0.992** | **0.831** | **0.916** |
+| CNN | 0.411 | 0.298 | 0.962 | 0.290 | **0.859** |
+| **ours · linear** | **0.694** | **0.318** | **0.986** | **0.580** | 0.848 |
+| ours · MLP | **0.835** | **0.592** | **0.993** | **0.835** | **0.905** |
+| **ours · MLP, 31 features** | **0.925** | **0.737** | **0.998** | **0.938** | **0.954** |
 
 Read the `vangle` column — the angle of a corner. Raw pixels: nothing. A large neural network
 on raw pixels: worse than nothing. A CNN that learned its own features for this exact task:
-0.291. **Our fixed features with a plain weighted sum: 0.567.**
+0.290. **Our fixed features with a plain weighted sum: 0.580** — and 0.938 with a small
+network on 31 of them, the last row, which is the best configuration in the experiment.
 
-The CNN wins one of the five, `arms` — how many branches meet at a point — by 0.874 to 0.859.
+The CNN wins one of the five, `arms` — how many branches meet at a point — by 0.859 to 0.848.
 With a neural network reading our features instead of a weighted sum we lead there too
 (0.916). An earlier version of this experiment used a weaker CNN and we beat it on all five;
 that was not a fair fight, and the numbers above are from a proper one.
@@ -319,7 +321,7 @@ dark:**
 |:--|--:|--:|--:|--:|
 | pixels · linear | −0.130 | −2.352 | −0.532 | −1.773 |
 | pixels · MLP | −1.806 | **−6.042** | −5.117 | −3.973 |
-| **ours · linear** | **0.682** | **0.985** | **0.570** | **0.857** |
+| **ours · linear** | **0.689** | **0.985** | **0.598** | **0.842** |
 
 Our numbers are **identical to the i.i.d. row to three decimal places**. The methods that
 knew about polarity are destroyed by inverting it — scoring far below simply guessing the
@@ -370,9 +372,9 @@ Here, adding it to `orient`:
 
 | | `orient` alone | everything | apparent gain |
 |:--|--:|--:|--:|
-| `brokenness` | 0.159 | 0.340 | +0.181 |
-| `vangle` | 0.394 | 0.567 | +0.173 |
-| `arms` | 0.667 | 0.859 | +0.192 |
+| `brokenness` | 0.155 | 0.318 | +0.163 |
+| `vangle` | 0.385 | 0.580 | +0.195 |
+| `arms` | 0.642 | 0.848 | +0.206 |
 
 ### But that comparison is not yet honest
 
@@ -388,10 +390,10 @@ above `orient` is what extra knobs buy on their own.
 
 | | `orient` | **shuffled** | everything | **real gain** |
 |:--|--:|--:|--:|--:|
-| `brokenness` | 0.159 | 0.174 | 0.340 | **+0.166** |
-| `vangle` | 0.394 | 0.403 | 0.567 | **+0.164** |
-| `arms` | 0.667 | 0.727 | 0.859 | **+0.132** |
-| `closedness` | 0.949 | 0.953 | 0.985 | +0.032 |
+| `brokenness` | 0.155 | 0.162 | 0.318 | **+0.156** |
+| `vangle` | 0.385 | 0.393 | 0.580 | **+0.187** |
+| `arms` | 0.642 | 0.697 | 0.848 | **+0.151** |
+| `closedness` | 0.944 | 0.948 | 0.986 | +0.038 |
 
 **The shuffled version lands on top of `orient`.** The extra knobs buy almost nothing, so
 the gain is real information.
@@ -456,10 +458,10 @@ scribbles, and the question is not central enough to be worth changing the datas
 
 | training images | curvedness | brokenness | closedness | vangle | arms |
 |--:|--:|--:|--:|--:|--:|
-| 500 | 0.617 | 0.122 | 0.971 | 0.360 | 0.782 |
-| 2,000 | 0.648 | 0.283 | 0.982 | 0.486 | 0.833 |
-| 6,000 | 0.674 | 0.325 | 0.985 | 0.548 | 0.855 |
-| 12,000 | 0.682 | 0.340 | 0.985 | 0.567 | 0.859 |
+| 500 | 0.624 | 0.109 | 0.969 | 0.408 | 0.766 |
+| 2,000 | 0.651 | 0.248 | 0.984 | 0.503 | 0.822 |
+| 6,000 | 0.686 | 0.304 | 0.986 | 0.562 | 0.843 |
+| 12,000 | 0.694 | 0.318 | 0.986 | 0.580 | 0.848 |
 | **fraction of final score reached at 500** | **90 %** | 36 % | **99 %** | 64 % | **91 %** |
 
 With **500 images** — a few minutes of drawing — the front end is at 90 % of what it reaches
@@ -469,21 +471,21 @@ The CNN — which builds its own description from the examples — over the same
 
 | training images | curvedness | brokenness | closedness | vangle | arms |
 |--:|--:|--:|--:|--:|--:|
-| 500 | 0.030 | −0.003 | 0.664 | 0.012 | 0.089 |
-| 2,000 | 0.038 | −0.031 | 0.807 | 0.049 | 0.250 |
-| 6,000 | 0.116 | −0.022 | 0.899 | 0.119 | 0.504 |
-| 12,000 | 0.235 | −0.002 | 0.929 | 0.155 | 0.650 |
+| 500 | −0.065 | −0.093 | 0.644 | −0.026 | 0.040 |
+| 2,000 | −0.077 | −0.253 | 0.873 | −0.065 | 0.455 |
+| 6,000 | 0.151 | −0.007 | 0.955 | 0.163 | 0.666 |
+| 12,000 | 0.437 | 0.319 | 0.949 | 0.288 | 0.855 |
 
 **This is the clearest way to see what a front end buys you.** With 500 images, our fixed
-description already answers "how many arms meet here" at 0.782, while the CNN manages 0.089
-— roughly nine times worse. By 12,000 images the CNN has reached 0.650 and is still
-improving. It is *learning* what we *supplied*.
+description already answers "how many arms meet here" at 0.766, while the CNN manages 0.040
+— nineteen times worse, and it is *below zero* on three of the five properties at that size.
+By 12,000 images the CNN has reached 0.855 and nearly caught up. It is *learning* what we
+*supplied*.
 
-Being fair to the CNN: two of its curves are still rising steeply at the right-hand edge, so
-with much more data it would probably catch up on some properties. But note `brokenness` —
-whether the stroke has a gap in it. The CNN sits at zero for every training-set size tried.
-A 3-pixel gap in a 112-pixel image is apparently too fine for it to pick up at all, while our
-description reaches 0.340.
+Being fair to the CNN: its curves are still rising steeply at the right-hand edge, so with
+much more data it would probably overtake us on some properties. Note also that on
+`brokenness` it goes from −0.25 at 2,000 images to 0.319 at 12,000 — it eventually learns to
+see a 3-pixel gap, it just needs about twenty times as many examples as we do.
 
 Raw pixels sit at 0.000 for every property at every size. **They do not improve with more
 data**, which is the sharpest statement of what a front end is for: extra examples cannot
@@ -591,6 +593,14 @@ gives two clean trends in **opposite** directions:
 - With a **small neural network** on top, fewer cells are *better all the way down* — and
   31 numbers from a single cell beat 775 from twenty-five, on every property.
 
+| grid | numbers | weighted sum, `arms` | small network, `arms` |
+|:--|--:|--:|--:|
+| **1×1** | **31** | 0.729 | **0.954** |
+| 2×2 | 124 | 0.775 | 0.923 |
+| 3×3 | 279 | **0.848** | 0.905 |
+| 4×4 | 496 | 0.840 | 0.890 |
+| 5×5 | 775 | 0.836 | 0.895 |
+
 **Why the two disagree.** A weighted sum cannot combine information about *where* something
 is with information about *what* it is — the grid is the only way it gets any spatial
 structure at all. A neural network can build that internally, so the grid gives it nothing it
@@ -600,7 +610,7 @@ place produces different numbers**, and the readout has to learn to undo that. O
 covering everything has no such problem.
 
 **So the best configuration here is 31 numbers with a small network**, and it beats the
-properly trained CNN comfortably: 0.898 against 0.248 on corner angle, 0.663 against 0.236 on
+properly trained CNN comfortably: 0.938 against 0.290 on corner angle, 0.737 against 0.298 on
 brokenness.
 
 **Two honest qualifications.** First, most of this document has emphasised what a *linear*
@@ -649,10 +659,22 @@ It sounds like bookkeeping. It moved every structural number:
 | best configuration, `brokenness` | 0.663 | **0.737** |
 | best configuration, corner angle | 0.898 | **0.938** |
 | ray block alone, `arms` | 0.536 | **0.690** |
+| ray block alone, `arms` | 0.536 | **0.690** |
 
 and it overturned two conclusions reported earlier in this document's history: one of the
 three ray quantities had looked like dead weight and was not, and a clean division of labour
 between the two operator families turned out to be half an artefact of the faulty averaging.
+
+---
+
+## 12d. Where these numbers come from
+
+Every figure in this document comes from **one run under one version of the code** — grid 3
+for the main tables, grid 1 for the best-configuration row, and grids 1–5 for the pooling
+sweep. That matters more than it sounds. During development the document briefly mixed numbers
+from before and after a change to how the ray harmonics are normalised, so one section
+reported an improvement that the table above it did not show. Rebuilding everything from a
+single run is the only way to be sure the tables and the figures agree with each other.
 
 ---
 
