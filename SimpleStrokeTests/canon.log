@@ -1,0 +1,18 @@
+########## CANONICAL: grid 3, all arms, all stages ##########
+Phase 9 — 12000 train, 3000 test, 12 threads
+
+front end: grid 3, 279 columns  (orient 135, lowpass 9, A1 27, A2 27, rays 81)
+
+generated 15000 images in 3s
+featurised in 241s (16.1 ms/img)
+      cnn[big] epoch   5  loss 0.5036  val R² 0.343
+      cnn[big] epoch  10  loss 0.4137  val R² 0.543
+      cnn[big] epoch  15  loss 0.3638  val R² 0.587
+      cnn[big] epoch  20  loss 0.3153  val R² 0.444
+      cnn[big] epoch  25  loss 0.2530  val R² 0.457
+      cnn[big] epoch  30  loss 0.1881  val R² -0.536
+      cnn[big] epoch  35  loss 0.1294  val R² 0.647
+      cnn[big] epoch  40  loss 0.0910  val R² 0.558
+      cnn[big] epoch  45  loss 0.0655  val R² 0.334
+      cnn[big] epoch  50  loss 0.0563  val R² 0.695
+      cnn[big] epoch  55  loss 0.0502  val R² 0.668
