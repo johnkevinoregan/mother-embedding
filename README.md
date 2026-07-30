@@ -1,212 +1,59 @@
 # mother-embedding
 
-A modular Julia rewrite of a Vector-Symbolic-Architecture / Fractional-Power-Encoding
-letter classifier built on a Gabor-filter front end. Each pipeline stage is an
-independent module (`include("X.jl"); using .X`) with its own companion Pluto
-notebook for visually sanity-checking that component in isolation.
+Building a **bio-inspired early-vision front end** in Julia — dense oriented-energy
+(log-Gabor) representations, with operators for the things a contour does at a point:
+terminate, turn, branch, cross. The aim is a *general* front end, testable on images
+generally rather than tuned to one dataset, so most of the work is about telling a real
+result apart from an artefact of the benchmark.
 
-Two self-contained investigations live in subfolders, both concerned with reading
-**junction structure** (endpoints, corners, T-junctions, X-crossings) off a Gabor
-representation. They are best read in order, because the second diagnoses why the
-first cannot work:
+Each pipeline stage is an independent module (`include("X.module.jl"); using .X`) with a
+companion Pluto notebook for sanity-checking it in isolation.
 
-- **`Dense_Gabors/`** — dense per-pixel Gabor sampling with a ring/peak-counting
-  keypoint detector. **Superseded**; kept as a baseline and a cautionary tale.
-- **`New_Gabor_FPE/`** — junction type by *linear projection only* (ray profiles →
-  circular harmonics = FPE with integer frequencies). **This is the current line
-  of work.**
+**Start with [`PHASES.md`](PHASES.md).** It maps the current line of work — what each phase
+asked, what it found, and what was later corrected. [`PROGRESS_2026-07-30.md`](PROGRESS_2026-07-30.md)
+is the latest narrative report; the earlier `PROGRESS_*.md` files carry the history.
 
-Two further subfolders ask the same questions with a different front end, each with
-its own README: **`ExptsWithGlobalFourier/`** (local and per-region Fourier
-descriptions) and **`ExptsWithZernike/`** (one global Zernike-moment description of
-the whole character).
+---
 
-**`TestFeaturesWithMLP/`** then scores the features those two produce with a real
-classifier instead of a deliberately weak one — a plain fully-connected MLP trained
-the way EMNIST normally is, on the official train/test split — and compares feeding it
-the raw feature values against embedding them in FPE codes. Its
-`README_MLP_FPE_Experiment.md` is **self-contained**: it defines Zernike moments, the
-Fourier grid, FPE, binding and bundling from scratch, so it can be read without any of
-the above.
+## Where everything is
 
-Its §7.11 asks the question the rest of the repo does not: **how much training data does
-a designed representation save?** Because the Zernike and Fourier extractors have no
-learned parameters, they start far ahead — **+7.7 points over a small CNN at 10 examples
-per class**, with 25× fewer parameters — but the advantage decays and the CNN overtakes at
-about 100 examples per class (3.5 % of EMNIST). Expressed as data rather than accuracy the
-saving is under 2×, and no arm was given augmentation, which would favour the CNN. Run it
-with `FewShotComparison.jl`.
+**Current work.** Three directories, numbered as phases, each with its own `README.md` for
+how to run it and `RESULTS.md` for the tables.
 
-See `PROGRESS_2026-07-30.md` for the latest writeup (and the earlier
-`PROGRESS_*.md` files for the history) — what's implemented, what's still to come,
-and the reasoning behind the changes. Its §9 is worth reading before trusting any
-older accuracy comparison: the leave-one-out nearest-class-mean protocol used
-throughout the earlier work turns out to understate features by ~24 points and, in one
-recorded case, to have manufactured a qualitative conclusion that a stronger
-classifier does not reproduce.
-
-**Start with [`PHASES.md`](PHASES.md)** if you are arriving cold. It maps the whole
-project — what each phase asked, what it found, and where the code and results live —
-including the corrections, since several published numbers were later found not to
-reproduce and two apparent results turned out to be artefacts of missing controls.
-
-A caution about scope: `PHASES.md` numbers the phases from the start of
-`RationalGaborFeatures/`, so **everything above this line happened before Phase 0** — the
-Fourier tic-tac-toe grid, the Zernike moments, the MLP re-evaluation that overturned the
-leave-one-out conclusions, the pixel-permutation experiments, and the few-shot comparison of
-§7.11. Those are covered by the `PROGRESS_*.md` journal rather than by the phase map.
-
-Three directories carry the phased work, each with its own `README.md` for how to run it and
-`RESULTS.md` for the tables:
-
-| directory | phases | dataset |
+| directory | phases | what it is |
 |:--|:--|:--|
-| `RationalGaborFeatures/` | 0–8 | EMNIST-Balanced, plus synthetic gates |
-| `SimpleStrokeTests/` | 9 | synthetic single strokes with graded properties |
-| `FashionMNIST/` | 10 | Fashion-MNIST |
+| **`RationalGaborFeatures/`** | 0–8 | **The front end itself**, and its tests on EMNIST. Log-Gabor oriented energy, exactly polarity-invariant, with an ablatable layer of pointwise conjunctions applied *before* spatial pooling. Scale ladder derived from measured spectra rather than hard-coded. |
+| **`SimpleStrokeTests/`** | 9 | A synthetic dataset labelled with **graded properties** rather than classes, which turns the question from "can a classifier separate these" into "how much of each property is linearly available". Where the conjunction layer first paid for itself. |
+| **`FashionMNIST/`** | 10 | The first dataset here that is **not a line drawing** — filled silhouettes with texture, and published baselines to calibrate against. |
 
-**`RationalGaborFeatures/`** is the current build: a bio-inspired early-vision front end
-(dense log-Gabor oriented energy, exactly polarity-invariant, with an ablatable layer of
-pointwise conjunctions applied *before* spatial pooling). Its scale ladder is derived from
-the data rather than hard-coded, so it is meant to be pointed at datasets other than
-EMNIST. See its own `README.md` for the design and `RESULTS.md` for what happened when it
-met data (`RESULTSexpanded.md` is the same material written to be read standalone, with no
-prior knowledge of the project assumed) — including the control that had been missing since
-§7.11 was written:
-**augmentation buys a small CNN 9–13 points and buys these features nothing**, which is
-direct evidence they carry the invariances rather than merely outperforming.
+**Earlier investigations**, each self-contained, in rough order of age. They are worth reading
+because several were superseded for *diagnosable reasons*, and those diagnoses shaped what came
+after.
 
-## `.module.jl` versus `.jl`
+| directory | what it tried | outcome |
+|:--|:--|:--|
+| `ExptsWithGlobalFourier/` | Describe a character with low-order 2D **Fourier** coefficients, globally and on a 3×3 grid | The 3×3 "tic-tac-toe" signature became the reference feature set that `RationalGaborFeatures/` had to beat |
+| `ExptsWithZernike/` | Describe it with **Zernike moments** on a disc | Better features, *worse* classification — and the reason why is instructive |
+| `TestFeaturesWithMLP/` | Score those features with a **real** classifier on the official EMNIST split instead of a deliberately weak one | Overturned earlier conclusions; see the methodological warning below. `README_MLP_FPE_Experiment.md` is self-contained |
+| `New_Gabor_FPE/` | Junction type by **linear projection only** — ray profiles → circular harmonics | The ray transform survives into the current front end. Diagnosed *why* orientation energy alone cannot count rays |
+| `Dense_Gabors/` | Dense per-pixel Gabor sampling with peak-counting and ring analysis | **Superseded.** Kept as a baseline and a cautionary tale: its thresholds were patching a hole in the representation |
 
-**Every `*.module.jl` file is a plain Julia module, not a notebook.** Everything else with
-a `.jl` extension is a Pluto notebook and opens normally.
+| `EarlyGaborLifting/` | The **first attempt** — a Gabor lifting and a hand-built T-junction detector | Superseded, and the diagnosis of *why* is what produced the ray transform. See the last section |
 
-The distinction matters in practice: *opening a plain module in Pluto rewrites the file and
-leaves a `<name> backup 1.jl` beside it*, which is confusing and easy to do by accident. The
-seven modules are `Config`, `LoadEMNIST`, `CreateGaborLifting`, `CreateTJunctionLifting`,
-and `RationalGaborFeatures/{GaborStack, AndLayer, Stimuli}`. Each also carries a marker
-comment on its first line.
+---
 
-One exception that is neither: `TestFeaturesWithMLP/FewShotComparison.jl` is a plain
-*script*, run with `julia --project=. <file>` rather than included; it is marked as such.
+## Two results you should know before trusting any older number
 
-The core pipeline modules have companion `Test_*.jl` notebooks
-(`LoadEMNIST.module.jl` → `Test_LoadEMNIST.jl`); `RationalGaborFeatures/` uses `Validate_*.jl`
-for the same purpose, and those double as headless gates.
+**The evaluation protocol was wrong for a long time.** Leave-one-out nearest-class-mean, used
+throughout the early work, **understates features by ~24 points** and in one recorded case
+manufactured a qualitative conclusion that a stronger classifier does not reproduce. Every
+accuracy comparison predating `TestFeaturesWithMLP/` should be read with that in mind —
+`PROGRESS_2026-07-26.md` §9 has the details.
 
-## Requirements
-
-- Julia 1.11 (developed against 1.11.2)
-- The EMNIST dataset (IDX format), balanced split. Download from
-  <https://www.nist.gov/itl/products-and-services/emnist-dataset> and place
-  `emnist-balanced-train-images-idx3-ubyte` and
-  `emnist-balanced-train-labels-idx1-ubyte` in `~/Julia/DATABASES/EMNIST/`
-  (this default path is set in `LoadEMNIST.module.jl`'s `DEFAULT_DATA_DIR`; pass a
-  different `data_dir` keyword to `load_emnist` to use another location).
-
-## Setup
-
-```bash
-git clone https://github.com/johnkevinoregan/mother-embedding.git
-cd mother-embedding
-julia --project=. -e 'using Pkg; Pkg.instantiate()'
-```
-
-This installs this project's own package environment (Pluto, PlutoUI, Plots,
-Colors, ImageFiltering, FFTW), independent of any other Julia environment on your
-machine.
-
-## Running a test notebook
-
-Each component has a `Test_<Component>.jl` Pluto notebook. Launch Pluto
-pointed at one directly:
-
-```bash
-julia --project=. -e 'using Pluto; Pluto.run(notebook="Test_LoadEMNIST.jl")'
-```
-
-`run_pluto.sh` in this repo shows the pattern used for running headless on a
-remote server (`host="0.0.0.0"`, fixed `port`, `launch_browser=false`) and
-viewing the notebook through an SSH tunnel from another machine — edit its
-`notebook=` argument to point at whichever component you're testing.
-
-## Project layout
-
-```
-Config.module.jl                     Single source of truth for shared constants
-LoadEMNIST.module.jl                 EMNIST IDX loading, class bucketing, display-orientation fix
-Test_LoadEMNIST.jl            Sanity-check notebook for LoadEMNIST
-CreateGaborLifting.module.jl         Complex Gabor filter bank -> raw (modulus, phase) tokens
-Test_CreateGaborLifting.jl    Sanity-check notebook for CreateGaborLifting
-CreateTJunctionLifting.module.jl     T-junction detector over the Gabor grid: stem/crossbar
-                              pairs scored by phase-compatibility x weaker modulus
-Test_CreateTJunctionLifting.jl            Sanity-check notebook for CreateTJunctionLifting (EMNIST)
-Test_CreateTJunctionLifting_SyntheticT.jl Same, on a controlled synthetic T stimulus
-Test_TJunction_CornerDemo.jl  Synthetic-stimulus notebook comparing the old vs new
-                              phase-compatibility term: T's and all 4 corner types
-```
-
-To change a shared constant (image size, filter scales/orientations, etc.),
-edit `Config.module.jl` and restart the Pluto server — these are `const` bindings,
-so a browser refresh alone won't pick up the change.
-
-## Dense_Gabors/ — dense-sampling keypoint extraction (superseded)
-
-> **Superseded by `New_Gabor_FPE/`.** The approach here works well enough to be a
-> useful behavioural baseline, but it is GOFAI — thresholds, peak counting, ring
-> run-length analysis — and `New_Gabor_FPE/` shows those hacks were patching a
-> hole in the *representation*, not a lack of tuning. Read that section before
-> building on anything here.
-
-A self-contained side investigation, independent of the `Config.module.jl` /
-`CreateGaborLifting.module.jl` pipeline above (different Gabor convention — see the
-notebooks for the details): instead of a sparse grid of Gabor samples, convolve
-a character with a *dense*, per-pixel bank of oriented Gabor filters and read
-discrete, typed keypoints — **endpoint / corner / T-junction / X-crossing** —
-directly off the resulting oriented-energy field.
-
-```
-Dense_Gabors/
-  gabor_orientation_demo.py    Python source: fixed-scale argmax-orientation analysis
-  Gabor_Orientation_Demo.jl    Julia/Pluto port of the above
-  Gabor_Feature_Layer.jl       Julia/Pluto port of the feature-type layer below
-  Gabor_Feature_Layer_MultiScale.jl  Round-2 extension: same operations at 3 Gabor
-                                     scales with cross-scale voting. Documents what
-                                     the multi-scale idea fixes (spurious ring-based
-                                     T/X junctions) and what it doesn't (separating
-                                     a curve's false corners from real ones).
-  Gabor_feature_layer_python/
-    feature_layer.py                        Python source: end-stopping, orientation-
-                                             profile bimodality, and ring spoke-count
-                                             turned into typed keypoints
-    Gabor_feature_layer_design_notes.md      Design rationale for every threshold/choice
-```
-
-The approach: three cheap per-pixel operations read off the oriented-energy
-stack — end-stopping (segment termination -> endpoint), orientation-profile
-peak structure (bimodal -> corner-family), and a multi-radius ring "spoke
-count" (junction order). The key architectural idea, laid out in the design
-notes, is *propose ≠ classify*: the two dense operations propose keypoints and
-decide corner-family vs. endpoint; the sparse geometric ring count only
-refines an already-proposed point (corner -> T -> X), never proposes one.
-
-## New_Gabor_FPE/ — junction type by linear projection
-
-The current line of work. Same goal — endpoints, corners, T-junctions,
-X-crossings on EMNIST letters from a Gabor lift — but using **linear/filtering
-operations only**: no peak counting, no ring run-length analysis, no
-`if npk >= 2`, no hand-tuned thresholds. The output is a **continuous
-descriptor** suitable for FPE/VSA binding, not a symbolic label.
-
-Verified in Julia on real EMNIST. `New_Gabor_FPE_handoff_for_claude-code.md` is the primary
-document — read its §1–§3 before touching the code.
-
-### Why the previous approaches failed
-
-The orientation fibre `E(x, y, θ)` is **π-periodic**. Junction type is a **2π
-(directional)** property — it is about *which rays leave a point*. Orientation
-mod π cannot tell "ray going east" from "ray going west", so it cannot count
-rays. Measured at the centre of canonical figures (cosine similarity of `E(θ)`):
+**Orientation energy cannot count rays, and this is provable rather than empirical.** The
+orientation fibre `E(x, y, θ)` is **π-periodic**, while junction type is a **2π** property —
+it is about which rays *leave* a point, and mod-π orientation cannot distinguish east from
+west. Measured cosine similarity of `E(θ)` at the centre of canonical figures:
 
 ```
 L-corner   vs T-junction : 0.9031
@@ -214,177 +61,97 @@ L-corner   vs X-crossing : 0.8868
 T-junction vs X-crossing : 0.9234
 ```
 
-L, T and X are effectively **the same vector** in the orientation fibre. No
-downstream FPE / attention / learning can recover what the representation never
-encoded. This is also why `Dense_Gabors/` needed the ring probe: the ring was
-sampling mod-2π structure *because the fibre couldn't* — a patch over a
-representational hole, not a stylistic lapse.
-
-### The fix: ray profile → circular harmonics
-
-At each point `p`, for `φ ∈ [0, 2π)`:
+L, T and X are effectively the same vector. No amount of downstream learning recovers what the
+representation never encoded — which is why `Dense_Gabors/` needed its ring probe, and why the
+**ray transform** replaced it:
 
 ```
 R(p, φ) = E( p + d·u(φ),  θ = φ mod π ),      u(φ) = (cos φ, sin φ)
 ```
 
-"Is there a contour at distance `d` in direction `φ`, oriented *along* `φ`?"
-The `d`-offset is what turns a mod-π quantity back into a mod-2π one — east and
-west read different pixels. `R` is 2π-periodic with **one lobe per branch**:
-endpoint → 1, straight → 2 opposite, L → 2 adjacent, T → 3, X → 4. Its Fourier
-coefficients `cₙ` are the type signature:
+*"Is there a contour at distance `d` in direction `φ`, oriented along `φ`?"* The offset turns a
+mod-π quantity back into a mod-2π one, because east and west read different pixels. `R` has one
+lobe per branch, and its circular harmonics are the type signature:
 
-| config | c₀ | \|c₁\|/c₀ | \|c₂\|/c₀ |
-|---|---|---|---|
+| configuration | c₀ | \|c₁\|/c₀ | \|c₂\|/c₀ |
+|:--|--:|--:|--:|
 | endpoint (1 ray) | 1 | 1.000 | 1.000 |
 | straight (2 opposite) | 2 | 0.000 | 1.000 |
-| L-corner (2 @ 90°) | 2 | 0.707 | 0.000 |
+| L-corner (2 at 90°) | 2 | 0.707 | 0.000 |
 | **T-junction (3 rays)** | **3** | **0.333** | **0.333** |
 | X-crossing (4 rays) | 4 | 0.000 | 0.000 |
 
-`c₀` ≈ ray count ("how many branches leave here"); `|c₁|/c₀` ≈ asymmetry
-(1 = endpoint, 0 = centrally symmetric). `(c₀, |c₁|/c₀)` alone separates all
-five. Junctions are simply the **brightest points of the `c₀` map** — that is
-the detector, no ring probe.
+`c₀` ≈ ray count, `|c₁|/c₀` ≈ asymmetry. This is `RationalGaborFeatures/RayHarmonics.module.jl`
+today, and its gates are in `Validate_RayHarmonics.jl`.
 
-**Why this isn't GOFAI:** for a fixed `φ`, the term is one orientation channel
-*rigidly shifted*. The whole expression is "K rigid shifts, weighted by
-`e^{-inφ}`, summed" — a linear filter over the lifted `(x, y, θ)` field, the same
-operation class as the Gabor convolution that produced `E`. `|cₙ|` is
-rotation-invariant by construction, and rotation acts as binding (`V → z^α ⊙ V`).
+---
 
-**FPE *is* the harmonic expansion** (`V = Σ_φ R(φ)·z^φ`), so this is not a new
-module bolted on — it is the FPE layer with the base fixed to integer
-frequencies.
+## Conventions
 
-### Architecture
+**`*.module.jl` is a plain Julia module, not a notebook.** Everything else ending `.jl` is
+either a Pluto notebook or a plain script, and each says which on its first line.
 
-```
-image
-  └─ Gabor bank (multi-θ, multi-scale)      ─┐
-  └─ modulus  → E[θ, y, x]                   │  DENSE, convolutional,
-  └─ ray shift+combine → cₙ[y, x]            │  NO bundling
-  └─ dense maps: c₀, |c₁|/c₀, …             ─┘
-        │
-        │  sparse keypoint selection (top-N of c₀)
-        ▼
-  └─ FPE bundle over keypoints, bound to
-     object-relative polar position (r, α)   ─┐  SPARSE, bundled
-  └─ object descriptor ∈ ℂ^d                 ─┘
-```
+The distinction matters: **opening a module in Pluto rewrites the file** and leaves a
+`<name> backup 1.jl` beside it, which is easy to do by accident.
 
-The split is forced, not an optimisation: bundling `N` items into `d` dimensions
-has SNR ≈ `√(d/N)`, so bundling ~600k dense tokens into `d = 1024` is pure noise,
-while a few dozen keypoints is fine. (It also mirrors dense retinotopic maps in
-V1/V2/V4 vs sparse object codes in IT; `(r, α)` is the Pasupathy–Connor
-angular-position code.)
+Notebooks come in two flavours. `Test_*.jl` sanity-check a component interactively;
+`Validate_*.jl` in `RationalGaborFeatures/` do the same but also run **headless as gates**,
+printing `ALL GATES PASSED` or naming what failed. Run those after touching the front end.
 
-### Files
+Two shared names to avoid: `Plots` exports `bar` and `with`, and when two modules export the
+same name Julia binds **neither** — which is why `Stimuli` has `barstim` and `Contours` has
+`respec`.
 
-```
-New_Gabor_FPE/
-  New_Gabor_FPE_handoff_for_claude-code.md   The handoff doc -- read §1-§3 first
-  ray_fpe_junctions.jl                       Pluto notebook: the core implementation
-  EMNIST_Junction_Keypoints.jl               Real EMNIST + ray-harmonic keypoints
-  EMNIST_Junction_GlobalShape.jl             Above + a global-shape descriptor (same
-                                             construction one level up: harmonics of
-                                             the mass distribution about the centroid)
-  TASK_add_global_shape.md                   Spec for the global-shape extension
-  rayharm.py                                 Python reference (estack, ray_profile,
-                                             ray_harmonics)
-  pluto2md.py                                Renders a Pluto notebook's markdown
-                                             without Pluto
-  figA_profiles.png                          KEY FIGURE: col 2 E(θ) -- L/T/X identical;
-                                             col 3 R(φ) -- 1/2/2/3/4 lobes
-  figB_signature.png                         c₀ and normalised harmonics per type
-  figC_letters.png                           Dense c₀ and |c₁|/c₀ maps + polar probes
-                                             on T, K
-  KeyPointDiagnosticity.md                   Findings: how diagnostic are keypoints +
-                                             shape harmonics of letter identity?
-  KeyPointDiagnosticity.jl                   Interactive notebook reproducing every
-                                             detector / encoding / scale variant
-  BranchProfileDetector.jl                   Branch-profile detector + du Buf medial gate
-  EvenOddChannels.md                         Even/odd (line/edge) split: motivation +
-                                             why the endpoint hypothesis fails structurally
-  EndpointDiagnostics.jl                     Interactive endpoint-detector heatmaps (112)
-  EndpointDiagnosticsPadded.jl               Same on a 224 padded field; even/odd cap
-                                             detector, Ronan symmetric end-stop A/B toggle,
-                                             front-end normalisation toggle
-  RonanLiquid1.jl                            Ronan's topographic E/I end-stop notebook (ref)
-  CommentsOnRonanLiquid.md                   Ronan comparison; the chirality bug + fix (§5)
-  GaussianCurvatureEMNIST.jl                 Gaussian-curvature heatmaps, 5 scales,
-                                             polarity-invariant, chirality-free
-  CurvatureConstellationFPE.jl               FPE encoding of the K-extrema; shows pure
-                                             graph topology is not diagnostic, coarse
-                                             position (quadrant) is
+## Requirements and setup
+
+Julia 1.11 (developed against 1.11.2). Optionally CUDA — the Phase 9 harness uses a GPU when
+`CUDA.functional()` and falls back to CPU silently otherwise.
+
+```bash
+git clone https://github.com/johnkevinoregan/mother-embedding.git
+cd mother-embedding
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
 ```
 
-### Design rules (from `New_Gabor_FPE_handoff_for_claude-code.md` §8)
+Datasets go under `~/Julia/DATABASES/`:
 
-- **No thresholds, no counting, no `if/elif` on feature type.**
-  `(c₀, |c₁|/c₀, |c₂|/c₀, …)` **is** the descriptor — bind the continuous vector
-  and let similarity do the work.
-- **Do not classify into symbolic labels.** A 30° corner has signature
-  ≈(0.97, 0.87), close to an *endpoint* — and that is correct: a sharp corner
-  really is nearly a doubled-back single ray. Corner-ness is graded, exactly as
-  V4 curvature tuning is graded. The discrete labels were the GOFAI residue.
-- **Never bundle globally before a locality-dependent readout.**
-- **Any circular FPE variable needs integer base frequencies** (otherwise `z^θ`
-  is not π-periodic — periodicity is a property of the base frequencies, not the
-  exponent).
-- **Orientation mod π ⇒ encode 2θ. Ray direction mod 2π ⇒ encode φ.**
+- **EMNIST** (balanced, IDX format) in `EMNIST/` — from
+  <https://www.nist.gov/itl/products-and-services/emnist-dataset>. The default path is
+  `DEFAULT_DATA_DIR` in `LoadEMNIST.module.jl`.
+- **Fashion-MNIST** in `FashionMNIST/` — see `FashionMNIST/README.md` for the download.
 
-### Diagnosticity experiments (`KeyPointDiagnosticity.md` / `.jl`)
+## Running things
 
-A round of experiments asking whether the local keypoints and the global shape
-harmonics are actually **diagnostic of letter identity** (360 EMNIST instances,
-12 classes; η² per feature + leave-one-out nearest-class-mean accuracy):
+A notebook:
 
-- **The global shape harmonics carry the identity** — ~57 % accuracy alone
-  (≈ 7× chance), rising to ~61 % once extended from `|M1..4|` to `|M1..6|` plus a
-  radial (filled-vs-hollow) profile. `|M2|,|M3|,|M4|` are the strongest single
-  features (η² ≈ 0.6).
-- **Local keypoint *counts* are weak** (16–19 %) — a census of types discards
-  *where* each keypoint is, and configuration is what separates the letters. This
-  motivates the next step: bind each keypoint to its centroid-relative position
-  `(r, α)` and encode the configuration, not the count.
-- Detectors compared (greedy ridge-tiling vs. clear local maxima vs. a
-  two-channel junction+endpoint detector) and encodings (mean-pool vs. typed
-  counts). A synthetic-figure check shows the ray *signature* is correct but the
-  *detector* is miscalibrated even on clean input (junction boundaries; an
-  endpoint channel confounded by background asymmetry). The ray-probe scale
-  `D_RAY` is the endpoint lever — larger reaches past the stroke.
-- Methodological caution: "full < shape-only" in the accuracy table is a
-  nearest-mean *artifact* (equal-weighted noisy features dilute good ones);
-  η²-weighting flips it back (53.6 % → 61.4 %). Trust the per-feature η² and the
-  shape-only accuracy, not the raw ranking.
+```bash
+julia --project=. -e 'using Pluto; Pluto.run()'
+```
 
-### Endpoint-detector line (2026-07-18 → 21)
+then open whichever `.jl` you want. `run_pluto.sh` shows the pattern for running headless on a
+remote server and viewing through an SSH tunnel.
 
-A follow-on thread, under the same "no thresholds, continuous, polarity-invariant"
-rules, focused on the local **endpoint/keypoint** side. Full narrative in
-`PROGRESS_2026-07-21.md` and the per-topic `.md`s; the essentials:
+A plain script — note `--project=..` from inside a subdirectory, and `-t` for threads, since
+feature extraction is parallel across images:
 
-- **Even/odd split (`EvenOddChannels.md`).** Splitting oriented energy into
-  even/line and odd/edge channels is exactly polarity-invariant, but does **not**
-  help endpoint detection: an end-cap and a crossing stroke's flank are the *same*
-  oriented edge — only termination separates them. (Measured: EMNIST stroke ≈
-  13.4 px, so letters are ~8 stroke-widths across — almost no scale separation.)
-- **Interactive endpoint detectors (`EndpointDiagnostics*.jl`).** A sign-referenced,
-  exactly polarity-invariant cap detector on a padded 224 field (exact
-  edge-replicate padding; kernels shown at true scale). The best endpoint signal is
-  a directional min-gate; over-firing on flanks is the residual weakness.
-- **Ronan comparison + a real bug (`CommentsOnRonanLiquid.md`).** A/B against Ronan's
-  classical symmetric hypercomplex end-stopping (`RonanLiquid1.jl`) turned up a
-  **chirality bug** in our cap: the sign factor `ds = (φ<π ? ±1)` is a half-plane in
-  the travel angle, blind to the perpendicular-orientation fold at 90°, so the
-  detector was **~41 % mirror-asymmetric** (correct in two opposite quadrants,
-  inverted in the other two) while staying exactly 180°-rotation symmetric — which
-  is why it hid. Fixed by reading the sign off the odd filter's own carrier,
-  `ds = sign(sin(φ − θ_ψ))` (mirror-asym 0.41 → 1e-6).
-- **Gaussian curvature (`GaussianCurvatureEMNIST.jl`).** A polarity-invariant (by
-  construction) and chirality-free (isotropic Hessian) alternative:
-  `K = det Hess / (1 + |∇I|²)²` at five scales. Measured: the **sign does not
-  separate ends from crossings** — a smoothed crossing is a local *maximum* (K > 0),
-  not a saddle — so it is a blob/keypoint *saliency*, with magnitude (not sign)
-  carrying the type distinction.
+```bash
+cd SimpleStrokeTests && julia --project=.. -t 16 Phase9_Readouts.jl
+```
+
+`SimpleStrokeTests/run.sh` wraps the common cases. Experiment scripts take their settings from
+environment variables (`P9_*`, `F_*`) so a run can be resized without editing code.
+
+---
+
+## The original work — `EarlyGaborLifting/`
+
+The first attempt, and the ancestor of everything above: a **Gabor lifting** and a hand-built
+T-junction detector reading stem/crossbar pairs scored by phase compatibility. It has its own
+`README.md` explaining why it was superseded — briefly, extending a template per junction type
+does not scale, and the π-periodicity result above says no scoring rule on the orientation
+fibre alone can separate L from T from X.
+
+**Only `LoadEMNIST.module.jl` remains in this root directory**, because every phase uses it.
+Everything else from that period moved into `EarlyGaborLifting/` on 2026-07-30; the move was
+safe because nothing outside those notebooks ever included them — earlier greps suggesting
+otherwise were matching the module names in prose.

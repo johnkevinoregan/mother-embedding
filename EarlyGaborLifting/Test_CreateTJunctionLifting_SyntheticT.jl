@@ -34,7 +34,7 @@ begin
     # Config must be included before any component module that depends on it.
     include(joinpath(@__DIR__, "Config.module.jl"))
     using .Config
-    include(joinpath(@__DIR__, "LoadEMNIST.module.jl"))
+    include(joinpath(@__DIR__, "..", "LoadEMNIST.module.jl"))
     using .LoadEMNIST
     include(joinpath(@__DIR__, "CreateGaborLifting.module.jl"))
     using .CreateGaborLifting
@@ -47,37 +47,33 @@ ORIENTATIONS
 
 # ╔═╡ 3a76c864-f6c5-49fe-b13b-3767615ff12d
 md"""
-# Test: CreateTJunctionLifting
+# Test: CreateTJunctionLifting — synthetic T
 
-Sanity-check notebook for `CreateTJunctionLifting`. Runs `gabor_lift` on a
-chosen image, then `t_junction_lift` on that result, and visualizes the
-strongest candidates as T glyphs (stem along `α`, capped by a perpendicular
-crossbar) — direction `α` is 2π-periodic (8 possible values), distinguishing
-e.g. a stem pointing left from one pointing right even though both share the
-same underlying π-periodic Gabor orientation.
-"""
-
-# ╔═╡ e485edb9-473b-45a0-8439-834a0963b654
-md"""
-**Classes to load**: $(@bind n_classes_ui Slider(1:47, default=26, show_value=true))
-
-**Images to scan**: $(@bind n_images_ui Slider(2000:2000:40000, default=6000, show_value=true))
-
-**Gabor aspect** (σ along ÷ across; 1 = isotropic, >1 = elongated along the stroke): $(@bind aspect_ui Slider(1.0:0.25:4.0, default=1.0, show_value=true))
-"""
-
-# ╔═╡ dc115007-d449-4f78-b621-99838244a5ab
-result = load_emnist(n_images_to_load=n_images_ui, n_classes=n_classes_ui)
-
-# ╔═╡ e9d07f7a-f7ce-4962-afde-8b487a73455f
-md"""
-**Class**: $(@bind class_idx Slider(1:n_classes_ui, default=1, show_value=true))
-
-**Image index within class**: $(@bind img_idx Slider(1:20, default=1, show_value=true))
+Same code as `Test_CreateTJunctionLifting.jl`, but the input is the
+synthetic T from `View_GaborKernels.jl` instead of an EMNIST image — a
+controlled stimulus for looking in detail at the combined stem/crossbar
+responses. Runs `gabor_lift` on the synthetic T, then `t_junction_lift`
+on that result, and visualizes the strongest candidates as T glyphs made
+of two ellipses — direction `α` is 2π-periodic (8 possible values),
+distinguishing e.g. a stem pointing left from one pointing right even
+though both share the same underlying π-periodic Gabor orientation.
 """
 
 # ╔═╡ 01375ee5-4227-4768-a96b-70b3c637659b
-selected_image = result.class_images[class_idx][min(img_idx, length(result.class_images[class_idx]))]
+# Synthetic T instead of an EMNIST image: bright ([0,1]) strokes on black,
+# thickness 4 px, junction at about row 14, column 28 — the same image
+# as in View_GaborKernels.jl.
+selected_image = let
+    img = zeros(Float32, IMG_SIZE, IMG_SIZE)
+    img[13:16, 12:44] .= 0   # crossbar
+    img[13:48, 27:30] .= 1   # stem
+    img
+end
+
+# ╔═╡ aa11bb22-cc33-dd44-ee55-ff6677889900
+md"""
+**Gabor aspect** (σ along ÷ across; 1 = isotropic, >1 = elongated along the stroke): $(@bind aspect_ui Slider(1.0:0.25:4.0, default=1.0, show_value=true))
+"""
 
 # ╔═╡ 98f93280-7e6d-4872-8dd9-b356ea033ebc
 # Raw Gabor lift, then the T-junction lift computed directly from it — no FPE
@@ -286,10 +282,8 @@ end
 # ╠═f3782ead-6065-4105-85d3-d97d92b23b85
 # ╠═4b74faaf-f5b3-42f0-9081-3066d07bc52e
 # ╟─3a76c864-f6c5-49fe-b13b-3767615ff12d
-# ╟─e485edb9-473b-45a0-8439-834a0963b654
-# ╠═dc115007-d449-4f78-b621-99838244a5ab
-# ╟─e9d07f7a-f7ce-4962-afde-8b487a73455f
 # ╠═01375ee5-4227-4768-a96b-70b3c637659b
+# ╟─aa11bb22-cc33-dd44-ee55-ff6677889900
 # ╠═98f93280-7e6d-4872-8dd9-b356ea033ebc
 # ╟─f866d9bb-daa2-486e-93f0-01808450d4ad
 # ╠═f0133005-19f2-467f-a4db-d4e27bed4f91

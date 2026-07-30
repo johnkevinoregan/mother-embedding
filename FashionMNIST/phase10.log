@@ -1,0 +1,13 @@
+Phase 10 — Fashion-MNIST, 12 threads
+
+60000 train, 10000 test, 10 classes (chance 10.0 %)
+
+pixels + MLP (calibration; published MLP ≈ 88 %)   87.70 %
+
+=== grid 1 — 31 features, extraction 848 s (14.1 ms/img) ===
+  orient+lowpass     16 cols   78.31 %
+  + A1+A2            22 cols   80.69 %
+  + rays             25 cols   81.50 %
+  everything         31 cols   81.63 %
+  A1+A2 alone         6 cols   55.39 %
+  rays alone          9 cols   65.20 %
