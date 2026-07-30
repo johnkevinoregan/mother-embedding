@@ -11,3 +11,12 @@ pixels + MLP (calibration; published MLP ≈ 88 %)   87.70 %
   everything         31 cols   81.63 %
   A1+A2 alone         6 cols   55.39 %
   rays alone          9 cols   65.20 %
+
+=== grid 3 — 279 features, extraction 1045 s (17.4 ms/img) ===
+  orient+lowpass    144 cols   89.03 %
+  + A1+A2           198 cols   89.70 %
+  + rays            225 cols   89.57 %
+  everything        279 cols   89.66 %
+  A1+A2 alone        54 cols   86.51 %
+  rays alone         81 cols   86.26 %
+  Activating project at `~/claude-code/mother-embedding`

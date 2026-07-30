@@ -23,3 +23,55 @@ GKS: cannot open display - headless operation mode active
 
 wrote figures/phase8_gapsweep.png
 ########## Phase 5b — finer grid ##########
+A1+A2 6×6 alone                       216    91.40 %    91.74 %
+base + A 6×6                          360    93.38 %    93.45 %
+base + A 6×6 SHUFFLED                 360    91.96 %    92.34 %
+orient+lp 11×11 alone                1936    92.92 %    93.29 %
+A1+A2 11×11 alone                     726    91.19 %    91.57 %
+base + A 11×11                        870    92.61 %    93.13 %
+base + A 11×11 SHUFFLED               870    90.44 %    90.79 %
+
+======================================================================================
+baseline: orient+lowpass 3×3 = 93.66 %
+
+A grid      A alone      base+A   Δ vs base    shuffled  Δ shuffled
+3×3          88.44 %      93.66 %      +0.01      92.91 %      -0.75
+6×6          91.40 %      93.38 %      -0.28      91.96 %      -1.70
+11×11        91.19 %      92.61 %      -1.05      90.44 %      -3.22
+Read it this way. `Δ vs base` is the effect of adding the A block. The shuffled twin has
+the same column count with the correspondence destroyed, so `Δ shuffled` is what those
+columns cost as pure noise — it is a floor, not a rival. A positive `Δ vs base` is a real
+gain; a negative one means the block does not help however it is pooled.
+
+The grid control is the `orient+lp g×g alone` rows: if finer pooling lifts those too, the
+finding is about the grid rather than about conjunction.
+GKS: cannot open display - headless operation mode active
+
+wrote figures/phase5b_curves.png
+########## Phase 5c — few-shot ##########
+  k=100  seed 3  base 0.8853   +A 0.8887   +shuf 0.8711
+  k=100  seed 4  base 0.8832   +A 0.8853   +shuf 0.8710
+  k=100  seed 5  base 0.8874   +A 0.8887   +shuf 0.8747
+  k=400  seed 1  base 0.9092   +A 0.9087   +shuf 0.8979
+  k=400  seed 2  base 0.9103   +A 0.9079   +shuf 0.8991
+  k=400  seed 3  base 0.9017   +A 0.9020   +shuf 0.8938
+  k=400  seed 4  base 0.9094   +A 0.9102   +shuf 0.8970
+  k=400  seed 5  base 0.9086   +A 0.9086   +shuf 0.8972
+
+================================================================================
+Test accuracy (%), mean ± sd over 5 seeds. Δ is paired per seed.
+================================================================================
+
+k        images        orient+lp           +A1+A2       Δ from A Δ from shuffle
+5           200    64.22 ±1.23    63.78 ±1.32   -0.44 ±0.49  -10.10 ±0.61
+10          400    74.87 ±1.17    75.10 ±1.38    0.23 ±0.46   -7.38 ±0.30
+20          800    81.39 ±0.65    81.63 ±0.78    0.24 ±0.33   -3.87 ±0.56
+50         2000    86.45 ±0.38    86.49 ±0.49    0.04 ±0.28   -1.97 ±0.32
+100        4000    88.54 ±0.17    88.57 ±0.49    0.03 ±0.42   -1.30 ±0.32
+400       16000    90.78 ±0.35    90.75 ±0.32   -0.04 ±0.12   -1.08 ±0.17
+
+full data (112,800 imgs, 15 epochs, Phase 5a):  Δ from A = +0.01
+GKS: cannot open display - headless operation mode active
+
+wrote figures/phase5c_fewshot.png
+########## RGF DONE (Phase 6 not included — see below) ##########

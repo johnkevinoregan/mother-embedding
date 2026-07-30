@@ -121,9 +121,23 @@ design choice that depends on image statistics.
 ## 10 — something that is not characters
 
 `FashionMNIST/`. Silhouettes with texture rather than line drawings, and **published
-baselines** to calibrate against instead of only our own arms. See `FashionMNIST/README.md`
-for the benchmark numbers — including which of the published figures are not credible — and
-the three predictions recorded before the run.
+baselines** to calibrate against instead of only our own arms.
+
+**The front end works off line drawings: 89.66 % from 279 numbers**, above an MLP on 12,544
+raw pixels (87.70 %, matching the published ≈ 88 % and so validating the harness) and about
+four points below a good CNN. A₁+A₂ alone reach 86.51 % from 54 numbers, on a task neither
+was designed for.
+
+Of the three predictions recorded beforehand, two held and one did not. The features landed in
+the predicted 88–91 % band. **Grid 3 beat grid 1 by 8 points** — the reverse of Phase 9, which
+settles what that result meant: it was about *position randomisation* in the stroke dataset, not
+about pooling in general. And the AND layer added **+0.67** rather than the predicted ≈ 0,
+though with no shuffle control that is not yet attributable to conjunction rather than to 54
+extra columns.
+
+**What it still does not settle:** black uniform background, one centred object, contrast
+barely varying within a frame, 28×28 upsampled. Divisive normalisation remains untested for
+want of an image whose local contrast varies.
 
 **What it still will not settle:** black uniform background, one centred object, contrast
 barely varying within a frame, 28×28 upsampled. Those are exactly the conditions under which

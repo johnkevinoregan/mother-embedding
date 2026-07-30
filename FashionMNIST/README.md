@@ -99,6 +99,11 @@ inductive-bias argument one rung down from the ConvNeXt and NFNet results: a wea
 costs accuracy when data is limited, and 60k 28×28 images is a small-data regime by modern
 standards. Consistent with the claim that a designed front end should help most at small `n`.
 
+> **Run complete — see `RESULTS.md`.** Features reach **89.66 %** at grid 3, the calibration
+> arm lands at 87.70 % against a published ≈ 88 %, and **grid 3 beats grid 1 by 8 points**,
+> the reverse of Phase 9. Prediction 2 was wrong: the AND layer adds +0.67 rather than ≈ 0,
+> though without a shuffle control that is not yet attributable to conjunction.
+
 ## Predictions, recorded before the first full run
 
 1. The features land between the published MLP (~88 %) and the replicating CNN cluster
