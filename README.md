@@ -17,7 +17,7 @@ is the latest narrative report; the earlier `PROGRESS_*.md` files carry the hist
 
 ## Where everything is
 
-**Current work.** Three directories, numbered as phases, each with its own `README.md` for
+**Current work.** Four directories, numbered as phases, each with its own `README.md` for
 how to run it and `RESULTS.md` for the tables.
 
 | directory | phases | what it is |
