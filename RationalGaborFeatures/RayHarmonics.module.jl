@@ -256,16 +256,28 @@ function ray_maps(E::Array{Float32,3}, meta; nphi=nothing, d=:auto, d_factor::Re
 
         C0 = zeros(Float32,H,W); C1r = zeros(Float32,H,W); C1i = zeros(Float32,H,W)
         C2r = zeros(Float32,H,W); C2i = zeros(Float32,H,W)
+        # Gather the profile per pixel first so `normalize` can act on it before the
+        # harmonics are taken — the same treatment the `:max` path gets, so the two designs
+        # are comparable with normalisation held constant. Without this the per-scale path
+        # silently ignored `normalize`, and a "per_scale + divisive" run came out
+        # bit-identical to "per_scale + none" — a fabricated cell in a 2x2 comparison.
+        Rp = Array{Float32,3}(undef, H, W, K)
         for j in 1:K
             φ = φs[j]; dy = dρ*sin(φ); dx = dρ*cos(φ)
             Ej = @view E[:, :, pick[j]]
-            c1c, c1s = Float32(cos(φ)),   Float32(sin(φ))
-            c2c, c2s = Float32(cos(2φ)),  Float32(sin(2φ))
             @inbounds for x in 1:W, y in 1:H
-                v = bilin(Ej, y + dy, x + dx)
+                Rp[y,x,j] = bilin(Ej, y + dy, x + dx)
+            end
+        end
+        prof = Vector{Float32}(undef, K)
+        @inbounds for x in 1:W, y in 1:H
+            for j in 1:K; prof[j] = Rp[y,x,j]; end
+            normalize === :divisive && normprofile!(prof, kappa)
+            for j in 1:K
+                φ = φs[j]; v = prof[j]
                 C0[y,x]  += v
-                C1r[y,x] += v*c1c; C1i[y,x] -= v*c1s
-                C2r[y,x] += v*c2c; C2i[y,x] -= v*c2s
+                C1r[y,x] += v*Float32(cos(φ));  C1i[y,x] -= v*Float32(sin(φ))
+                C2r[y,x] += v*Float32(cos(2φ)); C2i[y,x] -= v*Float32(sin(2φ))
             end
         end
         # Returned **unnormalised**: c₀, |c₁| and |c₂| are all energies, and the ratios are

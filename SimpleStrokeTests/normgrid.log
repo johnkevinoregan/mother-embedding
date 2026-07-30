@@ -11,3 +11,38 @@ front end: grid 1, 26 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 4)
 ours·linear          0.682      0.203      0.874      0.503      0.687      0.517      0.531     -0.002
 ours·MLP             0.912      0.687      0.996      0.915      0.936      0.646      0.677     -0.095
 ##### scale_mode=max  normalize=divisive  (kappa 0.10) #####
+front end: grid 1, 26 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 4)
+ours·linear          0.667      0.205      0.888      0.475      0.634      0.513      0.505     -0.002
+ours·MLP             0.899      0.646      0.995      0.894      0.916      0.633      0.661     -0.106
+##### GRID DONE — starting Phase 7 on EMNIST #####
+  Activating project at `~/claude-code/mother-embedding`
+F is class 16, f is class 41
+F/f subset: 4800 train, 800 test (balanced: 50.0 % / 50.0 %)
+
+extracted 4800 + 800 images in 67 s → 279 features
+
+==========================================================================
+F vs f — binary, no 40-class dilution
+==========================================================================
+
+features                               n   accuracy
+orient+lowpass                       144    70.04 % ± 0.52
+A₁+A₂                                 54    67.62 % ± 0.12
+ray harmonics c₀,|c₁|,|c₂|            81    69.12 % ± 0.33
+orient+lowpass + A₁+A₂               198    69.62 % ± 0.54
+orient+lowpass + rays                225    69.50 % ± 0.50
+everything                           279    69.75 % ± 0.88
+
+==========================================================================
+How much of the A block is linearly recoverable from orient?
+==========================================================================
+
+F/f images:  R²(A ← orient)  median 0.956   mean 0.943   [0.818, 0.988]
+F/f images:  R²(rays ← orient) median 0.939   mean 0.918   [0.602, 0.995]
+
+all 40 classes, 112,800 images:  R²(A ← orient)  median 0.933   mean 0.924
+  columns with R² > 0.9: 42 of 54   > 0.75: 54
+
+High R² ⇒ near-substitutable on this data. Low R² with no accuracy gain ⇒ A
+carries independent structure the task ignores.
+##### ALL DONE #####

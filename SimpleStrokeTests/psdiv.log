@@ -1,0 +1,5 @@
+Phase 9 — 12000 train, 3000 test, 12 threads
+
+front end: grid 1, 31 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 9)
+
+generated 15000 images in 3s

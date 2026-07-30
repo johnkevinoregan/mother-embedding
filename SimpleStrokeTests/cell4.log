@@ -1,0 +1,9 @@
+### per_scale + divisive (the cell that was fabricated) ###
+front end: grid 1, 31 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 9)
+ours·linear          0.689      0.228      0.949      0.499      0.695      0.516      0.496     -0.002
+ours·MLP             0.902      0.650      0.997      0.901      0.934      0.638      0.670     -0.112
+### per_scale + none (re-run as the control, same code path) ###
+front end: grid 1, 31 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 9)
+ours·linear          0.685      0.224      0.889      0.543      0.729      0.537      0.561     -0.000
+ours·MLP             0.925      0.737      0.998      0.938      0.954      0.687      0.714     -0.099
+### CELL DONE ###

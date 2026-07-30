@@ -418,9 +418,31 @@ code behind `scale_mode = :max`, off by default.
 **Divisive normalisation** — `R′(φ) = R(φ)/(R(φ) + κ·maxφ R)`, which must *saturate*: dividing
 every lobe by the same number leaves their ratio unchanged, so no linear rescaling can rescue
 a thin arm swamped by a thick one. On the five-stimulus diagnostic it took the 4/15 crossing
-from 0.638 to 0.298 at κ = 0.10. **Untested on any dataset**, and κ is a fitted constant of
-exactly the kind `d_factor` turned out to be — chosen by eye on five noiseless images read at
-one pixel. Available as `normalize = :divisive`, off by default.
+from 0.638 to 0.298 at κ = 0.10.
+
+**On the dataset it loses, and so does the max. The full 2×2, grid 1, `ours·MLP`:**
+
+| | curvedness | brokenness | closedness | vangle | arms |
+|:--|--:|--:|--:|--:|--:|
+| **per-scale, no norm** (default) | **0.925** | **0.737** | **0.998** | **0.938** | **0.954** |
+| per-scale, divisive κ=0.10 | 0.902 | 0.650 | 0.997 | 0.901 | 0.934 |
+| max over scale, no norm | 0.912 | 0.687 | 0.996 | 0.915 | 0.936 |
+| max over scale, divisive | 0.899 | 0.646 | 0.995 | 0.894 | 0.916 |
+
+The two costs are separate and roughly additive: collapsing the scales costs ~0.05 on
+`brokenness`, normalising costs ~0.09, both cost ~0.09. **The existing default wins every
+cell**, so both changes are kept in the code and left off.
+
+**Why the diagnostic pointed the wrong way.** It measured one mixed-thickness crossing, and
+this dataset contains none — every image has a single stroke width by construction. So
+divisive normalisation was being scored on a problem that does not occur here, while paying
+its cost (compressed dynamic range: the straight line drops from 0.78 to 0.57 on
+`|c₂|/c₀`) on every image that does. That is the third time in this phase a five-stimulus
+single-pixel probe has disagreed with the dataset, and the dataset has won each time.
+
+κ also remains a fitted constant of exactly the kind `d_factor` turned out to be — chosen by
+eye on five noiseless images. If the normalisation is ever revisited, that has to be settled
+first.
 
 ---
 
