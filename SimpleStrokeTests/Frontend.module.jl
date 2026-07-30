@@ -45,6 +45,17 @@ const LADDER = [2.0, 3.742, 7.0]
 const BETAS  = [2.0, 1.6, 1.2]
 const NORI   = [8, 12, 16]
 
+"""
+i1D floor correction for A₁ — see `AndLayer.a1_maps`.
+
+`:analytic` (the default) subtracts the closed-form response A₁ gives on a straight line, so the
+operator is exactly zero on i1D input. `:none` is the original.
+
+**⚠ Every published table in this project was computed with `:none` and has not been re-run.**
+Set `FRONTEND_A1_FLOOR=none` to reproduce them, or pass `a1_floor=:none` to `build_frontend`.
+"""
+const A1_FLOOR = Symbol(get(ENV, "FRONTEND_A1_FLOOR", "analytic"))
+
 struct FrontendSpec
     bank
     wts
@@ -54,6 +65,7 @@ struct FrontendSpec
     scale_mode::Symbol
     normalize::Symbol
     kappa::Float32
+    a1_floor::Symbol
 end
 
 """
@@ -63,21 +75,23 @@ Bank, pooling weights and column labels for `N×N` input. Padding is sized from 
 across- and along-contour extents, and rounded to a length FFTW factors well.
 """
 function build_frontend(N::Int; grid::Int=3, scale_mode::Symbol=:per_scale,
-                        normalize::Symbol=:none, kappa::Float32=0.10f0)
+                        normalize::Symbol=:none, kappa::Float32=0.10f0,
+                        a1_floor::Symbol=A1_FLOOR)
     HF, WF, _ = field_for((N, N), LADDER; n_orient=NORI, beta=BETAS)
     bank = make_bank((HF, WF), LADDER; imwidth=N, n_orient=NORI, beta=BETAS)
     wts  = grid_weights(N, N, grid)
-    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid, scale_mode, normalize, kappa)
-    FrontendSpec(bank, wts, lab, length(f), grid, scale_mode, normalize, kappa)
+    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid, scale_mode, normalize, kappa, a1_floor)
+    FrontendSpec(bank, wts, lab, length(f), grid, scale_mode, normalize, kappa, a1_floor)
 end
 
-function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kappa=0.10f0)
+function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kappa=0.10f0,
+               a1_floor=A1_FLOOR)
     # Padding mode is `:replicate` by default in `energy_stack` — see the note on `embed`
     # in GaborStack. This wrapper previously subtracted the image median to work around
     # zero-padding breaking polarity invariance; the fix now lives in the front end itself,
     # where every caller gets it rather than only this one.
     Es = energy_stack(img, bank)
-    A, al = and_maps(Es, bank.meta; forms=(:A1, :A2))
+    A, al = and_maps(Es, bank.meta; forms=(:A1, :A2), a1_floor=a1_floor)
     Rm, rl = ray_maps(Es, bank.meta; scale_mode=scale_mode, normalize=normalize, kappa=kappa)
     f1, l1 = assemble(Es, bank.meta, A, al,
                       PoolSpec(grid=grid, blocks=(:orient, :lowpass, :A1, :A2)); Wts=wts)
@@ -135,7 +149,7 @@ function featurize(imgs::Vector{Matrix{Float32}}, spec::FrontendSpec)
     F = zeros(Float32, length(imgs), spec.n)
     Threads.@threads for i in eachindex(imgs)
         F[i, :] = _feat(imgs[i], spec.bank, spec.wts, spec.grid, spec.scale_mode,
-                        spec.normalize, spec.kappa)[1]
+                        spec.normalize, spec.kappa, spec.a1_floor)[1]
     end
     F
 end

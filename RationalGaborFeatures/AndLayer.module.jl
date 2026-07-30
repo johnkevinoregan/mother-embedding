@@ -41,7 +41,7 @@ module AndLayer
 
 using Statistics
 
-export and_maps, AND_FORMS
+export and_maps, AND_FORMS, a1_i1d_floor
 
 const AND_FORMS = (:A1, :A2, :A3)
 
@@ -77,15 +77,6 @@ scales_of(meta)::Vector{Float64} = unique(Float64(m.rho0) for m in meta if m.kin
 
 # ---------------------------------------------------------------- A1
 
-"""
-Same-location orientation conjunction, per scale.
-
-`A₁(x) = C₀(x) · Σ_k p_k(x)·p_{k+n/2}(x)` where `p` is the orientation profile
-normalised at that pixel and the `n/2` shift is exactly 90°.
-
-Multiplying by `C₀` turns a shape measure into an energy, which keeps the map
-well-behaved where there is no ink (the normalised profile is meaningless there).
-"""
 # NOTE on the `eps` guards in this file, checked when the ray transform's equivalent guard
 # turned out to be a bug (see RayHarmonics and SimpleStrokeTests/RESULTS.md).
 #
@@ -103,7 +94,83 @@ well-behaved where there is no ink (the normalised profile is meaningless there)
 # Both maps here are energy-weighted, so a spatial mean of them is meaningful and no
 # ratio-after-pooling treatment is needed. The distinction is energy-like vs scale-free, not
 # absolute vs relative epsilon.
-function a1_maps(E::Array{Float32,3}, meta; eps::Float32=1f-12)
+"""
+    a1_i1d_floor(n, σφ) -> c
+
+The value `A₁/C₀` takes on a **perfectly i1D input** — a straight line or edge — from the
+angular tuning alone. `A₁` is supposed to read zero there, and does not, because orientation
+channels have bandwidth.
+
+The bank is polar-separable, so for a single-orientation input the radial factor is common to
+every channel and cancels in the ratio: channel `j` at angular distance `Δⱼ` from the line has
+energy `exp(−(Δⱼ/σφ)²)` and `A₁/C₀ = S/C₀²` follows directly. The maximum over line
+orientations is returned, so subtracting it drives A₁ to zero at **every** orientation rather
+than on average.
+
+**Which channels leak.** Not the 90° partner of the active channel — at n = 8 that sits 3σφ away
+and contributes `exp(−9) = 1.2e−4`. It is the pair straddling the line at **±45°**, each 1.5σφ
+away, each retaining `exp(−2.25) = 0.105`, and exactly 90° apart, so A₁ multiplies them together:
+`0.105² = 1.1e−2`, two orders above the ⊥ pair. `Validate_i1D.jl` measures this and the closed
+form matches to within 2 % at every scale.
+
+Values for the production bank: 6.6e−3 at ρ=2 (n=8, σφ=30°), 2.4e−5 at ρ=3.74 (n=12, 20°),
+9.1e−9 at ρ=7 (n=16, 15°).
+"""
+function a1_i1d_floor(n::Int, σφ::Real; nsample::Int=180)
+    best = 0.0
+    θj = [(j - 1) * π / n for j in 1:n]
+    for t in range(0, π, length=nsample+1)[1:end-1]
+        Δ = [min(abs(x - t), π - abs(x - t)) for x in θj]
+        Ee = exp.(-(Δ ./ σφ) .^ 2)
+        C0 = sum(Ee)
+        S = sum(Ee[k] * Ee[mod1(k + n ÷ 2, n)] for k in 1:n)
+        best = max(best, S / C0^2)
+    end
+    best
+end
+
+"Angular σ for the channels at scale `ρ`, read from the bank metadata."
+function sigma_phi_of(meta, ρ)
+    for m in meta
+        m.kind === :oriented && Float64(m.rho0) == Float64(ρ) && return Float64(m.sigma_phi)
+    end
+    error("no oriented channel at ρ=$ρ")
+end
+
+"""
+    a1_maps(E, meta; floor=:analytic)
+
+Same-location orientation conjunction, per scale.
+
+`A₁(x) = C₀(x) · Σ_k p_k(x)·p_{k+n/2}(x)` where `p` is the orientation profile normalised at that
+pixel and the `n/2` shift is exactly 90°. Multiplying by `C₀` turns a shape measure into an
+energy, which keeps the map well-behaved where there is no ink (the normalised profile is
+meaningless there).
+
+`floor` controls the i1D correction:
+
+* `:analytic` (**default**) — subtract the closed-form i1D floor, `A₁′ = max(0, A₁ − c·C₀)` with
+  `c = a1_i1d_floor(n, σφ)`. Makes A₁ exactly zero on a straight line at every orientation. `c`
+  depends only on the bank's angular tuning, never on the image, so this is a calibration rather
+  than a data-dependent correction. It costs the crossing response 4.6 % at ρ=2 and under 0.02 %
+  at the two finer scales.
+* `:none` — the original operator, which leaks 4.6 % of its crossing response on i1D input at
+  ρ=2.
+
+> **⚠ Reproducing the published tables requires `floor=:none`.** Every A₁ number in
+> `SimpleStrokeTests/RESULTS.md`, `FashionMNIST/RESULTS.md`, `ConVNextTest/RESULTS.md` and the
+> EMNIST phases was computed before this default changed, i.e. with `:none`. They have **not**
+> been re-run. Pass `a1_floor=:none` through `and_maps` / `build_frontend` — or set
+> `FRONTEND_A1_FLOOR=none` for the experiment scripts — to reproduce them exactly. Any new number
+> uses `:analytic` and is not directly comparable to those tables.
+>
+> The alternative fix, raising the orientation count at ρ=2, was rejected: leakage is governed by
+> σφ, and `σ_along = W/(2πρσφ)` grows as σφ shrinks, so 8 → 12 orientations would lengthen the
+> coarsest filter from 17 px to 26 px. "Filters longer than any stroke" is a bug this project
+> already fixed once. Subtracting the floor leaves σφ, and therefore spatial extent, untouched.
+"""
+function a1_maps(E::Array{Float32,3}, meta; eps::Float32=1f-12, floor::Symbol=:analytic)
+    floor in (:analytic, :none) || error("a1_maps: floor must be :analytic or :none, got $floor")
     H, W, _ = size(E)
     out = Array{Float32,3}(undef, H, W, 0); labels = NamedTuple[]
     maps = Matrix{Float32}[]
@@ -111,6 +178,7 @@ function a1_maps(E::Array{Float32,3}, meta; eps::Float32=1f-12)
         ch = scale_channels(meta, ρ); n = length(ch)
         iseven(n) || error("A1 needs an even orientation count at ρ=$ρ (got $n)")
         half = n ÷ 2
+        c = floor === :analytic ? Float32(a1_i1d_floor(n, sigma_phi_of(meta, ρ))) : 0f0
         # Channel-OUTER, pixel-inner. The channel is the last array index, so a
         # pixel-outer loop strides H*W floats per channel access and misses cache on
         # every one: measured 190 ms against 8 ms for the same arithmetic this way.
@@ -123,8 +191,12 @@ function a1_maps(E::Array{Float32,3}, meta; eps::Float32=1f-12)
             end
         end
         A = Matrix{Float32}(undef, H, W)
+        # `- c*C0` is the i1D floor: the response the angular tails produce on a straight line.
+        # Clamped at zero so the correction can never manufacture a negative conjunction, and so
+        # subtracting the *maximum* over orientations still leaves 0 rather than a small negative
+        # where the true leakage was below that maximum.
         @inbounds @simd for p in eachindex(A)
-            A[p] = C0[p] > eps ? S[p] / C0[p] : 0f0
+            A[p] = C0[p] > eps ? max(0f0, S[p] / C0[p] - c * C0[p]) : 0f0
         end
         push!(maps, A); push!(labels, (form=:A1, rho0=ρ))
     end
@@ -271,13 +343,15 @@ Pointwise conjunction maps from a dense energy stack. Returns `(maps, labels)` w
 which is how the layer is ablated.
 """
 function and_maps(E::Array{Float32,3}, meta; forms=(:A1,), d=:auto, d_factor::Real=1.0,
-                  d_anchor::Symbol=:envelope, structure_scale::Union{Nothing,Real}=nothing)
+                  d_anchor::Symbol=:envelope, structure_scale::Union{Nothing,Real}=nothing,
+                  a1_floor::Symbol=:analytic)
     all(f in AND_FORMS for f in forms) ||
         error("unknown form in $forms; valid: $AND_FORMS")
     H, W, _ = size(E)
     allmaps = Matrix{Float32}[]; alllab = NamedTuple[]
     if :A1 in forms
-        m, l = a1_maps(E, meta); append!(allmaps, m); append!(alllab, l)
+        # a1_floor=:none reproduces every published table; see a1_maps for the warning.
+        m, l = a1_maps(E, meta; floor=a1_floor); append!(allmaps, m); append!(alllab, l)
     end
     if :A2 in forms
         m, l = a2_maps(E, meta; d=d, d_factor=d_factor, d_anchor=d_anchor,

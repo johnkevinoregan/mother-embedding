@@ -337,11 +337,27 @@ multiplies them. Closed-form prediction from the angular tuning alone matches me
 absent, is still 0.856 (EMNIST) / 0.883 (Fashion) predictable from orient. Removing leakage
 entirely would not move the headline number.
 
-Two fixes exist and both cost something, so this is left as a recorded design decision rather
-than changed: raising the orientation count at ρ = 2 lengthens `σ_along = W/(2πρσφ)` from 17 to
-26 px, and *"filters longer than any stroke"* is a bug already fixed once; subtracting the
-analytic floor `c(n,σφ)·C₀` is exact and image-independent but changes every table in this
-file. Nothing in the project's conclusions turns on 5 % at one scale.
+> ### The floor subtraction is now the default
+>
+> `a1_maps(E, meta; floor=:analytic)` subtracts the closed-form i1D response,
+> `A₁′ = max(0, A₁ − c·C₀)`, with `c = a1_i1d_floor(n, σφ)` — **6.64e-3** at ρ=2, **2.40e-5** at
+> ρ=3.74, **9.12e-9** at ρ=7. Measured effect at ρ=2: i1D leakage **4.6 × 10⁻² → 9.1 × 10⁻⁴**
+> (50× better, and `Validate_i1D.jl` now passes), at a cost of **4.5 %** of the crossing response
+> (0.1462 → 0.1396). The residual is the ~2 % mismatch between the closed form and measurement,
+> not a remaining mechanism.
+>
+> **Why this fix and not more orientations.** Leakage is governed by σφ, and
+> `σ_along = W/(2πρσφ)` grows as σφ shrinks — 8 → 12 orientations at ρ=2 would lengthen the
+> coarsest filter from 17 px to 26 px, and *"filters longer than any stroke"* is a bug this
+> project already fixed once. Subtracting the floor leaves σφ, and therefore spatial extent,
+> untouched. `c` depends only on the bank's angular tuning and never on the image, so it is a
+> calibration rather than a data-dependent correction.
+>
+> **⚠ Every table in this project was computed with `floor=:none` and has not been re-run.**
+> To reproduce them, pass `a1_floor=:none` to `build_frontend` or set `FRONTEND_A1_FLOOR=none`.
+> `I1D_FLOOR=none` runs the validator against the original operator, which still fails at ρ=2 —
+> kept runnable because that failure is the evidence for the change. Any new A₁ number uses
+> `:analytic` and is not directly comparable to the published tables.
 
 ---
 

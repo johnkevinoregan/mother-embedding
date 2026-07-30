@@ -86,6 +86,10 @@ const BG     = 0.5f0        # grey, so the test also covers the non-zero backgro
 const AMP    = 0.4f0
 const WSTROKE = 13.0        # measured EMNIST stroke width
 const TOL_LEAK = 0.02       # gate: i1D leakage must be under 2 % of the crossing response
+# Which A1 to test. `:analytic` is the production default and subtracts the closed-form i1D
+# floor; `:none` is the original operator and is expected to FAIL this gate at rho=2 — that
+# failure is what motivated the default change, so it is kept runnable as evidence.
+const FLOOR = Symbol(get(ENV, "I1D_FLOOR", "analytic"))
 
 # ---------------------------------------------------------------- stimuli
 # All take the canvas size and a wavelength **in pixels**, so the same stimulus can be built at
@@ -133,7 +137,7 @@ on the *ratio* of i1D leakage to the measured i2D response rather than on an abs
 """
 function a1_over_c0(img, bank)
     E = energy_stack(img, bank; mode=:replicate, crop=true)
-    maps, labels = AndLayer.a1_maps(E, bank.meta)
+    maps, labels = AndLayer.a1_maps(E, bank.meta; floor=FLOOR)
     cy, cx = (size(img, 1) + 1) ÷ 2, (size(img, 2) + 1) ÷ 2
     out = Float64[]
     for (m, lab) in zip(maps, labels)
@@ -169,7 +173,8 @@ function a1_predicted(n, σφ; θ0=0.0)
 end
 
 function main()
-    @printf("The i2D-selectivity criterion applied to A₁ — grey background %.2f\n\n", BG)
+    @printf("The i2D-selectivity criterion applied to A₁ (floor=%s) — grey background %.2f\n\n",
+            FLOOR, BG)
     HF, WF, border = field_for((N, N), LADDER; n_orient=NORI, beta=BETAS)
     bank = make_bank((HF, WF), LADDER; imwidth=N, n_orient=NORI, beta=BETAS)
     ρs = sort(AndLayer.scales_of(bank.meta))
