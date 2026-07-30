@@ -105,6 +105,11 @@ Base.@kwdef struct PoolSpec
     grid::Int = 3
     blocks::Tuple = (:orient, :lowpass)
     overlap::Float64 = 1.0
+    """
+    Orientation harmonics to emit, as `cis(mθ)` orders. `(2, 4)` reproduces every published
+    table. Orders past a scale's Nyquist limit (`m > n − 2`) are skipped.
+    """
+    harmonics::Tuple = (2, 4)
 end
 
 const BLOCKS = (:orient, :lowpass, :A1, :A2, :A3)
@@ -136,15 +141,34 @@ function assemble(E::Array{Float32,3}, meta, A::Array{Float32,3}, alab, spec::Po
         for ρ in ρs
             ch = [(i, m.theta) for (i, m) in enumerate(meta)
                   if m.kind === :oriented && m.rho0 ≈ ρ]
+            # ── HOW MANY HARMONICS ────────────────────────────────────────────────
+            # The orientation profile is sampled at `n` points over 180°, so `cis(mθ)` is Fourier
+            # order m/2 and Nyquist is n/2. An order at or past Nyquist aliases, so only
+            # **m ≤ n − 2** is estimable: C₆ needs n ≥ 8, C₈ needs n ≥ 10, C₁₀ needs n ≥ 12.
+            #
+            # This is why raising `n_orient` is a *capacity* experiment and not only a precision
+            # one. With the default 8/12/16 the coarsest scale cannot support C₈ at all; double
+            # the orientations and it can. Orders that do not fit are silently skipped rather
+            # than emitted as aliased noise, and the labels record what was actually produced.
+            nθ = length(ch)
+            orders = [m for m in spec.harmonics if m <= nθ - 2]
             for c in 1:nc
                 c0 = sum(PE[c, i] for (i, _) in ch)
+                # C₂ contributes real, imag and modulus: its phase is the dominant orientation,
+                # which is meaningful on its own. Higher orders contribute the modulus only —
+                # their phase has no comparable interpretation and would just be 2 more columns.
                 s2 = sum(PE[c, i] * cis(2θ) for (i, θ) in ch)
-                s4 = sum(PE[c, i] * cis(4θ) for (i, θ) in ch)
                 n2 = c0 > 0 ? s2 / c0 : zero(s2)
-                n4 = c0 > 0 ? s4 / c0 : zero(s4)
-                append!(feats, Float32[sqrt(c0), real(n2), imag(n2), abs(n2), abs(n4)])
-                for nm in ("c0", "ReC2", "ImC2", "absC2", "absC4")
+                append!(feats, Float32[sqrt(c0), real(n2), imag(n2), abs(n2)])
+                for nm in ("c0", "ReC2", "ImC2", "absC2")
                     push!(labels, "orient.ρ$(round(ρ,digits=2)).cell$(c).$(nm)")
+                end
+                for m in orders
+                    m == 2 && continue
+                    sm = sum(PE[c, i] * cis(m*θ) for (i, θ) in ch)
+                    nm_ = c0 > 0 ? sm / c0 : zero(sm)
+                    push!(feats, Float32(abs(nm_)))
+                    push!(labels, "orient.ρ$(round(ρ,digits=2)).cell$(c).absC$(m)")
                 end
             end
         end

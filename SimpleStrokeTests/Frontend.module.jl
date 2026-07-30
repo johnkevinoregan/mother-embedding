@@ -68,6 +68,8 @@ struct FrontendSpec
     normalize::Symbol
     kappa::Float32
     a1_floor::Symbol
+    d_factors
+    harmonics::Tuple
 end
 
 """
@@ -78,25 +80,48 @@ across- and along-contour extents, and rounded to a length FFTW factors well.
 """
 function build_frontend(N::Int; grid::Int=3, scale_mode::Symbol=:per_scale,
                         normalize::Symbol=:none, kappa::Float32=0.10f0,
-                        a1_floor::Symbol=A1_FLOOR)
-    HF, WF, _ = field_for((N, N), LADDER; n_orient=NORI, beta=BETAS)
-    bank = make_bank((HF, WF), LADDER; imwidth=N, n_orient=NORI, beta=BETAS)
+                        a1_floor::Symbol=A1_FLOOR,
+                        ladder=LADDER, nori=NORI, betas=BETAS, dts::Real=0.75,
+                        d_factors=(1.0,), harmonics::Tuple=(2, 4))
+    # `ladder`/`nori`/`betas`/`dts`/`d_factors` exist so the three capacity axes — scales,
+    # orientations, ray offsets — can be swept. Defaults reproduce every published table.
+    #
+    # `dts` (dtheta_on_sigma) matters when raising `nori`: σφ = (π/n)/dts, so leaving dts at 0.75
+    # while doubling n HALVES σφ and DOUBLES σ_along (17 → 34 px at ρ=2), which is the "filters
+    # longer than any stroke" bug. Raise dts in step with n to add orientation channels at
+    # constant σφ — finer angular sampling, no spatial cost. Those are two different experiments.
+    #
+    # `d_factors` gives the ray transform more than one offset per scale. With three factors and
+    # three scales it is the crossed d × λ design: every offset against every wavelength, rather
+    # than only the matched diagonal.
+    HF, WF, _ = field_for((N, N), ladder; n_orient=nori, beta=betas, dtheta_on_sigma=dts)
+    bank = make_bank((HF, WF), ladder; imwidth=N, n_orient=nori, beta=betas, dtheta_on_sigma=dts)
     wts  = grid_weights(N, N, grid)
-    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid, scale_mode, normalize, kappa, a1_floor)
-    FrontendSpec(bank, wts, lab, length(f), grid, scale_mode, normalize, kappa, a1_floor)
+    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid, scale_mode, normalize, kappa, a1_floor, d_factors, harmonics)
+    FrontendSpec(bank, wts, lab, length(f), grid, scale_mode, normalize, kappa, a1_floor, d_factors, harmonics)
 end
 
 function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kappa=0.10f0,
-               a1_floor=A1_FLOOR)
+               a1_floor=A1_FLOOR, d_factors=(1.0,), harmonics::Tuple=(2, 4))
     # Padding mode is `:replicate` by default in `energy_stack` — see the note on `embed`
     # in GaborStack. This wrapper previously subtracted the image median to work around
     # zero-padding breaking polarity invariance; the fix now lives in the front end itself,
     # where every caller gets it rather than only this one.
     Es = energy_stack(img, bank)
     A, al = and_maps(Es, bank.meta; forms=(:A1, :A2), a1_floor=a1_floor)
-    Rm, rl = ray_maps(Es, bank.meta; scale_mode=scale_mode, normalize=normalize, kappa=kappa)
+    # One ray_maps call per offset factor. With length(d_factors) > 1 this is the crossed
+    # d × λ design: each offset is applied at every wavelength, so the labels carry the factor
+    # to keep the columns distinguishable.
+    Rm, rl = ray_maps(Es, bank.meta; d_factor=d_factors[1], scale_mode=scale_mode,
+                      normalize=normalize, kappa=kappa)
+    extraR = []
+    for df in d_factors[2:end]
+        m, l = ray_maps(Es, bank.meta; d_factor=df, scale_mode=scale_mode,
+                        normalize=normalize, kappa=kappa)
+        push!(extraR, (m, l, df))
+    end
     f1, l1 = assemble(Es, bank.meta, A, al,
-                      PoolSpec(grid=grid, blocks=(:orient, :lowpass, :A1, :A2)); Wts=wts)
+                      PoolSpec(grid=grid, blocks=(:orient, :lowpass, :A1, :A2), harmonics=harmonics); Wts=wts)
     # `ray_maps` returns c₀, |c₁| and |c₂| unnormalised; the ratios are formed **here**, from
     # the pooled energies, rather than per pixel. Dividing per pixel and then averaging gave
     # every low-energy location the same weight as a strong contour, and — because the old
@@ -137,6 +162,24 @@ function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kap
             push!(fr, PR[c, k2] / den);  push!(lr, "rays.R2.ρ$(round(ρ,digits=2)).cell$(c)")
         end
     end
+    # extra offsets: identical assembly, labels tagged with the factor so the crossed d × λ
+    # columns stay distinguishable from the matched diagonal.
+    for (Rm2, rl2, df) in extraR
+        PR2 = pool_maps(Rm2, wts)
+        for ρ in unique(l.rho0 for l in rl2)
+            k0 = findfirst(l -> l.rho0 == ρ && l.form === :R0, rl2)
+            k1 = findfirst(l -> l.rho0 == ρ && l.form === :R1, rl2)
+            k2 = findfirst(l -> l.rho0 == ρ && l.form === :R2, rl2)
+            fl2 = 1f-3 * max(mean(@view PR2[:, k0]), 1f-12)
+            tag = "d$(round(df, digits=2))"
+            for c in 1:nc
+                den = PR2[c, k0] + fl2
+                push!(fr, PR2[c, k0]);       push!(lr, "rays.R0.ρ$(round(ρ,digits=2)).$tag.cell$(c)")
+                push!(fr, PR2[c, k1] / den); push!(lr, "rays.R1.ρ$(round(ρ,digits=2)).$tag.cell$(c)")
+                push!(fr, PR2[c, k2] / den); push!(lr, "rays.R2.ρ$(round(ρ,digits=2)).$tag.cell$(c)")
+            end
+        end
+    end
     vcat(f1, fr), vcat(l1, lr)
 end
 
@@ -151,7 +194,8 @@ function featurize(imgs::Vector{Matrix{Float32}}, spec::FrontendSpec)
     F = zeros(Float32, length(imgs), spec.n)
     Threads.@threads for i in eachindex(imgs)
         F[i, :] = _feat(imgs[i], spec.bank, spec.wts, spec.grid, spec.scale_mode,
-                        spec.normalize, spec.kappa, spec.a1_floor)[1]
+                        spec.normalize, spec.kappa, spec.a1_floor, spec.d_factors,
+                        spec.harmonics)[1]
     end
     F
 end
