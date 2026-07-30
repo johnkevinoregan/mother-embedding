@@ -17,7 +17,13 @@ Identical images for every arm, read back from the same `.f32` files both langua
 ## The headline, in one sentence
 
 **Frozen ImageNet ConvNeXt beats our front end on every property when train and test match, and
-loses to it on every structural property the moment contrast polarity flips.**
+loses to it on every structural property the moment contrast polarity flips — but there are three
+extrapolation splits, and they do not agree.**
+
+An earlier version of this file stopped at the polarity split and claimed the front end buys "an
+invariance that holds exactly under a distribution shift no training data covered". That is
+**true for polarity and false as a general statement**; see *All three extrapolation splits*
+below. Reading one split and generalising was the mistake.
 
 ---
 
@@ -107,14 +113,68 @@ not care that polarity flipped.
 | convnext_base s1-4·lin | −1.155 | −0.098 | −5.598 | −0.253 | −0.854 | −0.186 |
 | pixels·linear | −1.241 | −0.126 | −0.097 | −2.439 | −0.526 | −1.722 |
 
-**Ours is flat to within noise and marginally positive. Every ConvNeXt arm loses 0.24 to 1.16.**
+**Ours is flat to within noise and marginally positive.** On *this* split, 88.6 M parameters and
+1.28 M photographs do not produce the invariance, and more scale would not either: Base degrades
+*more* than Tiny (−0.254 against −0.238 for the MLP arms, −0.669 against −0.385 for the linear
+ones).
 
-This is what the front end buys, and it is a different thing from what the project has mostly
-been claiming. It does not buy i.i.d. explicitness — ConvNeXt has more of that. It buys an
-**invariance that holds exactly, by construction, under a distribution shift no training data
-covered.** 88.6 M parameters and 1.28 M photographs do not produce it, and on this evidence more
-scale would not either: Base degrades *more* than Tiny (−0.254 against −0.238 for the MLP arms,
-−0.669 against −0.385 for the linear ones).
+**How to read Δ, and its trap.** Δ answers *"does this representation care that the distribution
+moved?"*, which is a different question from *"how good is it?"* — that one is the absolute R².
+Both are needed. Our polarity result only appears in Δ, because ConvNeXt scores higher in
+absolute terms on the polarity split while being the arm that degrades. Conversely **Δ flatters a
+weak arm, because it has less to lose**: the random-init arms score Δ ≈ +0.004 on the thickness
+split, perfectly "robust" at a performance level of zero. Never read one column alone.
+
+---
+
+## All three extrapolation splits — and they disagree
+
+The polarity split above is one of three. Reported together because taking the first as
+representative is exactly the error this section corrects. Δ is against each arm's **own** i.i.d.
+number for the same property, e.g. ours·MLP `curvedness` = 0.799 on the thickness split against
+0.930 i.i.d., so Δ = −0.131.
+
+### Fuzziness (trained sharp ≤ 3 px, tested blurred ≥ 8 px) — ours wins structure, loses one row
+
+| Δ | curved | broken | closed | vangle | arms | **thickness** | mean |
+|:--|--:|--:|--:|--:|--:|--:|--:|
+| **ours·MLP** | **−0.038** | **−0.330** | **−0.007** | **−0.078** | **−0.036** | −2.703 | −0.452 |
+| convnext_base s4·MLP | −0.047 | −0.624 | −0.040 | −0.137 | −0.082 | **−0.561** | **−0.218** |
+
+Ours transfers better on **all five structural rows** and still loses the mean, because the
+`thickness` readout falls by 2.7 when edges blur.
+
+### Thickness (trained thin ≤ 6 px, tested thick ≥ 8 px) — ConvNeXt wins structure too
+
+| Δ | curved | broken | closed | vangle | arms | **fuzziness** | mean |
+|:--|--:|--:|--:|--:|--:|--:|--:|
+| ours·MLP | −0.131 | −0.482 | −0.014 | −0.096 | **−0.032** | −2.983 | −0.537 |
+| convnext_base s4·MLP | **−0.032** | **−0.132** | **−0.009** | **−0.054** | −0.047 | **−0.088** | **−0.053** |
+
+Here ConvNeXt is better on three of five structural rows as well as on the mean.
+
+### The finding underneath: thickness and fuzziness are confounded in our representation
+
+Blur the edges and our **thickness** estimate breaks (−2.703). Thicken the stroke and our
+**fuzziness** estimate breaks (−2.983). ConvNeXt's equivalents are −0.561 and −0.088.
+
+Both of ours are read from the **scale distribution of oriented energy**, and a wider stroke and a
+softer edge push that distribution the same way — so a readout fitted on one range cannot separate
+them out of range. This is a specific, diagnosable weakness that no earlier phase surfaced, and it
+is in precisely the place a multi-scale representation ought to be strong. It also means two of the
+dataset's eight target properties are not independently recoverable by our front end under shift.
+
+### So the invariance claim, stated correctly
+
+| shift | verdict |
+|:--|:--|
+| **contrast polarity** | **ours wins decisively.** Δ +0.016 against −0.24 to −1.16, and ours wins the absolute structural rows too. Invariant *by construction* — quadrature energy discards contrast sign. |
+| **edge blur** | **ours wins all five structural rows**, loses the mean on the `thickness` row alone. |
+| **stroke thickness** | **ConvNeXt wins**, on three of five structural rows and on the mean. |
+
+One designed invariance that is exact and that scale cannot buy, plus better structural transfer
+under blur — set against a thickness/fuzziness confound ConvNeXt does not share. That is a
+narrower and more useful claim than the one this file made first.
 
 ---
 
@@ -202,13 +262,21 @@ Recording 2 of 4 because the two failures are the informative ones.
 
 ## What this does and does not license
 
-**It does not license** "the front end is unnecessary". Its invariance is exact and free, and no
-amount of ImageNet pre-training supplied it.
+**It does not license** "the front end is unnecessary". Its polarity invariance is exact and free,
+88.6 M parameters and 1.28 M photographs did not supply it, and scaling from Tiny to Base made it
+worse rather than better.
 
 **It does license** retiring one argument. "Our features make geometric properties explicit in a
 way learned representations do not" is false on this dataset — a frozen ImageNet model makes them
-*more* linearly explicit. The claim that survives is narrower and better: the front end's value
-is in **invariance under shift**, not in i.i.d. availability.
+*more* linearly explicit, under our own linear criterion.
+
+**And it does not license the replacement I first reached for.** Writing that the value is
+"invariance under shift" was wrong twice over. It is loose terminology — in vision *shift* means
+translation, which nothing here tests — and it is too general: across the three nuisances actually
+tested, ours wins polarity decisively, wins the structural rows under blur, and **loses stroke
+thickness outright**. The defensible claim is specific: **one exact, constructed invariance
+(contrast polarity) that scale cannot buy, plus better structural transfer under blur, against a
+thickness/fuzziness confound ConvNeXt does not have.**
 
 ## Caveats, and what would sharpen this
 
@@ -218,8 +286,11 @@ is in **invariance under shift**, not in i.i.d. availability.
    exceed that comfortably; the i.i.d. vangle and arms margins (+0.032, +0.029) do not.
 3. **ConvNeXt sees 224×224**, a 4× bilinear upsample of our 112. No information is added, but the
    comparison is not compute-matched.
-4. **`fuzziness` and `thickness` extrapolation splits** are in the log and not yet analysed here;
-   the polarity split is the one the invariance claim rests on.
+4. **A thickness/fuzziness disentangling test.** The confound above is the sharpest open lead
+   from this phase: two target properties that our scale-space representation cannot separate
+   under shift, where ConvNeXt can. A stimulus set crossing stroke width with edge softness
+   independently would say whether it is the ladder's scale resolution (3 scales, ρ = 2 / 3.74 / 7)
+   or the pooling that loses the distinction.
 5. **The stimuli are still a single stroke on a flat field.** As with every result in this
    project, nothing here adjudicates behaviour on natural greyscale images.
 
@@ -238,6 +309,11 @@ Every arm here is *fixed representation + trained readout* except the Phase 9 CN
 trained end-to-end and did not converge.
 
 Read down the `linear` column and the project's own explicitness criterion favours ConvNeXt.
-Read the transfer table and it favours us, by 0.68 on `brokenness`. Read the random-init row and
-the credit for ConvNeXt's advantage goes specifically to 1.28 M labelled photographs, not to its
+Read the **polarity** transfer table and it favours us, by 0.68 on `brokenness`. Read the
+**thickness** transfer table and it favours ConvNeXt again. Read the random-init row and the
+credit for ConvNeXt's advantage goes specifically to 1.28 M labelled photographs, not to its
 architecture.
+
+Four questions, four different answers — which is the actual result of this phase, and the reason
+no single sentence about "our features versus learned features" was going to survive contact with
+it.

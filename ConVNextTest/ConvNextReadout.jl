@@ -202,7 +202,12 @@ function main()
         results[split] = (rows=rows, base=base, props=PROPNAMES, hists=hists)
         serialize(joinpath(OUT, "$(split).jls"), results[split])
     end
-    serialize(joinpath(OUT, "all.jls"), results)
+    # MERGE, never overwrite. A partial run (`CX_SPLITS=iid`) previously rewrote this file with
+    # only the split it had run, destroying the extrapolation results it did not touch — the
+    # per-split files survived and `Deltas.jl` now reads those instead, but there is no reason
+    # for this file to be destructive either.
+    prev = isfile(joinpath(OUT, "all.jls")) ? deserialize(joinpath(OUT, "all.jls")) : Dict{String,Any}()
+    serialize(joinpath(OUT, "all.jls"), merge(prev, results))
     println("\nwrote $OUT")
 end
 

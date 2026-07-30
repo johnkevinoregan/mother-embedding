@@ -20,8 +20,18 @@ using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 using Serialization, Printf, Statistics
 
 const OUT = joinpath(@__DIR__, "results")
-res = deserialize(joinpath(OUT, "all.jls"))
-haskey(res, "iid") || error("no i.i.d. split in results — nothing to compare against")
+
+# Read the PER-SPLIT files, not `all.jls`. A partial re-run (`CX_SPLITS=iid`, used to regenerate
+# the training curves) rewrote `all.jls` with only the split it ran, silently leaving nothing to
+# compare against — while `polarity.jls`, `fuzziness.jls` and `thickness.jls` were untouched and
+# still correct. Loading the individual files makes this script independent of which splits the
+# last run happened to cover.
+res = Dict{String,Any}()
+for s in ["iid", "polarity", "fuzziness", "thickness"]
+    p = joinpath(OUT, "$s.jls")
+    isfile(p) && (res[s] = deserialize(p))
+end
+haskey(res, "iid") || error("no results/iid.jls — nothing to compare against")
 
 props = res["iid"].props
 iid = Dict(nm => v for (nm, _, v) in res["iid"].rows)

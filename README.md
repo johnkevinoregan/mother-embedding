@@ -25,6 +25,7 @@ how to run it and `RESULTS.md` for the tables.
 | **`RationalGaborFeatures/`** | 0–8 | **The front end itself**, and its tests on EMNIST. Log-Gabor oriented energy, exactly polarity-invariant, with an ablatable layer of pointwise conjunctions applied *before* spatial pooling. Scale ladder derived from measured spectra rather than hard-coded. |
 | **`SimpleStrokeTests/`** | 9 | A synthetic dataset labelled with **graded properties** rather than classes, which turns the question from "can a classifier separate these" into "how much of each property is linearly available". Where the conjunction layer first paid for itself. |
 | **`FashionMNIST/`** | 10 | The first dataset here that is **not a line drawing** — filled silhouettes with texture, and published baselines to calibrate against. |
+| **`ConVNextTest/`** | 11 | The front end against a **frozen ImageNet ConvNeXt** on the Phase 9 stimuli — identical readout, identical images. Where the "designed features make geometry explicit" claim was retired, and where the polarity invariance earned its keep. |
 
 **Earlier investigations**, each self-contained, in rough order of age. They are worth reading
 because several were superseded for *diagnosable reasons*, and those diagnoses shaped what came

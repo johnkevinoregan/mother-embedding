@@ -171,6 +171,43 @@ BSDS boundary detection is the intended target.
 
 ---
 
+## 11 — is the front end doing anything scale has not already done?
+
+`ConVNextTest/`. The standing objection to Phase 9 was that its CNN lost because it had only
+12,000 stroke images. A **frozen ImageNet ConvNeXt** answers that directly: 28.6 M / 88.6 M
+parameters fitted to 1.28 M photographs, never trained on a stroke, scored by an *identical*
+readout on *byte-identical* images.
+
+**Four questions, four different answers — which is the finding.**
+
+**i.i.d.: ConvNeXt wins everything**, 0.984 / 0.865 / 0.998 / 0.976 / 0.987 against our
+0.930 / 0.730 / 0.998 / 0.944 / 0.958. Worse for the project's method, **explicitness goes the
+wrong way too** — one *linear* map on frozen features gets 0.882 on `vangle` against our linear
+arm's 0.549. "Our features make geometry explicit in a way learned representations do not" is
+**retired**.
+
+**Polarity flip: ours wins every structural property**, brokenness by 0.68 (0.776 vs 0.098), and
+the linear ConvNeXt arms fall *below* the trivial baseline (−2.1, −3.7, −4.8). Transfer cost:
+ours +0.016, every ConvNeXt arm −0.24 to −1.16, with Base degrading *more* than Tiny.
+
+**But two other shifts disagree.** Under edge blur ours wins all five structural rows; under
+stroke thickness ConvNeXt wins three of five and the mean. The reason is a new finding:
+**thickness and fuzziness are confounded in our representation** — blur breaks our thickness
+readout (−2.70) and thickening breaks our blur readout (−2.98), where ConvNeXt gets −0.56 and
+−0.09. Both are read from the scale distribution of oriented energy, which a wider stroke and a
+softer edge move the same way.
+
+**Random-init control: the architecture buys nothing.** Same ConvNeXt with `weights=None` scores
+−0.014 / 0.031 / 0.028 — indistinguishable from raw pixels, and `closedness` *below* the trivial
+baseline. So ImageNet pretraining does all the work, and specifically it makes channels whose
+*spatial average* is informative, which random channels are not.
+
+**What survives:** one exact, constructed invariance (contrast polarity) that 1.28 M photographs
+cannot buy and that more scale makes worse, plus better structural transfer under blur — against
+a thickness/fuzziness confound ConvNeXt does not have.
+
+---
+
 ## The shape of it
 
 **0–4** establish that the operators do what they claim on synthetic ground truth. **5–7** ask
