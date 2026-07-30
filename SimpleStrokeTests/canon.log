@@ -217,3 +217,76 @@ Phase 9 — 12000 train, 3000 test, 12 threads
 front end: grid 1, 31 columns  (orient 15, lowpass 1, A1 3, A2 3, rays 9)
 
 generated 15000 images in 3s
+featurised in 198s (13.2 ms/img)
+      cnn[big] epoch   5  loss 0.5056  val R² 0.424
+      cnn[big] epoch  10  loss 0.4143  val R² 0.534
+      cnn[big] epoch  15  loss 0.3632  val R² 0.505
+      cnn[big] epoch  20  loss 0.3168  val R² 0.370
+      cnn[big] epoch  25  loss 0.2555  val R² 0.310
+      cnn[big] epoch  30  loss 0.1882  val R² 0.616
+      cnn[big] epoch  35  loss 0.1328  val R² 0.656
+      cnn[big] epoch  40  loss 0.0953  val R² 0.530
+      cnn[big] epoch  45  loss 0.0674  val R² 0.188
+      cnn[big] epoch  50  loss 0.0566  val R² 0.643
+      cnn[big] epoch  55  loss 0.0510  val R² 0.690
+      cnn[big] epoch  60  loss 0.0438  val R² 0.645
+      cnn[big] best val R² 0.690 after 60 epochs
+
+============================================================================================
+i.i.d. split — test R² per property, all 12000 training images
+============================================================================================
+
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+trivial              0.009      0.008      0.457      0.066      0.029      0.195      0.152      0.063
+--------------------------------------------------------------------------------------------
+pixels·linear       -0.000     -0.001     -0.000     -0.000      0.000     -0.002     -0.000      0.709
+pixels·MLP          -0.179     -0.292      0.563     -0.071      0.125     -0.165     -0.026      0.731
+CNN                  0.415      0.206      0.946      0.270      0.841      0.881      0.912      0.987
+ours·linear          0.685      0.224      0.889      0.543      0.729      0.537      0.561     -0.000
+ours·MLP             0.925      0.737      0.998      0.938      0.954      0.687      0.714     -0.099
+
+============================================================================================
+Block attribution — linear readout on one block at a time (test R²)
+============================================================================================
+
+block            curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+orient                0.586      0.064      0.404      0.306      0.313      0.462      0.418     -0.001
+lowpass              -0.000      0.004      0.070      0.029      0.098      0.306      0.055     -0.000
+A1+A2                 0.136      0.025      0.523      0.219      0.443      0.496      0.414     -0.000
+rays                  0.175      0.038      0.549      0.358      0.472      0.421      0.322     -0.000
+all                   0.685      0.224      0.889      0.543      0.729      0.537      0.561     -0.000
+all·SHUFFLED          0.588      0.108      0.459      0.310      0.543      0.461      0.419     -0.001   (mean of 5 perms, max sd 0.001)
+all·noRAYS            0.627      0.178      0.848      0.457      0.607      0.505      0.452     -0.001   (mean of 5 perms, max sd 0.001)
+all·noA               0.639      0.154      0.801      0.484      0.680      0.534      0.555     -0.001   (mean of 5 perms, max sd 0.001)
+all·noR0              0.682      0.219      0.882      0.544      0.715      0.527      0.472     -0.001   (mean of 5 perms, max sd 0.001)
+all·noR1              0.642      0.203      0.884      0.528      0.621      0.535      0.560     -0.001   (mean of 5 perms, max sd 0.001)
+all·noR2              0.685      0.214      0.880      0.510      0.707      0.527      0.555     -0.000   (mean of 5 perms, max sd 0.001)
+rays.R0               0.007      0.017      0.221      0.054      0.066      0.342      0.263     -0.000
+rays.R1               0.121      0.015      0.331      0.289      0.328      0.016      0.010     -0.001
+rays.R2               0.149      0.012      0.258      0.199      0.197      0.121      0.057     -0.001
+  Activating project at `~/claude-code/mother-embedding`
+
+shuffle control, per-permutation spread:
+sd over perms         0.000      0.001      0.000      0.001      0.001      0.001      0.000      0.000
+
+============================================================================================
+Sample efficiency (linear readouts)
+============================================================================================
+
+wrote /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/results_canon1/  (including per-epoch history for every trained arm)
+########## grid sweep: grid 2 ##########
+front end: grid 2, 124 columns  (orient 60, lowpass 4, A1 12, A2 12, rays 36)
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+ours·linear          0.677      0.260      0.955      0.562      0.775      0.545      0.570     -0.001
+ours·MLP             0.872      0.637      0.993      0.883      0.923      0.634      0.649     -0.091
+########## grid sweep: grid 4 ##########
+front end: grid 4, 496 columns  (orient 240, lowpass 16, A1 48, A2 48, rays 144)
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+ours·linear          0.674      0.304      0.984      0.556      0.840      0.568      0.610     -0.000
+ours·MLP             0.795      0.526      0.991      0.800      0.890      0.592      0.605     -0.144
+########## grid sweep: grid 5 ##########
+front end: grid 5, 775 columns  (orient 375, lowpass 25, A1 75, A2 75, rays 225)
+arm             curvedness brokenness closedness     vangle       arms  thickness  fuzziness   polarity
+ours·linear          0.664      0.307      0.985      0.544      0.836      0.567      0.606     -0.000
+ours·MLP             0.764      0.560      0.992      0.772      0.895      0.577      0.607     -0.273
+########## CANON DONE ##########

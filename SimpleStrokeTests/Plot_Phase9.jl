@@ -7,10 +7,12 @@ using Serialization, Printf, Plots, Statistics
 const P = ["curvedness","brokenness","closedness","vangle","arms","thickness","fuzziness","polarity"]
 const STRUCT = 1:5          # the geometry rows; 6-8 are the photometric controls
 
-iid   = deserialize(joinpath(@__DIR__, "results_gpu", "iid.jls"))
-curve = deserialize(joinpath(@__DIR__, "results_gpu", "curve.jls"))
-blk   = deserialize(joinpath(@__DIR__, "results_gpu", "blocks.jls"))
-hist  = deserialize(joinpath(@__DIR__, "results_gpu", "history.jls"))
+iid   = deserialize(joinpath(@__DIR__, "results_canon3", "iid.jls"))
+curve = deserialize(joinpath(@__DIR__, "results_canon3", "curve.jls"))
+blk_raw = deserialize(joinpath(@__DIR__, "results_canon3", "blocks.jls"))
+# blocks.jls became a NamedTuple (battr, shuf) when the shuffle spread started being tracked
+blk = blk_raw isa NamedTuple ? blk_raw.battr : blk_raw
+hist  = deserialize(joinpath(@__DIR__, "results_canon3", "history.jls"))
 
 # ── 1. the arms, i.i.d. ─────────────────────────────────────────────────────
 arms = ["pixels·linear","pixels·MLP","CNN","ours·linear","ours·MLP"]
@@ -38,15 +40,15 @@ p2 = plot(size=(1150,430), ylabel="test R²  (linear readout)", legend=:topleft,
           xrotation=20, ylims=(-0.05, 1.05), grid=true, gridalpha=0.25,
           title="Which part of the representation carries each property?  (gap from grey to red = the conjunction layer)",
           titlefontsize=10, bottom_margin=8Plots.mm, left_margin=6Plots.mm)
-order = ["orient","lowpass","A1+A2","rays","all·SHUFFLED","all"]
+order = ["orient","A1+A2","rays","all·SHUFFLED","all·noRAYS","all·noA","all"]
 # the control keeps orient+lowpass intact and shuffles only A1/A2/rays, so its bar should
 # land on `orient` — the gap from it to `all` is the conjunction layer's real contribution
-labels = ["orient (135)","lowpass (9)","A1+A2 (54)","rays (81)",
-          "CONTROL: orient+lp + A/rays shuffled","all 279"]
-cols2 = [:steelblue, :grey60, :orange, :seagreen, :grey35, :firebrick]
-w2 = 0.14
+labels = ["orient (135)","A1+A2 (54)","rays (81)",
+          "CONTROL: A+rays shuffled","all, rays shuffled","all, A shuffled","all 279"]
+cols2 = [:steelblue, :orange, :seagreen, :grey35, :grey55, :grey75, :firebrick]
+w2 = 0.12
 for (k, b) in enumerate(order)
-    bar!(p2, (1:8) .+ (k-3.5)*w2, [max(blk[b][j], -0.05) for j in 1:8];
+    bar!(p2, (1:8) .+ (k-4)*w2, [max(blk[b][j], -0.05) for j in 1:8];
          bar_width=w2, label=labels[k], c=cols2[k], lw=0)
 end
 xticks!(p2, 1:8, P); hline!(p2, [0]; lc=:black, lw=1, label="")
@@ -144,10 +146,11 @@ println("wrote phase9_learning.png")
 # would rather have the translation invariance that global pooling gives for free — so it
 # improves monotonically as the grid coarsens, and 31 globally-pooled numbers beat 775.
 gr_cols = [31, 124, 279, 496, 775]
-gr_lin = Dict("curvedness"=>[0.675,0.679,0.677,0.664,0.657], "brokenness"=>[0.223,0.259,0.319,0.318,0.326],
-              "vangle"=>[0.491,0.521,0.552,0.532,0.532], "arms"=>[0.688,0.782,0.842,0.839,0.835])
-gr_mlp = Dict("curvedness"=>[0.903,0.861,0.824,0.780,0.744], "brokenness"=>[0.663,0.622,0.620,0.539,0.503],
-              "vangle"=>[0.898,0.858,0.822,0.785,0.739], "arms"=>[0.930,0.917,0.904,0.887,0.871])
+# canonical run, grids 1..5, current front end
+gr_lin = Dict("curvedness"=>[0.685,0.677,0.694,0.674,0.664], "brokenness"=>[0.224,0.260,0.318,0.304,0.307],
+              "vangle"=>[0.543,0.562,0.580,0.556,0.544], "arms"=>[0.729,0.775,0.848,0.840,0.836])
+gr_mlp = Dict("curvedness"=>[0.925,0.872,0.835,0.795,0.764], "brokenness"=>[0.737,0.637,0.592,0.526,0.560],
+              "vangle"=>[0.938,0.883,0.835,0.800,0.772], "arms"=>[0.954,0.923,0.905,0.890,0.895])
 pans7 = Any[]
 for nm in ("curvedness","brokenness","vangle","arms")
     pj = plot(xticks=(1:5, ["1×1\n31","2×2\n124","3×3\n279","4×4\n496","5×5\n775"]),

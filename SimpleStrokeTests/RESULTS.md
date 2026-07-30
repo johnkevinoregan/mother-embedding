@@ -80,12 +80,16 @@ existed, and the pixel probe has 45× more free parameters than our feature prob
 | *trivial baseline* | 0.009 | 0.008 | 0.457 | 0.066 | 0.029 | 0.195 | 0.152 | 0.063 |
 | pixels·linear | −0.000 | −0.001 | −0.000 | −0.000 | 0.000 | −0.002 | −0.000 | **0.709** |
 | pixels·MLP | −0.183 | −0.404 | 0.721 | −0.137 | 0.108 | 0.007 | −0.222 | **0.787** |
-| CNN | 0.449 | 0.254 | 0.947 | 0.291 | **0.874** | **0.874** | **0.922** | **0.986** |
+| CNN | 0.411 | 0.298 | 0.962 | 0.290 | **0.859** | **0.893** | **0.936** | **0.990** |
 | **ours·linear** | **0.694** | **0.318** | **0.986** | **0.580** | 0.848 | 0.582 | 0.618 | −0.000 |
 | ours·MLP | **0.835** | **0.592** | **0.993** | **0.835** | **0.905** | 0.635 | 0.657 | −0.169 |
 | **ours·MLP, grid 1 (31 features)** | **0.925** | **0.737** | **0.998** | **0.938** | **0.954** | 0.687 | 0.714 | −0.099 |
 
-*CNN = full-resolution, four conv stages with pooling and batch norm, 60 epochs on a GPU.
+*Every number in this document comes from one canonical run under the current front end —
+`results_canon3` for grid 3, `results_canon1` for the grid-1 row, `results_canon_g*` for the
+pooling sweep — so the tables and figures are internally consistent rather than assembled from
+runs at different code states. CNN = full-resolution, four conv stages with pooling and batch
+norm, 60 epochs on a GPU.
 The earlier CPU-era numbers, from two strided convolutions trained for 12 epochs, are in
 "What the weaker CNN cost" below — the difference is large and the caveat was justified.*
 
@@ -130,9 +134,9 @@ trained.
 | *trivial* | 0.008 | 0.009 | 0.437 | 0.070 | 0.031 | 0.204 | 0.184 |
 | pixels·linear | −0.130 | −0.112 | −2.352 | −0.532 | −1.773 | −2.931 | −0.889 |
 | pixels·MLP | −2.747 | −1.491 | −5.025 | −3.668 | **−6.981** | −8.319 | −4.060 |
-| CNN | 0.202 | −0.197 | 0.817 | **−2.225** | −0.415 | −1.039 | −0.260 |
-| **ours·linear** | **0.682** | **0.350** | **0.985** | **0.570** | **0.857** | 0.634 | 0.639 |
-| ours·MLP | **0.849** | **0.661** | **0.997** | **0.870** | **0.929** | 0.671 | 0.699 |
+| CNN | 0.116 | −0.262 | 0.841 | **−2.107** | −0.057 | −1.485 | −0.108 |
+| **ours·linear** | **0.689** | **0.322** | **0.985** | **0.598** | **0.842** | 0.642 | 0.627 |
+| ours·MLP | **0.859** | **0.616** | **0.998** | **0.873** | **0.921** | 0.669 | 0.678 |
 
 **This is where the properly trained CNN separates from us most sharply, and not in its
 favour.** It is the strongest arm on `arms` i.i.d. (0.874) and lands at **−0.415** on the
@@ -151,9 +155,9 @@ one thing and the test set inverts it.
 | *trivial* | 0.000 | 0.005 | 0.378 | 0.071 | 0.024 | 0.019 |
 | pixels·linear | −0.001 | −0.001 | −0.004 | −0.001 | −0.004 | −0.003 |
 | pixels·MLP | −0.074 | −0.196 | 0.772 | −0.083 | −0.003 | −0.124 |
-| CNN | 0.150 | −0.145 | 0.929 | −0.012 | 0.715 | −0.538 |
-| **ours·linear** | **0.655** | 0.107 | **0.982** | **0.525** | **0.845** | −2.547 |
-| ours·MLP | **0.797** | **0.434** | **0.986** | **0.788** | **0.893** | −2.257 |
+| CNN | 0.277 | −0.071 | 0.917 | 0.103 | 0.675 | −0.620 |
+| **ours·linear** | **0.681** | −0.029 | **0.979** | **0.580** | **0.823** | −2.370 |
+| ours·MLP | **0.807** | **0.387** | **0.986** | **0.816** | **0.884** | −1.799 |
 
 Blur costs the CNN its corner readout entirely — `vangle` 0.291 i.i.d. to **−0.012** — while
 ours drops only 0.567 → 0.525. It keeps `arms` (0.715), which is the row it was strongest on.
@@ -165,9 +169,9 @@ ours drops only 0.567 → 0.525. It keeps `arms` (0.715), which is the row it wa
 | *trivial* | −0.001 | −0.006 | −0.435 | −0.086 | −0.035 | −0.911 |
 | pixels·linear | −0.002 | 0.003 | −0.001 | −0.000 | −0.004 | −0.004 |
 | pixels·MLP | −0.232 | −0.171 | 0.527 | −0.230 | −0.016 | −0.543 |
-| CNN | 0.204 | 0.061 | 0.717 | 0.200 | 0.389 | −0.292 |
-| **ours·linear** | **0.619** | **0.333** | **0.976** | **0.490** | **0.776** | −2.052 |
-| ours·MLP | **0.734** | **0.588** | **0.972** | **0.693** | **0.884** | −2.790 |
+| CNN | 0.148 | 0.035 | 0.569 | 0.169 | 0.571 | 0.239 |
+| **ours·linear** | **0.634** | **0.262** | **0.978** | **0.504** | **0.783** | −2.157 |
+| ours·MLP | **0.751** | **0.408** | **0.974** | **0.703** | **0.869** | −2.650 |
 
 `arms` is the clearest case in the whole experiment: the CNN leads it i.i.d. at 0.874, and
 under the three nuisance shifts it goes to **0.715**, **0.389** and **−0.415** while ours
@@ -336,11 +340,11 @@ grid the *other* way turned up something better.
 
 | grid | columns | linear `vangle` | linear `arms` | **MLP `vangle`** | **MLP `arms`** |
 |--:|--:|--:|--:|--:|--:|
-| **1×1** | **31** | 0.491 | 0.688 | **0.898** | **0.930** |
-| 2×2 | 124 | 0.521 | 0.782 | 0.858 | 0.917 |
-| 3×3 | 279 | **0.552** | **0.842** | 0.822 | 0.904 |
-| 4×4 | 496 | 0.532 | 0.839 | 0.785 | 0.887 |
-| 5×5 | 775 | 0.532 | 0.835 | 0.739 | 0.871 |
+| **1×1** | **31** | 0.543 | 0.729 | **0.938** | **0.954** |
+| 2×2 | 124 | 0.562 | 0.775 | 0.883 | 0.923 |
+| 3×3 | 279 | **0.580** | **0.848** | 0.835 | 0.905 |
+| 4×4 | 496 | 0.556 | 0.840 | 0.800 | 0.890 |
+| 5×5 | 775 | 0.544 | 0.836 | 0.772 | 0.895 |
 
 **The two readouts want opposite things, monotonically and without exception.** The linear
 readout peaks at 3×3; the MLP improves all the way down to a single cell, and **31 globally
