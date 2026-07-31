@@ -1,4 +1,73 @@
-# Phase 9 — what the front end makes *explicit*
+# SimpleStrokeTests — results
+
+Everything this directory has produced, in the order it happened. `RESULTSexpanded.md` is a
+separate, longer commentary on Phase 9 and is left as it was.
+
+---
+
+## Summary
+
+This directory holds a **synthetic dataset of single strokes on a grey field**, labelled with
+**eight graded properties** rather than class labels, and the experiments run on it. The change
+of question is the point: instead of *"can a classifier separate these"* — which on synthetic
+data is nearly always yes, and which is why the preceding phase produced nothing — it asks
+**"fit a readout and measure how much of each property it recovers"**.
+
+**What it established (Phase 9).** A linear readout on 31 hand-designed features beats a
+two-hidden-layer MLP on 12,544 raw pixels on every structural property. **The conjunction layer
+finally pays** — +0.16 to +0.21 over a shuffle control, against +0.01 on EMNIST. Trained on light
+strokes and tested on dark, the features are unchanged while both pixel arms fall below chance.
+And the dataset exposed a real bug: the front end **was not polarity invariant**, which EMNIST
+could never have revealed because its background is zero.
+
+**What it then established (Phase 12).** Four dials that had never been turned — number of
+scales, number of orientations, order of the orientation harmonics, number of ray probe
+distances. **Adopted: higher harmonics plus crossed ray offsets, 54 features.** Its value is
+**robustness** — gains over the 31-feature baseline grow with distribution shift (~+0.02 i.i.d.,
++0.04–0.06 under blur, +0.08 under a thickness shift). Judged on the i.i.d. split alone it would
+have been rejected. More scales were rejected outright.
+
+**What remains broken.** The front end **confuses thickness with blurriness**: train on sharp
+edges, test on blurred, and thickness readings collapse to R² ≈ −2. Nothing has fixed it. A
+cross-scale feature appeared to, was published, and turned out to be an implementation artefact.
+
+**Three method lessons, each paid for.** Reduced-n selection inflates gains 2–5× and reversed one
+sign. The i.i.d. split alone picks the wrong configuration. And: check that the code being run is
+the code that was named.
+
+---
+
+## Contents
+
+**Part 1 — Phase 9: the dataset and what it showed**
+
+| | |
+|:--|:--|
+| [The target vector](#the-target-vector) | the eight graded properties |
+| [The five arms](#the-five-arms) | what is being compared |
+| [i.i.d. results](#iid--12000-training-images-3000-test) | the headline table |
+| [Extrapolation splits](#extrapolation-splits) | train on one range, test on another |
+| [`closedness` is confounded](#closedness-is-confounded--read-that-row-as-nothing) | why that row means nothing |
+| [Block attribution](#block-attribution--and-the-control-that-decides-it) | which features carry what, and the shuffle control |
+| [Sample efficiency](#sample-efficiency) | how the arms scale with data |
+| [The pooling grid](#the-pooling-grid--and-a-configuration-that-beats-everything-here) | why grid 1 wins here |
+| [Ray transform not thickness-invariant](#the-ray-transform-is-not-thickness-invariant) | a known limitation |
+| [Ratios after pooling](#ratios-are-formed-after-pooling-not-per-pixel) | a conceptual bug and its fix |
+| [The bug this found](#the-bug-this-found) | polarity invariance |
+| [Corrections](#corrections-to-earlier-write-ups) · [Caveats](#caveats) · [Open](#open) | |
+
+**Part 2 — Phase 12: turning the front end's own dials**
+
+| | |
+|:--|:--|
+| [Plain-language account](#plain-language-account) | **start here for the gist** |
+| [Full-n confirmation](#full-n-confirmation--the-authoritative-numbers) | the numbers to quote |
+| [Cross-scale, retracted](#cross-scale--proposed-published-and-retracted) | what went wrong and how |
+| [Appendix: reduced-n pass](#appendix--the-reduced-n-selection-pass-superseded) | superseded, kept for the lesson |
+
+---
+
+# Part 1 — Phase 9: the dataset and what it showed
 
 `SimpleStrokeTests` asks a different question from every phase before it. Phases 5–8 asked
 whether a classifier could separate some categories; the answer was almost always yes, which
@@ -11,28 +80,6 @@ The dataset is a single stroke on a uniform grey field, described by a vector of
 graded properties rather than a class label. See `Contours.module.jl` for its construction
 and the couplings that could not be removed; `RESULTSexpanded.md` explains everything here
 from scratch, including how the splits guarantee the comparisons are fair.
-
----
-
-## Summary
-
-1. **A linear readout on 279 of our features beats a two-hidden-layer MLP on 12,544 raw
-   pixels on every structural property, and beats a properly trained end-to-end CNN on four
-   of five** — `vangle` 0.567 vs 0.291, `curvedness` 0.682 vs 0.449 — **losing `arms`
-   narrowly, 0.859 to 0.874.** With an MLP readout instead of a linear one it wins all five.
-2. **Under nuisance shift the gap widens.** Trained on light strokes and tested on dark,
-   `ours·linear` is unchanged to three decimals while both pixel arms fall far below
-   predicting the mean — the MLP to −6.04.
-3. **The conjunction layer finally pays, and survives its control.** Adding `A1`, `A2` and
-   the ray harmonics to `orient` is worth **+0.166** on `brokenness`, **+0.164** on
-   `vangle` and **+0.132** on `arms` over a shuffle control that matches column count and
-   marginals exactly. On EMNIST the same layer was worth +0.01.
-4. **Three hundred images is enough.** At k = 500, `ours·linear` is already at ~90 % of its
-   k = 12,000 score on three of five structural rows. Raw pixels never leave zero at any k.
-5. **`closedness` is confounded and should not be read as a closure result** — see below.
-   Treat the other seven rows as the findings.
-6. **The front end was not polarity invariant, and now is.** A bug this dataset exposed
-   immediately; it could not show on EMNIST. See "The bug this found" below.
 
 ---
 
@@ -635,3 +682,406 @@ differences of 0.4 should.
    zero so the border artefact should be absent, but "should be" is not "was measured".
 5. **A closed curve carrying a corner or a branch**, which would remove the
    `closedness`–`vangle`–`arms` coupling of ~0.22 that this dataset could not avoid.
+
+---
+
+# Part 2 — Phase 12: turning the front end's own dials
+
+Phase 9 tests the front end **as built**. This asks whether it improves when given more to work
+with. The pooling grid had already been swept; the number of scales, the number of orientations,
+the order of the orientation harmonics and the number of ray probe distances had not.
+
+## Plain-language account
+
+`SWEEP_FULLN.md` (the proper version) and `XSCALE.md` (a follow-up). Read this first.*
+
+---
+
+### What the front end is, and what we were asking
+
+The **front end** is a fixed recipe for measuring an image. It looks at every pixel through a
+bank of filters tuned to different **orientations** (which way an edge runs) and different
+**scales** (how coarse or fine the detail is), and boils the result down to **31 numbers** per
+image. Nothing about it is learned — the recipe was designed, and the same recipe is applied to
+every image.
+
+To test whether those 31 numbers are any good, we generate pictures of a single stroke on a grey
+background and ask a small network to read eight things off them:
+
+| | in plain terms |
+|:--|:--|
+| **curvedness** | how bent is the stroke |
+| **brokenness** | is there a gap in it, and how big |
+| **closedness** | is it a closed loop or an open arc |
+| **vangle** | if it has a kink, how sharp is the kink |
+| **arms** | is it a plain stroke, a T-junction, or a crossing |
+| **thickness** | how wide is the stroke |
+| **fuzziness** | how blurry are its edges |
+| **polarity** | is it lighter or darker than the background |
+
+Scores are **R²**: **1.0** means the property is read off perfectly, **0.0** means no better than
+always guessing the average, and **negative** means worse than guessing.
+
+**The question in this round:** the front end has several dials that had never been turned. Would
+turning them up make it better?
+
+---
+
+### The four dials we turned
+
+**1. More scales.** Use five filter sizes instead of three, so the range from coarse to fine is
+sampled more finely.
+
+**2. Higher harmonics.** At each point the front end summarises *which directions have edges* —
+like a compass rose of edge strength. It used to keep only a coarse summary of that rose. We let
+it keep a more detailed one. Costs five extra numbers.
+
+**3. More orientations.** Use 16/24/32 filter directions instead of 8/12/16 — a finer compass —
+while keeping each filter's tuning just as broad as before.
+
+**4. More probe distances.** To decide whether something is a T-junction or a crossing, the front
+end reaches out a fixed distance from each point and asks "is there a stroke over there?". It only
+ever reached out *one* distance per scale. We let it reach three.
+
+---
+
+### What happened
+
+**More scales made things worse.** This was the one we most expected to help, and it hurt — every
+time. Rejected.
+
+**Higher harmonics helped, cheaply.** Better readings of how *bent* a stroke is, consistently, for
+five extra numbers. Sensible in hindsight: curvature is about how the compass rose *spreads out*,
+and the coarse summary couldn't describe that shape.
+
+**More orientations did nothing useful — until the test got harder** (see below). On ordinary
+tests it bought nothing at all, for twice the computation.
+
+**More probe distances helped the most, and broadly** — better at spotting gaps, kinks and
+junctions. This was also the cheapest to justify: we'd checked earlier that two of the three
+existing probes were reading something other than what the theory said they should.
+
+---
+
+### The harder test, which changed the answers
+
+Reading properties off images drawn from the *same* pool you trained on is easy. The demanding
+test is **training on one range and testing on another** — for example, train only on thin
+strokes, then test on thick ones. That asks whether the measurements really capture the property,
+or merely memorised the range they saw.
+
+**Almost everything looked different under that test**, and mostly in our favour:
+
+- Gains that seemed large on the easy test **shrank by two to five times**.
+- The extra orientations, worthless on the easy test, became one of the **best** dials.
+- Combining higher harmonics with more probe distances was slightly *worse* than probe distances
+  alone on the easy test, but **clearly better** on the hard one.
+
+**The practical lesson: judge on the hard test.** Judged on the easy test alone we would have
+picked the wrong configuration twice over.
+
+---
+
+### The one thing that stayed broken
+
+There is a specific weakness we already knew about. **The front end confuses thickness with
+blurriness.** Train it on sharp-edged strokes and show it blurry ones, and its thickness readings
+collapse to far worse than guessing (R² ≈ −2). Train it on thin strokes and show it thick ones,
+and its blurriness readings collapse the same way.
+
+The reason is intuitive: a **thick sharp** stroke and a **thin blurry** one produce very similar
+patterns of filter response. Both put a lot of energy into the coarse filters. Telling them apart
+needs something the front end didn't measure.
+
+**So we tried to measure it.** A thick sharp stroke has energy in the coarse filters *and* the
+fine ones, because its edges are crisp. A thin blurry stroke has energy only in the coarse ones.
+So we added a number recording **what fraction of the energy sits in the finer filters** — two
+extra numbers in total.
+
+**It did not work.** A first attempt appeared to improve the problem by about 0.16 in both
+directions, and that was written up as the first real progress on it. Re-running with the
+operator implemented correctly, the improvement disappears: +0.02 in one direction and −0.27 in
+the other. The apparent success came from a mistake in our own code — we had written a new
+version of a measurement the codebase already contained, and the two differed in a small way
+(one takes a square root, the other does not) that turned out to matter.
+
+**So nothing yet fixes this weakness.** The measurement we added does capture something — it
+improves ordinary accuracy on thickness and blurriness — but it does not help when the range
+shifts, which is the actual problem.
+
+The scores remain deeply negative (−2.04 and −2.72), so a readout trained on one range is still
+badly wrong on the other.
+
+---
+
+### Where this leaves the front end
+
+| if you care most about | use | numbers |
+|:--|:--|--:|
+| shape under changing conditions | harmonics + probe distances | 54 |
+| ordinary accuracy | the above **plus** cross-scale | 58 |
+
+**No single setting wins everything** — the second is better on ordinary accuracy but worse on the
+shape readings when conditions change, and neither repairs the thickness/blur weakness. Which to prefer depends on the eventual application, not on the front
+end.
+
+Both are better than the 31-number original on essentially every measure.
+
+---
+
+### Two mistakes worth recording
+
+**We overstated an early result.** A first, cheaper pass (on a fifth of the data) suggested two
+dials had solved the thickness/blur problem outright. Repeated properly on the full data, that
+gain **vanished entirely**. Small-scale trials systematically exaggerate the benefit of adding
+capacity, because extra capacity helps most when data is scarce. They are useful for deciding
+*what to test properly*, never for the size of an effect.
+
+**We declared an idea dead too early, then revived it on bad evidence.** The cross-scale
+measurement was tested alone, failed, and was written off — then appeared to work in combination,
+so the write-off was withdrawn. Both moves were wrong: the combination result came from a coding
+mistake. The real lesson is narrower and duller than either — **check that you are running the
+thing you say you are running.** The codebase already contained this measurement; we wrote a
+second version without noticing, and the two were not identical.
+
+---
+
+### What we would do next
+
+The remaining weakness needs a different kind of answer than "measure more of the same". The plan
+is to look at a large pretrained network that *doesn't* have this weakness, find which of its
+internal measurements distinguish thickness from blurriness when the range shifts, and see what
+those measurements actually respond to — rather than guessing at another formula.
+
+---
+
+## Full-n confirmation — the authoritative numbers
+
+`Sweep_Capacity.jl` with `SW_NTRAIN=16000 SW_NTEST=4000 SW_EPOCHS=100`, log in `confirm.log`.
+Grid 1, MLP readout, four splits. Supersedes the reduced-n numbers in `SWEEP.md`.
+
+**Two cross-checks passed.** The baseline reproduces `ConVNextTest`'s independently-computed
+`ours·MLP` to **≤ 0.006** on both the i.i.d. and polarity splits — two harnesses, same images,
+same protocol. That run also predates the A₁ analytic-floor default, so it doubles as a
+measurement of that change: **the floor subtraction moves the published tables by ≤ 0.006**, far
+inside run-to-run noise. The reproduction flag is still right to keep, but the risk was much
+smaller than the warnings claimed.
+
+### Δ from baseline, all four splits
+
+| arm | nfeat | split | curved | broken | vangle | arms | thick | fuzzy |
+|:--|--:|:--|--:|--:|--:|--:|--:|--:|
+| harmonics +C₆C₈ | 36 | i.i.d. | +0.026 | −0.005 | +0.007 | +0.001 | −0.015 | −0.017 |
+| | | polarity | +0.031 | +0.002 | +0.002 | 0.000 | −0.019 | −0.019 |
+| | | blur | +0.028 | +0.036 | +0.030 | +0.002 | −0.051 | — |
+| | | thickness | **+0.075** | +0.010 | +0.011 | +0.003 | — | −0.005 |
+| offsets ×3 | 49 | i.i.d. | +0.018 | +0.026 | +0.018 | +0.015 | +0.029 | +0.032 |
+| | | polarity | +0.017 | +0.025 | +0.011 | +0.012 | +0.028 | +0.031 |
+| | | blur | +0.003 | +0.047 | +0.045 | +0.026 | −0.018 | — |
+| | | thickness | +0.065 | +0.044 | +0.024 | 0.000 | — | **−0.151** |
+| **harmonics+offsets** | 54 | i.i.d. | +0.027 | +0.022 | +0.016 | +0.011 | +0.017 | +0.012 |
+| | | polarity | +0.033 | +0.020 | +0.016 | +0.014 | +0.022 | +0.031 |
+| | | blur | +0.037 | +0.060 | +0.049 | +0.018 | +0.009 | — |
+| | | thickness | **+0.080** | **+0.075** | +0.030 | −0.002 | — | −0.012 |
+
+### Verdict: adopt `harmonics + offsets` (54 features)
+
+**Its value is robustness, not i.i.d. accuracy.** Gains against baseline grow monotonically with
+distribution shift — ~+0.02 i.i.d., +0.04–0.06 under blur, +0.08 under thickness shift. On the
+i.i.d. split alone `offsets` by itself is marginally better, and judged there the combination
+would have been rejected.
+
+**And the combination is only additive under shift.** On i.i.d. it is slightly *worse* than
+`offsets` alone on five of six rows — the two axes are largely the same information by two routes.
+Under shift it becomes genuinely additive: it keeps offsets' geometry gains **without offsets'
+fuzziness penalty** (−0.012 against −0.151 under thickness shift). That is the single strongest
+reason to take the combination over `offsets` alone.
+
+**Polarity invariance is untouched** by either axis: every arm's polarity-split numbers are ≥ its
+own i.i.d. numbers.
+
+### What did NOT happen
+
+**The thickness/fuzziness confound is unmoved.** *(This statement was briefly contradicted by
+`XSCALE.md` and then restored: the contradiction came from an implementation error, and it stands
+as originally written.)* Every arm sits at −2.05 to −2.11 on the fuzziness
+split and −2.45 to −2.60 on the thickness split, against baselines of −2.060 and −2.448. The
+reduced-n sweep's +0.25 was an artefact.
+
+This strengthens rather than weakens the case for a genuinely different operator. Both properties
+are about **how energy is distributed across scale at one location**, and no amount of finer
+sampling along the existing axes separates them — 5 scales made it worse, more offsets did nothing.
+`AndLayer` already implements `:A3`, cross-scale conjunction, currently **off by default** with the
+comment *"not because any argument requires it"*. There is now an argument requiring it.
+
+### Method note worth carrying forward
+
+Reduced-n selection inflated every gain 2–5× and reversed one sign. If a sweep of this kind is run
+again, treat reduced n as a filter for *which arms to confirm*, never as a source of effect sizes —
+and confirm on the extrapolation splits, since the i.i.d. split alone would have picked the wrong
+configuration here.
+
+---
+
+## Cross-scale — proposed, published, and retracted
+
+`Sweep_Capacity.jl` with `cross_scale=`, log in `xscale.log`. 16,000/4,000, grid 1, 100 epochs.
+
+**The hypothesis.** Thickness and fuzziness are confounded because both are read from how energy
+distributes across scale, and nothing in the feature set encodes the *relationship between* scales
+at a point — only per-scale amounts, which pooling then averages. A thick sharp stroke has energy
+at coarse **and** fine scales; a thin blurred one has coarse only.
+
+**Two forms.** `:product` is the existing `a3_maps`, `C₀(k)·C₀(k+1)` — an energy, so mean pooling
+is valid. `:ratio` is `C₀(k+1)/(C₀(k)+C₀(k+1))`, the fraction of energy at the finer scale — a
+**bounded, scale-free** quantity, so numerator and denominator are pooled *separately* and divided
+afterwards with a relative floor, by the rule established when the ray ratios turned out wrong.
+Two features each at grid 1.
+
+**Predictions, recorded before running:** product moves the confound by < 0.05; ratio moves it by
+> 0.2 on both splits. Falsification stated in advance: if the ratio failed, stop proposing
+operators and go empirical.
+
+### The confound rows — corrected
+
+Re-run with `:product` routed through the real `a3_maps`/`assemble` path.
+
+| arm | nfeat | thickness (blur split) | Δ | fuzziness (thickness split) | Δ |
+|:--|--:|--:|--:|--:|--:|
+| baseline | 31 | −2.060 | — | −2.448 | — |
+| A₃ alone | 33 | −2.219 | **−0.159** | −2.644 | **−0.196** |
+| xscale ratio alone | 33 | −2.086 | −0.026 | −2.338 | +0.110 |
+| harmonics+offsets | 54 | −2.051 | +0.009 | −2.460 | −0.012 |
+| **adopted + A₃ + ratio** | 58 | −2.041 | **+0.019** | −2.718 | **−0.270** |
+
+**Nothing moves the confound**, and `A₃` alone makes it worse in both directions.
+
+### What the two forms are
+
+`:product` is `AndLayer.a3_maps` — `C₀(k)·C₀(k+1)`, emitted through `assemble` like A₁ and A₂,
+so it arrives as `sqrt(pooled)`. `:ratio` is `C₀(k+1)/(C₀(k)+C₀(k+1))`, the fraction of energy at
+the finer scale — **bounded and scale-free**, so numerator and denominator are pooled *separately*
+and divided afterwards, which `assemble` cannot express and which is why it stays inline.
+
+### Predictions, scored
+
+Recorded before running: product moves the confound by < 0.05; ratio moves it by > 0.2 on both
+splits; and if the ratio failed, stop proposing operators.
+
+| | outcome |
+|:--|:--|
+| product < 0.05 | **wrong** — −0.159 and −0.196, i.e. it makes things worse |
+| ratio > 0.2 both splits | **wrong** — −0.026 and +0.110 |
+
+Both predictions failed. The falsification condition triggered and stands this time.
+
+### The i.i.d. side, which did work
+
+On the ordinary split the cross-scale features are the best thing tried: `adopted + A₃ + ratio`
+reaches **thickness 0.762 and fuzziness 0.781**, against 0.714 and 0.734 for the 31-feature
+baseline and 0.731 / 0.746 for `harmonics+offsets`. So the information is real and useful — it
+simply does not survive a shift in the range, which is the actual problem.
+
+### What was published and withdrawn
+
+The first version of this page reported **+0.161 and +0.160**, replicated in both directions, and
+concluded that cross-scale features move the confound in combination. That came from an inline
+reimplementation of `a3_maps` in `Frontend._feat` which omitted the `sqrt` that `assemble` applies
+to every A-block, making it energy-like where A₁ and A₂ are amplitude-like. Through the real path
+the effect is +0.019 and −0.270.
+
+The variant's effect was real and did replicate — but it is a **raw pooled cross-scale product**,
+not `A₃`, and dropping the `sqrt` for one block while keeping it elsewhere is an inconsistency
+rather than a design. It is recoverable from commit `094ed0e` if anyone wants to justify and test
+it on its own terms.
+
+**Two further claims collapse with it.** "An ingredient that does nothing alone can still matter
+in company" was inferred from this artefact and has no support here. And the earlier decision to
+stop proposing operators, withdrawn on the strength of the combination result, should not have
+been withdrawn.
+
+---
+
+## Appendix — the reduced-n selection pass (superseded)
+
+Kept because its *rankings* mostly held, and because the size of its errors is the evidence for
+the method lesson above. **Its magnitudes are wrong** — see the full-n section.
+
+`Sweep_Capacity.jl`, log in `sweep.log`. 3,000 train / 1,000 test, grid 1, MLP readout, 60 epochs,
+one seed. Stimuli are a **prefix of the files in `ConVNextTest/data`**, so every arm sees
+byte-identical images.
+
+**Why these axes and not the grid.** The pooling grid was swept in Phase 9 (1–5) and grid 1 won on
+every property, because stroke position is randomised and a fixed grid is pure liability. These
+three axes carry no such penalty, so they can add capacity without it. They had never been swept.
+
+**Reduced n for selection.** Absolute numbers are well below the published tables — baseline
+`brokenness` is 0.463 here against 0.730 at 16,000 images — so these are for *ranking arms*, not
+for quoting. With one seed, |Δ| below ~0.05 is at the noise floor.
+
+### Δ from baseline, all three splits
+
+| arm | nfeat | | curved | broken | vangle | arms | thick | fuzzy |
+|:--|--:|:--|--:|--:|--:|--:|--:|--:|
+| **harmonics +C₆C₈** | 36 | i.i.d. | **+0.058** | +0.043 | +0.031 | +0.006 | −0.021 | −0.028 |
+| | | blur | **+0.060** | −0.021 | +0.041 | −0.023 | −0.077 | — |
+| | | thick | **+0.045** | +0.029 | **+0.120** | 0.000 | — | −0.013 |
+| **orient ×2 +C₆C₈** | 37 | i.i.d. | +0.058 | +0.019 | +0.019 | 0.000 | −0.025 | −0.031 |
+| | | blur | **+0.078** | **+0.062** | +0.036 | −0.006 | **+0.237** | — |
+| | | thick | +0.054 | **+0.116** | +0.076 | −0.044 | — | **+0.073** |
+| **offsets ×3 crossed** | 49 | i.i.d. | +0.002 | **+0.130** | **+0.048** | **+0.030** | **+0.038** | **+0.036** |
+| | | blur | 0.000 | +0.020 | +0.021 | +0.032 | **+0.275** | — |
+| | | thick | +0.014 | **+0.154** | **+0.137** | −0.007 | — | −0.166 |
+| scales 5 | 51 | i.i.d. | +0.002 | +0.054 | +0.008 | +0.016 | −0.028 | −0.022 |
+| | | blur | −0.005 | −0.025 | +0.023 | −0.004 | −0.103 | — |
+| | | thick | −0.001 | +0.120 | +0.068 | −0.010 | — | −0.547 |
+
+### Verdicts
+
+**Harmonics C₆/C₈ — accept.** Five extra features, and the curvedness gain replicates across all
+three conditions (+0.058 / +0.060 / +0.045) with vangle behind it. The most solid result in the
+sweep, and the cheapest. Mechanistically expected: curvature is about how the orientation profile
+*spreads*, and C₂/C₄ cannot describe two-lobe structure with independent amplitudes.
+
+**Ray offsets, crossed d × λ — accept for structure.** Largest gains on brokenness (+0.130 i.i.d.,
++0.154 under thickness shift) and vangle, and best on thickness-under-blur (+0.275). Two caveats:
+its headline i.i.d. brokenness gain **shrinks from +0.130 to +0.020 under blur**, so part of it was
+fitted to the nuisance distribution; and it makes fuzziness-under-thickness-shift worse (−0.166).
+
+**Orientation count ×2 at constant σφ — accept, but for robustness only.** Buys **nothing i.i.d.**
+(identical to harmonics-alone on curvedness, slightly worse elsewhere) for 2× the channels and 2×
+the extraction time. Under *both* shifts it is the broadest gainer, and the only arm that improves
+the confound pair in both directions (+0.237 thickness-under-blur, +0.073 fuzziness-under-thickness).
+Plausibly because σφ is fixed, so the extra channels buy finer angular *sampling* and better
+harmonic estimates — in-distribution the readout absorbs sampling error, out of distribution it
+cannot.
+
+**Scales 3 → 5 — reject.** Inconsistent brokenness gains, and it makes the thickness/fuzziness pair
+worse in **all four** tests, catastrophically so on fuzziness-under-thickness-shift (−0.547). It is
+also the least trustworthy arm: its `betas` were interpolated by me rather than derived from the
+data's spectrum, against Phase 0's discipline. If revisited, derive them with `scale_ladder`.
+
+### Predictions, scored
+
+| prediction | outcome |
+|:--|:--|
+| offsets → `arms` and `brokenness` | **correct**, brokenness by a wide margin |
+| harmonics → `vangle` | **correct in direction**, though curvedness gained more |
+| scales → `thickness`/`fuzziness` | **wrong, and consistently backwards** — worse in 4/4 tests |
+| orientations → further `vangle` gain | **wrong i.i.d.**; right that they help, but on robustness and on other rows |
+
+### The one thing that moved the confound
+
+Phase 11 found thickness and fuzziness confounded in our representation and nothing had touched it.
+**Orientation count and ray offsets both move it by ~+0.25.** Scales — the axis predicted to fix
+it — makes it worse, which argues the confound is **not** about scale-sampling resolution. A
+blurred thin stroke and a sharp thick stroke may produce near-identical oriented-energy scale
+distributions at any sampling density, in which case separating them needs something sensitive to
+the *edge profile* itself: phase congruency, or the energy ratio across the stroke's two edges.
+
+### Next
+
+**Confirm `harmonics +C₆C₈` combined with `offsets ×3` at full n** — they gain on disjoint rows
+(curvedness/vangle versus brokenness/arms), ~54 features, and neither needs the extra channel cost.
+Then test whether `orient ×2` on top is worth 2× extraction for its robustness gain. Any winner
+must hold on the extrapolation splits, not just i.i.d.

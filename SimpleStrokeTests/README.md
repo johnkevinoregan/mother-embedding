@@ -1,8 +1,47 @@
 # SimpleStrokeTests — how to reproduce everything here
 
-One stroke on a uniform grey field, described by eight graded properties. `RESULTS.md` has
-the tables; `RESULTSexpanded.md` explains the whole thing from scratch. This file is how to
-re-run it.
+A synthetic dataset of **single strokes on a grey field**, labelled with eight **graded
+properties** rather than class labels, plus the experiments run on it. Phases 9 and 12.
+
+## What is in this directory
+
+**Read these:**
+
+| file | |
+|:--|:--|
+| **`RESULTS.md`** | **Everything this directory has produced, in chronological order.** Opens with a summary and a table of contents. Part 1 is Phase 9 (the dataset and what it showed); Part 2 is Phase 12 (turning the front end's own dials), whose plain-language section is the place to start if you want the gist. |
+| `RESULTSexpanded.md` | A longer, more tutorial commentary on Phase 9 — explains the splits, the metric and the controls from scratch. Not updated for Phase 12. |
+| `README.md` | This file: how to run things. |
+
+**Code:**
+
+| file | kind | |
+|:--|:--|:--|
+| `Contours.module.jl` | **plain module** | the stimulus generator ⚠ do not open in Pluto |
+| `Frontend.module.jl` | **plain module** | wraps the front end; all the tunable dials live here ⚠ |
+| `Phase9_Readouts.jl` | plain script | the Phase 9 experiment — five arms, three extrapolation splits |
+| `Sweep_Capacity.jl` | plain script | the Phase 12 dial sweep |
+| `Preview_Contours.jl` | Pluto notebook | look at the stimuli |
+| `Test_Contours.jl` | Pluto notebook | sanity-check the generator |
+| `Plot_Phase9.jl` | plain script | redraw the figures from saved results |
+| `read_results.jl` | plain script | print any `.jls` as a table |
+| `run.sh` | shell | wraps the common invocations |
+
+**Data and outputs:**
+
+| | |
+|:--|:--|
+| `results_canon*/` | saved result tables (`.jls`) from the canonical Phase 9 runs — small, tracked, read by `read_results.jl` and `Plot_Phase9.jl` |
+| `*.log` | the durable human-readable record of each run. **Treat these as authoritative**, not the `.jls`, which are tied to the Julia version that wrote them |
+| `*.png` | figures |
+| `sweep_cache/` | feature cache from `Sweep_Capacity.jl` — **gitignored**, ~80 MB, regenerable |
+
+## Note on the document history
+
+Phase 12's results were originally spread over four files (`FINDINGS.md`, `SWEEP.md`,
+`SWEEP_FULLN.md`, `XSCALE.md`), two of which carried retraction banners. They are now merged into
+`RESULTS.md` in the order things happened, with the retractions kept in place rather than deleted
+— a claim that was published and withdrawn is part of the record.
 
 ## What each file is
 

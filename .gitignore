@@ -20,3 +20,7 @@ __pycache__/
 # artefact; these embed the same image as base64, so tracking both puts the figure in git
 # twice and fills diffs with base64. Rebuild from the plotting script when needed.
 ConVNextTest/figures/*.html
+
+# Feature cache written by SimpleStrokeTests/Sweep_Capacity.jl. Regenerable, ~81 MB, and tied
+# to the Julia version that wrote it. Should never have been tracked.
+SimpleStrokeTests/sweep_cache/
