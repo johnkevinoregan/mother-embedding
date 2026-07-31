@@ -85,6 +85,8 @@ from scratch, including how the splits guarantee the comparisons are fair.
 
 ## The target vector
 
+*Eight graded numbers per image instead of a class label — five geometric, three describing the stroke's appearance. The three appearance rows double as controls on the front end itself: `polarity` in particular **should** be unreadable from our features, and reading it would falsify the invariance claim.*
+
 Eight properties per image, nothing masked. Rows 1–5 are geometry; rows 6–8 are controls on
 the front end itself.
 
@@ -103,6 +105,8 @@ the front end itself.
 
 ## The five arms
 
+*What is being compared, and why the comparison is stacked against us: the CNN builds its filters *for these eight targets* while ours were fixed before the dataset existed, and the pixel probe gets 45× more free parameters than our feature probe.*
+
 | | representation | readout | parameters |
 |--:|:--|:--|--:|
 | 1 | raw pixels, **fixed** | linear (ridge) | 12,544 |
@@ -119,6 +123,8 @@ existed, and the pixel probe has 45× more free parameters than our feature prob
 ---
 
 ## i.i.d. — 12,000 training images, 3,000 test
+
+*The headline table. A linear readout on 279 designed features beats a 3.3 M-parameter MLP on raw pixels on every structural row, and beats the trained CNN on four of five. The best configuration is 31 globally pooled features. **Caveat added later:** the CNN arm did not converge, so it is a reference point and not a ceiling.*
 
 ![arms](phase9_arms.png)
 
@@ -168,6 +174,8 @@ discards the sign of contrast by construction. See the block table: *every* bloc
 ---
 
 ## Extrapolation splits
+
+*Train on one range of a nuisance and test on another — light strokes → dark, sharp edges → blurred, thin → thick. This is where designed invariance earns its keep: under a polarity flip our numbers are unchanged while both pixel arms fall below chance. It is also where the thickness/blur weakness first appears.*
 
 The i.i.d. table mostly measures capacity. Invariance only shows when the test set contains
 nuisance values training never held. In each split the held-out nuisance's own row is
@@ -238,6 +246,8 @@ small gap.
 
 ## `closedness` is confounded — read that row as nothing
 
+*A negative result about our own dataset. Open and closed contours have non-overlapping arclengths, so a length threshold classifies every image correctly and the 0.99 on that row measures nothing. Geometric, not a coding error, and not fixable without redesigning the generator.*
+
 Its trivial baseline is 0.457, by far the highest of the eight, which was the first sign.
 On investigation the row is **over-determined by three local cues, none of which is closure**:
 
@@ -287,6 +297,8 @@ short and anisotropic", not as closure detection.**
 
 ## Block attribution — and the control that decides it
 
+*Which parts of the representation carry which property, with a shuffle control that holds column count and marginals fixed and destroys only the correspondence with the image. This is the section that establishes the conjunction layer pays **+0.16 to +0.21** here against +0.01 on EMNIST.*
+
 ![blocks](phase9_blocks.png)
 
 | block | curvedness | brokenness | closedness | vangle | arms | thickness | fuzziness |
@@ -325,6 +337,8 @@ were argued to help.
 ---
 
 ## Sample efficiency
+
+*How each arm scales from 500 to 12,000 training images. The designed features are far ahead when data is scarce, which is the inductive-bias claim stated as a curve rather than a single number.*
 
 ![samples](phase9_samples.png)
 
@@ -378,6 +392,8 @@ limited by the 3×3 pooling grid rather than by data.
 ---
 
 ## The pooling grid — and a configuration that beats everything here
+
+*Sweeping the spatial grid from 1 to 5. Grid 1 — global pooling, 31 numbers — wins on every property, because stroke position is randomised so a fixed grid is pure liability. Fashion-MNIST later reverses this, which is what shows the result was about *position randomisation* and not about pooling.*
 
 ![grid sweep](phase9_grid.png)
 
@@ -455,6 +471,8 @@ this dataset, not about pooling in general.
 ---
 
 ## The ray transform is not thickness-invariant
+
+*A limitation found by direct measurement: a 4 px bar crossing a 15 px bar reads as two rays rather than four. Neither dataset in the project can reveal it, since both hold stroke width constant within an image.*
 
 A limitation of the operator, found by asking what happens when the arms of a junction differ
 in width. `|c₂|/c₀` should be ~0 for a four-ray crossing and ~1 for a straight line:
@@ -543,6 +561,8 @@ first.
 
 ## Ratios are formed after pooling, not per pixel
 
+*A conceptual bug and its fix. Dividing per pixel and then averaging weights empty background equally with contour and makes the pooled value scale with ink coverage. The general rule this produced — a fill value is safe only when it is the quantity's true limit — is what later distinguished the safe epsilon guards from the unsafe one.*
+
 `ray_maps` used to divide at every pixel — `|c₁|/c₀`, `|c₂|/c₀` — guarded by `c₀ > 1e-12`,
 writing `0` where that failed. Both halves were wrong.
 
@@ -593,6 +613,8 @@ a local energy.
 
 ## The bug this found
 
+*Polarity invariance was broken, and this dataset is what exposed it: zero-padding a **non-zero** background puts a full-contrast step round the image whose cross term flips sign with contrast. EMNIST could never have shown it, because its background is zero.*
+
 On its first real run the block table showed `orient` predicting **polarity at R² 0.65**,
 when quadrature energy should predict nothing at all. Rendering the same shape at both
 polarities showed features differing by **29 %** between a stroke and its exact
@@ -629,6 +651,8 @@ features.
 
 ## Corrections to earlier write-ups
 
+*Claims this project published and later withdrew, kept in place rather than deleted.*
+
 `RationalGaborFeatures/RESULTS.md` states:
 
 > no task has been constructed on which the conjunction layer beats the orientation
@@ -645,6 +669,8 @@ information the orientation statistics do not.
 ---
 
 ## Caveats
+
+*What these numbers do not license — chiefly that every image is a single stroke of one width and one contrast on a flat field, which makes the dataset poor for any design choice depending on image statistics.*
 
 **The CNN is undertrained.** 12 epochs on CPU, validation R² still rising at the last epoch
 (0.549 → 0.556). More training would raise it, possibly a lot. Its numbers are a floor, not
@@ -672,6 +698,8 @@ differences of 0.4 should.
 
 ## Open
 
+*What Phase 9 left unfinished.*
+
 1. **Repeat the shuffle control across seeds**, and add a matched-column control (a random
    subset of 135 `all` columns against 135 `orient` columns).
 2. **`grid=5`**, to see whether `brokenness` and `vangle` are operator-limited or
@@ -692,6 +720,8 @@ with. The pooling grid had already been swept; the number of scales, the number 
 the order of the orientation harmonics and the number of ray probe distances had not.
 
 ## Plain-language account
+
+***Start here.** What the front end is, what the eight properties mean, what R² means, which four dials were turned, what happened, and what stayed broken — written for a reader who has not followed the project.*
 
 `SWEEP_FULLN.md` (the proper version) and `XSCALE.md` (a follow-up). Read this first.*
 
@@ -857,6 +887,8 @@ those measurements actually respond to — rather than guessing at another formu
 
 ## Full-n confirmation — the authoritative numbers
 
+*The numbers to quote. Four arms across four splits at 16,000/4,000. Establishes the adopted configuration — higher harmonics plus crossed ray offsets, 54 features — whose value is **robustness**: its advantage over the baseline grows with distribution shift and would have been missed on the i.i.d. split alone. Also contains two independent cross-checks that passed.*
+
 `Sweep_Capacity.jl` with `SW_NTRAIN=16000 SW_NTEST=4000 SW_EPOCHS=100`, log in `confirm.log`.
 Grid 1, MLP readout, four splits. Supersedes the reduced-n numbers in `SWEEP.md`.
 
@@ -924,6 +956,8 @@ configuration here.
 ---
 
 ## Cross-scale — proposed, published, and retracted
+
+*A feature designed specifically to fix the thickness/blur weakness. It appeared to work, was published, and turned out to be an implementation artefact — an inline reimplementation of an operator the codebase already contained, differing by a square root. Kept in full because the retraction is the useful part.*
 
 `Sweep_Capacity.jl` with `cross_scale=`, log in `xscale.log`. 16,000/4,000, grid 1, 100 epochs.
 
@@ -1003,6 +1037,8 @@ been withdrawn.
 ---
 
 ## Appendix — the reduced-n selection pass (superseded)
+
+*The first, cheaper sweep at a fifth of the data. Its **rankings** mostly held; its **magnitudes** were inflated 2–5× and one sign reversed. Kept because the size of those errors is the evidence for the method lesson.*
 
 Kept because its *rankings* mostly held, and because the size of its errors is the evidence for
 the method lesson above. **Its magnitudes are wrong** — see the full-n section.
