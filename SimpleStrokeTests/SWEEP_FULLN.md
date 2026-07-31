@@ -49,7 +49,9 @@ own i.i.d. numbers.
 
 ## What did NOT happen
 
-**The thickness/fuzziness confound is unmoved.** Every arm sits at −2.05 to −2.11 on the fuzziness
+**The thickness/fuzziness confound is unmoved.** *(This statement was briefly contradicted by
+`XSCALE.md` and then restored: the contradiction came from an implementation error, and it stands
+as originally written.)* Every arm sits at −2.05 to −2.11 on the fuzziness
 split and −2.45 to −2.60 on the thickness split, against baselines of −2.060 and −2.448. The
 reduced-n sweep's +0.25 was an artefact.
 

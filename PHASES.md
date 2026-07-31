@@ -275,6 +275,44 @@ a thickness/fuzziness confound ConvNeXt does not have.
 
 ---
 
+## 12 — turning the front end's own dials
+
+`SimpleStrokeTests/`, on the Phase 9 stimuli. Everything before this tests the front end **as
+built**; this asks whether it improves when given more to work with. The pooling grid had been
+swept; the number of scales, the number of orientations, the order of the orientation harmonics
+and the number of ray probe distances had not.
+
+**Plain-language account: [`SimpleStrokeTests/FINDINGS.md`](SimpleStrokeTests/FINDINGS.md).**
+Detail in `SWEEP.md` (reduced-n, partly retracted), `SWEEP_FULLN.md` (the confirmation) and
+`XSCALE.md` (cross-scale, retracted and corrected).
+
+**Adopted: `harmonics + offsets`, 54 features.** Higher orientation harmonics (C₆/C₈) buy
+curvedness for five extra numbers; the crossed `d × λ` ray offsets — the off-diagonal that was
+discussed years ago and never built — buy gaps, kinks and junctions. **Its value is robustness:**
+gains over the 31-feature baseline grow monotonically with distribution shift, ~+0.02 i.i.d.,
++0.04–0.06 under blur, +0.08 under a thickness shift. Judged on the i.i.d. split alone it would
+have been rejected.
+
+**Rejected: more scales.** Predicted to fix the thickness/fuzziness confound; made it worse in
+4/4 tests.
+
+**Rejected as a standalone: more orientations.** Nothing i.i.d. for twice the compute — but the
+broadest gainer under shift, which is only visible if you look there.
+
+**The thickness/fuzziness confound remains unfixed.** A cross-scale feature appeared to move it
+~+0.16 in both directions; that was an implementation artefact and is retracted. `A₃`, the
+operator that already existed for this, makes it worse.
+
+**Three method lessons**, each paid for:
+* **Reduced-n selection inflates gains 2–5×** and reversed one sign. Use it to choose what to
+  confirm, never for effect sizes.
+* **Judge on the extrapolation splits.** The i.i.d. split alone picked the wrong configuration
+  twice.
+* **Check that the code being run is the code that was named.** The cross-scale operator already
+  existed; a second version was written without noticing, and they were not identical.
+
+---
+
 ## The shape of it
 
 **0–4** establish that the operators do what they claim on synthetic ground truth. **5–7** ask

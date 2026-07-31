@@ -49,63 +49,60 @@ Two features each at grid 1.
 > 0.2 on both splits. Falsification stated in advance: if the ratio failed, stop proposing
 operators and go empirical.
 
-## The confound rows
+## The confound rows — corrected
+
+Re-run with `:product` routed through the real `a3_maps`/`assemble` path.
 
 | arm | nfeat | thickness (blur split) | Δ | fuzziness (thickness split) | Δ |
 |:--|--:|--:|--:|--:|--:|
 | baseline | 31 | −2.060 | — | −2.448 | — |
-| xscale product | 33 | −2.059 | +0.001 | −2.406 | +0.042 |
-| xscale ratio | 33 | −2.086 | **−0.026** | −2.338 | **+0.110** |
+| A₃ alone | 33 | −2.219 | **−0.159** | −2.644 | **−0.196** |
+| xscale ratio alone | 33 | −2.086 | −0.026 | −2.338 | +0.110 |
 | harmonics+offsets | 54 | −2.051 | +0.009 | −2.460 | −0.012 |
-| **adopted+xscale** | 58 | **−1.899** | **+0.161** | **−2.288** | **+0.160** |
+| **adopted + A₃ + ratio** | 58 | −2.041 | **+0.019** | −2.718 | **−0.270** |
 
-## What this actually shows
+**Nothing moves the confound**, and `A₃` alone makes it worse in both directions.
 
-**The prediction was wrong, and the hypothesis is right anyway — via an interaction.**
+## What the two forms are
 
-*Product:* < 0.05 on both, as predicted. A product is large whenever both scales carry energy and
-cannot separate thick-sharp from thin-blurred.
+`:product` is `AndLayer.a3_maps` — `C₀(k)·C₀(k+1)`, emitted through `assemble` like A₁ and A₂,
+so it arrives as `sqrt(pooled)`. `:ratio` is `C₀(k+1)/(C₀(k)+C₀(k+1))`, the fraction of energy at
+the finer scale — **bounded and scale-free**, so numerator and denominator are pooled *separately*
+and divided afterwards, which `assemble` cannot express and which is why it stays inline.
 
-*Ratio alone:* **−0.026 and +0.110**, against a predicted > +0.2. It fails outright on the blur
-split and half-works on the thickness split. The effect is **directional** — the fine/coarse
-fraction is more nearly a blur measure than a width measure, so it repairs the row it encodes
-(fuzziness) and not the other.
+## Predictions, scored
 
-*In combination:* **+0.161 and +0.160**, replicated in both directions to within 0.001, and
-attributable to the cross-scale features specifically — `harmonics+offsets` without them gives
-+0.009 and −0.012. This is the first thing in the project to move the confound at full n.
+Recorded before running: product moves the confound by < 0.05; ratio moves it by > 0.2 on both
+splits; and if the ratio failed, stop proposing operators.
 
-**Why the interaction is plausible:** the same fine/coarse energy fraction means different things
-at different stroke widths, so it is only interpretable once the readout has width information to
-condition on — which the crossed offsets supply. That is a hypothesis, not a measurement.
+| | outcome |
+|:--|:--|
+| product < 0.05 | **wrong** — −0.159 and −0.196, i.e. it makes things worse |
+| ratio > 0.2 both splits | **wrong** — −0.026 and +0.110 |
 
-**The cost.** On the thickness split, adding cross-scale to the adopted configuration loses
-0.02–0.05 on every geometric row (curvedness 0.905 → 0.885, brokenness 0.542 → 0.496, vangle
-0.881 → 0.843). So it trades geometry for the confound rather than adding freely.
+Both predictions failed. The falsification condition triggered and stands this time.
 
-## Corrections this forces
+## The i.i.d. side, which did work
 
-**To `SWEEP_FULLN.md` and commit 6298a13:** "Nothing touches the confound" was true of the axes
-tested there and is now false in general — `adopted+xscale` moves it ~+0.16 in both directions.
+On the ordinary split the cross-scale features are the best thing tried: `adopted + A₃ + ratio`
+reaches **thickness 0.762 and fuzziness 0.781**, against 0.714 and 0.734 for the 31-feature
+baseline and 0.731 / 0.746 for `harmonics+offsets`. So the information is real and useful — it
+simply does not survive a shift in the range, which is the actual problem.
 
-**To my own falsification call.** I declared the hypothesis dead after seeing the isolated ratio
-arm fail on one split, and the very next arm contradicted it. The lesson is specific: an operator
-that does nothing alone can still matter in combination, so testing it only in isolation is not a
-sufficient test of the idea behind it.
+## What was published and withdrawn
 
-## Where this leaves the configuration
+The first version of this page reported **+0.161 and +0.160**, replicated in both directions, and
+concluded that cross-scale features move the confound in combination. That came from an inline
+reimplementation of `a3_maps` in `Frontend._feat` which omitted the `sqrt` that `assemble` applies
+to every A-block, making it energy-like where A₁ and A₂ are amplitude-like. Through the real path
+the effect is +0.019 and −0.270.
 
-| use | configuration | why |
-|:--|:--|:--|
-| best geometry under shift | `harmonics+offsets` (54) | curvedness +0.080, brokenness +0.075 under thickness shift |
-| best on the confound | `adopted+xscale` (58) | ~+0.16 both directions, at 0.02–0.05 geometric cost |
-| best i.i.d. | `adopted+xscale` (58) | thickness 0.752, fuzziness 0.771 — best of anything tried |
+The variant's effect was real and did replicate — but it is a **raw pooled cross-scale product**,
+not `A₃`, and dropping the `sqrt` for one block while keeping it elsewhere is an inconsistency
+rather than a design. It is recoverable from commit `094ed0e` if anyone wants to justify and test
+it on its own terms.
 
-No single configuration dominates. The choice depends on whether the confound or the geometric
-rows matter more, and that is a question about the eventual task, not about the front end.
-
-## Still open
-
-The confound is **reduced, not fixed** — −1.899 and −2.288 are still far below zero, so a readout
-trained on one range remains badly wrong on the other. The empirical route stands: find which
-stage-3 dimensions carry the distinction under shift, and look at what drives them.
+**Two further claims collapse with it.** "An ingredient that does nothing alone can still matter
+in company" was inferred from this artefact and has no support here. And the earlier decision to
+stop proposing operators, withdrawn on the strength of the combination result, should not have
+been withdrawn.
