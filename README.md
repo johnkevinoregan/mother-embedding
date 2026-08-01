@@ -13,6 +13,10 @@ companion Pluto notebook for sanity-checking it in isolation.
 asked, what it found, and what was later corrected. [`PROGRESS_2026-07-31.md`](PROGRESS_2026-07-31.md)
 is the latest narrative report; the earlier `PROGRESS_*.md` files carry the history.
 
+**[`FrontEndDefinition.md`](FrontEndDefinition.md)** is the reference: every feature the front end
+produces, with the arithmetic written out and every symbol defined. Read it before changing any
+part of the pipeline.
+
 **Latest result.** A fine scale at λ = 8 px and a spatial **max** alongside the existing spatial
 means take the front end from 31 to 53 features and close most of the gap to a frozen ImageNet
 ConvNeXt — thickness 0.234 → 0.040, fuzziness 0.241 → 0.051. See
