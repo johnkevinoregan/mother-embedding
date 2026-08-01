@@ -30,7 +30,8 @@ const NTR, NTE = 16000, 4000
 # Which head to add. Generalised rather than copied into a second script, so the two variants
 # cannot drift apart in the parts that are meant to be identical.
 const HEAD  = get(ENV, "HEAD", "deep")
-const NAME  = HEAD == "res" ? "ours res 256-128-64+skip" : "our features deep (31)"
+const NAME  = HEAD == "res"  ? "ours res 256-128-64+skip" :
+              HEAD == "fine" ? "ours + fine λ=8 (41)" : "our features deep (31)"
 
 d = deserialize(joinpath(FIG, "predictions.jls"))
 PROPS, SNAPS, Yte = d.props, d.snaps, d.Yte
@@ -41,7 +42,34 @@ Ytr = read_mat(joinpath(DATA, "iid_train_y.f32"), NTR, np)
 nva = NTR ÷ 6; tr = 1:NTR-nva; va = NTR-nva+1:NTR
 μy, σy = zfit(Ytr[tr, :]); Zt = zapply(Ytr[tr, :], μy, σy)
 
-Ftr, Fte = deserialize(joinpath(CACHE, "ours_g1_iid_$(NTR)_$(NTE).jls"))
+# `fine` adds a fourth oriented scale at λ = 8 px (ρ = 14), continuing the ladder's own
+# geometric spacing — 56 / 29.9 / 16 has ratio 1.87, so the next rung is 8.55 px and 8 is
+# essentially it. That needs its own extraction; the other heads reuse the 31-feature cache.
+#
+# λ = 8 is real signal here because SimpleStrokeTests is natively 112 px. On EMNIST and
+# Fashion-MNIST, which are 28×28 upsampled 4×, λ = 8 sits exactly at the original Nyquist and
+# would mostly measure bilinear interpolation — so this scale should not be made a default
+# without checking per dataset.
+Ftr, Fte = if HEAD == "fine"
+    ck = joinpath(CACHE, "ours_fine_g1_iid_$(NTR)_$(NTE).jls")
+    if isfile(ck)
+        deserialize(ck)
+    else
+        include(joinpath(@__DIR__, "Frontend.module.jl"))
+        sp = Main.Frontend.build_frontend(112; grid=1, ladder=[2.0, 3.742, 7.0, 14.0],
+                                          betas=[2.0, 1.6, 1.2, 1.0], nori=[8, 12, 16, 20])
+        @printf("fine bank: %d features, %d channels\n", sp.n, length(sp.bank.filters))
+        rdimg(path, n) = (a = read!(open(path), Vector{Float32}(undef, n*112*112));
+                          [permutedims(reshape(@view(a[(i-1)*112*112+1 : i*112*112]), 112, 112))
+                           for i in 1:n])
+        t = @elapsed (a = Main.Frontend.featurize(rdimg(joinpath(DATA,"iid_train_img.f32"), NTR), sp);
+                      b = Main.Frontend.featurize(rdimg(joinpath(DATA,"iid_test_img.f32"),  NTE), sp))
+        @printf("extracted in %.0f s (%.1f ms/img)\n", t, 1000t/(NTR+NTE))
+        serialize(ck, (a, b)); (a, b)
+    end
+else
+    deserialize(joinpath(CACHE, "ours_g1_iid_$(NTR)_$(NTE).jls"))
+end
 μ, σ = zfit(Ftr[tr, :]); A = zapply(Ftr, μ, σ); T = zapply(Fte, μ, σ)
 
 Random.seed!(1)
@@ -55,13 +83,17 @@ m = if HEAD == "res"
     # than having to rebuild the linear part through three ReLU layers.
     trunk = Chain(Dense(nin => 256, relu), Dense(256 => 128, relu), Dense(128 => 64, relu))
     Chain(SkipConnection(trunk, vcat), Dense(64 + nin => np))
+elseif HEAD == "fine"
+    # the standard head, so this arm isolates the REPRESENTATION change
+    Chain(Dense(nin => 256, relu), Dense(256 => 256, relu), Dense(256 => np))
 else
     Chain(Dense(nin => 512, relu), Dense(512 => 128, relu),
           Dense(128 => 64, relu), Dense(64 => np))
 end |> dev
 @printf("head %s: %s   (%d parameters)\n", HEAD,
-        HEAD == "res" ? "$nin → 256 → 128 → 64 ⊕ $nin = $(64+nin) → $np" :
-                        "$nin → 512 → 128 → 64 → $np",
+        HEAD == "res"  ? "$nin → 256 → 128 → 64 ⊕ $nin = $(64+nin) → $np" :
+        HEAD == "fine" ? "$nin → 256 → 256 → $np" :
+                         "$nin → 512 → 128 → 64 → $np",
         sum(length, Flux.trainables(m)))
 opt = Flux.setup(Flux.Adam(1f-3), m); n = size(Xg, 2)
 out = Dict{Int,Matrix{Float32}}()
@@ -78,8 +110,8 @@ d.preds[NAME] = out
 serialize(joinpath(FIG, "predictions.jls"), d)
 
 # ── the table, every arm at every snapshot epoch, from one run on identical data
-arms = ["our CNN (end to end)", "our features (31)", "our features deep (31)",
-        "ours res 256-128-64+skip", "frozen ConvNeXt (1024)"]
+arms = ["our CNN (end to end)", "our features (31)", "ours + fine λ=8 (41)",
+        "our features deep (31)", "ours res 256-128-64+skip", "frozen ConvNeXt (1024)"]
 r2of(ŷ, y) = 1 - sum(abs2, ŷ .- y)/sum(abs2, y .- mean(y))
 for e in SNAPS
     @printf("\nepoch %d\n%-26s", e, "arm")

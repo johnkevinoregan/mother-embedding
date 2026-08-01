@@ -68,6 +68,10 @@ const CFGS = [
                              betas=[2.0,1.6,1.2], d_factors=(1.0,), cross_scale=:ratio)),
     ("adopted+xscale",      (nori=[8,12,16], dts=0.75, harmonics=(2,4,6,8), ladder=[2.0,3.742,7.0],
                              betas=[2.0,1.6,1.2], d_factors=(0.5,1.0,2.0), cross_scale=:both)),
+    # the fourth oriented scale at λ = 8 px — see Add_DeepHead.jl HEAD=fine
+    ("fine λ=8",            (nori=[8,12,16,20], dts=0.75, harmonics=(2,4),
+                             ladder=[2.0,3.742,7.0,14.0], betas=[2.0,1.6,1.2,1.0],
+                             d_factors=(1.0,), cross_scale=:none)),
     ("scales 5",            (nori=[8,10,12,14,16], dts=0.75, harmonics=(2,4),
                              ladder=[2.0,2.86,3.742,5.1,7.0], betas=[2.0,1.85,1.6,1.4,1.2],
                              d_factors=(1.0,), cross_scale=:none)),
