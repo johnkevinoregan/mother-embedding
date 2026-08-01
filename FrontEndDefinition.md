@@ -39,8 +39,47 @@ E_lp(p)     =  | F⁻¹[ F[I] · G_lp ] (p) |²
 ```
 
 `E_{s,k}(p)` is the **filter response at a pixel**: how strongly a stroke of size `λ_s` running in
-direction `θ_{s,k}` is present at `p`. `G` is one-sided in frequency, which makes `r` the analytic
-signal, so `E` is exactly the squared envelope and is unchanged if the image contrast is inverted.
+direction `θ_{s,k}` is present at `p`.
+
+#### Why `r` is complex, and why that matters
+
+For a **real** image the Fourier transform is redundant: the value at frequency `−f` is the complex
+conjugate of the value at `+f`, so the negative half of the frequency plane mirrors the positive
+half and carries nothing new.
+
+An ordinary filter — one you could write down as a real array of numbers in the image — keeps
+**both** halves and produces a real output. `G_{s,k}` is **one-sided**: it is zero on one half of
+the frequency plane and keeps only the other, which is why `r` comes out complex. The half is
+picked by direction, in `GaborStack.module.jl`:
+
+```julia
+dφ      = atan(sin(PHI - θ0), cos(PHI - θ0))
+angular = abs(dφ) > π/2 ? 0.0 : exp(-dφ^2 / (2σφ^2))
+```
+
+— zero wherever the frequency's direction is more than 90° away from `θ0`.
+
+The complex result is the **analytic signal**, Gabor's own term from 1946. In polar form
+`r(p) = a(p)·exp(i·ϕ(p))`, its modulus `a(p) = |r(p)|` is the **envelope** — how much of that
+frequency band is present — and `ϕ(p)` is the **local phase**, whereabouts you sit within the
+oscillation.
+
+Three consequences, and all three are load-bearing:
+
+**`|r|` does not oscillate.** A real bandpass filter's output swings positive and negative as the
+underlying wave rises and falls, so "how much structure is here" flickers with exactly where you
+sample. `|r|` is the smooth outline of that swing rather than the swing itself.
+
+**Exact quadrature, for free.** The classic construction uses two filters — an even-symmetric one
+responding to bar-like features and an odd-symmetric one responding to edge-like features, 90° out
+of phase — and forms `even² + odd²`. Here `Re(r)` *is* the even response and `Im(r)` *is* the odd
+one, exactly 90° apart by construction, rather than approximately so because two spatial kernels
+were built separately and hoped to match.
+
+**Contrast-polarity invariance is exact.** Invert the image, `I → −I`, and `r → −r`, so `E = |r|²`
+is identically unchanged. Not approximately — identically. This is the property behind the
+front end scoring −0.06 on polarity and transferring intact across a polarity flip, where frozen
+ConvNeXt reads polarity at 0.998 and collapses.
 
 ### Averaging
 
