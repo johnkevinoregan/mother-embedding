@@ -1286,3 +1286,120 @@ Also unqueued, and worth trying together:
 * **max applied to the remaining blocks** — `C₀` and `lowpass` are trivial; the ray *ratios* need
   the value at the argmax of `c₀` rather than a max of the ratio; the orientation harmonics have
   no per-pixel map to max, because `assemble` pools before forming them.
+
+---
+
+## Summarising a map: what we do now, and what else we could do
+
+*Written out at length because the spatial max turned out to matter more than expected, and the
+same reasoning applies to several other places in the front end that still use averages.*
+
+### The problem every summary is solving
+
+The front end measures things **at every pixel**. On a 112×112 image that is 12,544 numbers per
+map, and there are dozens of maps — one per orientation per scale, plus a corner map, a stroke-end
+map, and the ray maps. Handing all of that to a readout is hopeless, so each map gets **squeezed
+down to a single number** (or nine, on a 3×3 grid).
+
+**Until now that squeeze has always been an average.** Every one of them.
+
+An average answers one question: *"across the whole picture, how much of this is there?"* That is
+the right question for some properties and the wrong question for others, and nothing in the front
+end could ask a different one.
+
+### Two things an average throws away
+
+**It dilutes anything that happens in only a few places.** A 3-pixel gap in a 68-pixel stroke makes
+the stroke-end detector fire hard at two points and do nothing anywhere else. Average that over
+12,544 pixels and a large response at two of them becomes a rounding error — sitting on top of the
+response from the stroke's own two ends, which are always there. The smaller the gap, the more
+hopeless the ratio. That is the "dead zone" visible in the brokenness scatters, where predictions
+stay pinned near zero until the gap is fairly large.
+
+**It multiplies in how much stroke is in the picture.** This one is subtler and turned out to be
+the bigger problem. Take two images with *identical* local structure — same width, same sharpness —
+but one has a long stroke and the other a short one. The long one covers more pixels, so its
+average is higher, purely because more of the image is stroke. Every averaged feature is therefore
+reporting **local structure × how much ink there is**, mixed together, with no way for the readout
+to separate them. Since thickness correlates strongly with ink coverage, the features meant to
+report thickness were partly reporting stroke length instead.
+
+A **maximum** fixes both at once. It asks *"is there a strong response anywhere?"* — which does not
+care how much of the rest of the image is blank, and does not dilute a small bright spot.
+
+---
+
+### Where the front end still uses averages, and what a max would mean there
+
+**Already done** — max of the corner detector `A₁`, the stroke-end detector `A₂`, and the branch
+count `c₀`, one per scale. Nine numbers. This is what produced the gains above.
+
+**Trivial to add next.**
+
+* **Total oriented energy** (`C₀`) — currently "how much oriented structure on average". A max
+  would say **"how strong is the strongest piece of structure anywhere"**, which is a much more
+  direct read of local contrast and stroke width, and is not diluted by empty background.
+* **The lowpass channel** — the blurred, non-oriented channel carrying overall brightness. A max
+  would report the strongest local departure from the background rather than the average one.
+
+**Needs care: the ray ratios.** The ray block reports `c₀` (roughly, how many branches leave this
+point) and two *ratios*, `|c₁|/c₀` and `|c₂|/c₀`, describing how lopsided the branching is. A
+ratio is only meaningful where there is something to divide — where `c₀` is small, the ratio is
+noise. **Taking the maximum of a ratio would therefore find the emptiest, noisiest patch of
+background in the image**, which is exactly the bug Phase 9 fixed once already. The correct version
+is to find **where `c₀` is largest and report the ratio at that place** — locate the strongest
+junction, then describe it.
+
+**Needs a design change: the orientation summary.** The `orient` block reports which directions
+carry energy, as a handful of harmonic numbers per cell. But it computes those numbers **from the
+already-averaged energies** — average first, then summarise the directions. So there is no
+per-pixel "direction summary" map lying around to take a maximum of. Producing one means computing
+the direction summary at every pixel and *then* squeezing it, which is a real change to how the
+block works.
+
+It is also worth doing for a reason beyond the max. **The whole conjunction layer exists because
+combining before averaging is not the same as averaging before combining** — that difference is
+the co-location signal `A₁` was built to capture. The `orient` block does the second ordering for
+its own harmonics, and nobody has ever compared it against the first. Both are defensible; only
+one has been measured.
+
+---
+
+### Three alternatives to a max, and why each might be better
+
+**1. Divide the coverage back out.** If the diagnosis is right — that an average is *structure ×
+ink coverage* — then the direct fix is to divide by the coverage rather than dodge it:
+
+```
+average corner strength  ÷  average total energy      =  "corner strength per unit ink"
+```
+
+This removes the confound explicitly, and unlike a max it keeps the averaging, so it is far
+steadier — a max can be set by one odd pixel, an average cannot. **The machinery already exists**:
+this is precisely the divide-after-averaging fix applied to the ray ratios in Phase 9. It was
+simply never applied to the corner and stroke-end detectors. Of everything on this list, this is
+the one I would try first.
+
+**2. Unevenness across the image.** How *variable* is the map, rather than how large? An unbroken
+stroke produces a smooth, even stroke-end map; a broken one produces the same map with **two extra
+isolated spikes**. That difference is enormous in the variability and small in both the average and
+the maximum. For gap detection specifically this looks like the natural measurement, and it is the
+one I would expect to move brokenness — the single row nothing has shifted.
+
+**3. A high percentile instead of the outright maximum.** The maximum is the single most extreme
+pixel in the image, so one strange pixel — a rasterisation artefact, a filter ringing at the
+border — sets the value. Asking instead for the **95th or 99th percentile** ("how strong are the
+strongest few percent") is nearly as sensitive to a local event and much harder to fool. Worth
+having as a robustness check on the max results above, since those are currently taking the
+literal maximum.
+
+**And a fourth, different in kind: counting.** *"How many places have a strong response?"* — rather
+than how strong, or how uneven. That is much closer to what some of the properties actually are:
+arm count is literally a count of branches, and brokenness is about whether there are two extra
+stroke-ends. Neither an average nor a maximum can express "there are two of these"; a
+count-above-threshold can. This has never been tried and is cheap.
+
+**The general point.** The front end currently has exactly one way of turning a map into a number.
+Every property is read through that single lens, whether or not it suits them. Adding two or three
+more summaries costs a handful of features and lets the readout pick whichever one matches each
+property — and the evidence so far is that they match different ones.
