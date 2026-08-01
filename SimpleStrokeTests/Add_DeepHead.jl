@@ -27,7 +27,10 @@ const DATA  = joinpath(@__DIR__, "..", "ConVNextTest", "data")
 const CACHE = joinpath(@__DIR__, "..", "ConVNextTest", "cache")
 const FIG   = joinpath(@__DIR__, "figures_predictions")
 const NTR, NTE = 16000, 4000
-const NAME  = "our features deep (31)"
+# Which head to add. Generalised rather than copied into a second script, so the two variants
+# cannot drift apart in the parts that are meant to be identical.
+const HEAD  = get(ENV, "HEAD", "deep")
+const NAME  = HEAD == "res" ? "ours res 256-128-64+skip" : "our features deep (31)"
 
 d = deserialize(joinpath(FIG, "predictions.jls"))
 PROPS, SNAPS, Yte = d.props, d.snaps, d.Yte
@@ -44,10 +47,22 @@ Ftr, Fte = deserialize(joinpath(CACHE, "ours_g1_iid_$(NTR)_$(NTE).jls"))
 Random.seed!(1)
 dev = CUDA.functional() ? gpu : cpu
 Xg = dev(permutedims(A[tr, :])); Tg = dev(permutedims(T)); Yg = dev(permutedims(Zt))
-m = Chain(Dense(size(A,2) => 512, relu), Dense(512 => 128, relu),
-          Dense(128 => 64, relu), Dense(64 => np)) |> dev
-@printf("head: %d → 512 → 128 → 64 → %d   (%d parameters)\n",
-        size(A,2), np, sum(length, Flux.trainables(m)))
+nin = size(A, 2)
+m = if HEAD == "res"
+    # SkipConnection(f, vcat) computes vcat(f(x), x), so the trunk's 64 activations arrive at
+    # the output layer alongside the raw `nin` features — 64 + 31 = 95 inputs. The output layer
+    # can therefore express a linear readout of the features plus a nonlinear correction, rather
+    # than having to rebuild the linear part through three ReLU layers.
+    trunk = Chain(Dense(nin => 256, relu), Dense(256 => 128, relu), Dense(128 => 64, relu))
+    Chain(SkipConnection(trunk, vcat), Dense(64 + nin => np))
+else
+    Chain(Dense(nin => 512, relu), Dense(512 => 128, relu),
+          Dense(128 => 64, relu), Dense(64 => np))
+end |> dev
+@printf("head %s: %s   (%d parameters)\n", HEAD,
+        HEAD == "res" ? "$nin → 256 → 128 → 64 ⊕ $nin = $(64+nin) → $np" :
+                        "$nin → 512 → 128 → 64 → $np",
+        sum(length, Flux.trainables(m)))
 opt = Flux.setup(Flux.Adam(1f-3), m); n = size(Xg, 2)
 out = Dict{Int,Matrix{Float32}}()
 t = @elapsed for e in 1:maximum(SNAPS)
@@ -63,7 +78,8 @@ d.preds[NAME] = out
 serialize(joinpath(FIG, "predictions.jls"), d)
 
 # ── the table, every arm at every snapshot epoch, from one run on identical data
-arms = ["our CNN (end to end)", "our features (31)", NAME, "frozen ConvNeXt (1024)"]
+arms = ["our CNN (end to end)", "our features (31)", "our features deep (31)",
+        "ours res 256-128-64+skip", "frozen ConvNeXt (1024)"]
 r2of(ŷ, y) = 1 - sum(abs2, ŷ .- y)/sum(abs2, y .- mean(y))
 for e in SNAPS
     @printf("\nepoch %d\n%-26s", e, "arm")

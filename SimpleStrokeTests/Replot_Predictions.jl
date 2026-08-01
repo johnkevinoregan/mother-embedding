@@ -28,7 +28,7 @@ const MINN  = 20        # a bin needs this many points before its median is draw
 d = deserialize(joinpath(FIG, "predictions.jls"))
 preds, Yte, PROPS, SNAPS = d.preds, d.Yte, d.props, d.snaps
 const ARMS = ["our CNN (end to end)", "our features (31)", "our features deep (31)",
-              "frozen ConvNeXt (1024)"]
+              "ours res 256-128-64+skip", "frozen ConvNeXt (1024)"]
 
 """
 Binned median and quartiles of `ŷ` against `y`.
