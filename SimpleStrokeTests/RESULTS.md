@@ -1408,45 +1408,100 @@ property — and the evidence so far is that they match different ones.
 
 ## Every feature, and exactly how it is computed
 
-*Two terms, defined once, and then no others.*
+Two terms, defined once, and then no others.
 
-**Filter response at a pixel** — for each *direction* (8–16 of them) and each *size* (3 filter
+**Filter response at a pixel.** For each *direction* (8–16 of them) and each *size* (3 filter
 sizes), a number at every pixel saying how strongly a stroke of that size, running in that
 direction, is present there. Always zero or positive. Everything below is built from these.
 
-**Average over the picture** — add the value at every pixel, weighted by a smooth window, and
+**Average over the picture.** Add the value at every pixel, weighted by a smooth window, and
 divide by the total weight. At grid 1 the window covers the whole image, so it really is the
 average over the picture. This is the step called *pooling* elsewhere in these notes.
 
-### The 31 baseline features
+### Summary
 
-| # | feature | what it is meant to mean | exactly how it is computed, in order | ordering |
-|--:|:--|:--|:--|:--|
-| 15 | **orientation summary** (5 × 3 sizes) | how much structure there is, and which directions it runs in | **1.** average each direction's response over the picture → one number per direction. **2.** add those up → *total*; report **√total**. **3.** combine the same averages with weights going round twice per full turn → a two-lobed direction summary; **divide by *total***; report its two parts and its size. **4.** same with weights going round four times; report its size only. | **average first, combine second** |
-| 1 | **overall brightness** | how much the picture departs from flat grey | **1.** blur the picture heavily. **2.** average over the picture. **3.** report the square root. | average is the whole thing |
-| 3 | **corner strength `A₁`** (1 × 3 sizes) | are two directions at right angles present **at the same pixel** | **1.** at each pixel multiply each direction's response by the response at right angles to it, and add the products. **2.** at each pixel divide by the sum of all direction responses there. **3.** subtract a fixed known amount — what a plain straight line produces anyway — and clamp at zero. **4.** average over the picture; report the square root. | **multiply first, average last** |
-| 3 | **stroke-end strength `A₂`** (1 × 3 sizes) | does the stroke stop here | **1.** at each pixel find the strongest direction. **2.** look a fixed distance forward and backward *along* the stroke and read that direction's response at both places. **3.** take the size of the difference, divided by their sum plus a stabiliser. **4.** multiply by the response at the pixel itself. **5.** average over the picture; report the square root. | **compare first, average last** |
-| 9 | **branching** (3 × 3 sizes) | how many strokes leave this point, and how lopsidedly | **1.** at each pixel step out a fixed distance in many directions and read the response there — a ring of values. **2.** three summaries of that ring: its total, and how much it varies once and twice around the circle. **3.** average each of the three over the picture **separately**. **4.** report the averaged total raw, and the other two **divided by the averaged total** plus a small floor. | **average first, divide second** |
+| block | how many | what it is meant to mean | ordering |
+|:--|--:|:--|:--|
+| orientation summary | 15 | how much structure, and which directions it runs in | average first, combine second |
+| overall brightness | 1 | how far the picture departs from flat grey | average is the whole thing |
+| corner strength | 3 | two directions at right angles at the same pixel | combine first, average last |
+| stroke-end strength | 3 | does the stroke stop here | combine first, average last |
+| branching | 9 | how many strokes leave this point, how lopsidedly | average first, divide second |
+| **strongest-anywhere** | **9** | the same three things, but peak instead of average | **max instead of average** |
 
-### The 9 added by the spatial max
+Baseline total 31; with the strongest-anywhere numbers, 40.
 
-| # | feature | how it is computed | difference |
-|--:|:--|:--|:--|
-| 3 | strongest corner, per size | the **largest** value of the corner map anywhere in the picture | max instead of average |
-| 3 | strongest stroke-end, per size | the **largest** value of the stroke-end map anywhere | max instead of average |
-| 3 | strongest branching, per size | the **largest** ring-total anywhere | max instead of average |
+### Orientation summary — 5 numbers per size
+
+1. Average each direction's response over the picture. One number per direction.
+2. Add those up. Call it the **total**. Report the square root of it.
+3. Combine the same averages again, weighting them by how far round the circle each direction
+   sits, going round **twice** per full turn. This gives a two-lobed description of which
+   directions dominate. Divide it by the total, and report its two parts and its overall size.
+4. Do the same with weights going round **four** times. Report only its size.
+
+### Overall brightness — 1 number
+
+1. Blur the picture heavily, keeping no direction information.
+2. Average that over the picture.
+3. Report the square root.
+
+### Corner strength — 1 number per size
+
+1. At each pixel, multiply each direction's response by the response at right angles to it, and
+   add up all those products.
+2. At each pixel, divide by the sum of all the direction responses there.
+3. Subtract a fixed known amount — what a plain straight line produces anyway — and clamp at zero.
+4. Average over the picture. Report the square root.
+
+### Stroke-end strength — 1 number per size
+
+1. At each pixel, find which direction responds most strongly.
+2. Step a fixed distance forward and backward *along* the stroke, and read that same direction's
+   response at both places.
+3. Take the size of the difference between forward and backward, divided by their sum plus a
+   small stabiliser.
+4. Multiply by the response at the pixel itself.
+5. Average over the picture. Report the square root.
+
+### Branching — 3 numbers per size
+
+1. At each pixel, step out a fixed distance in many directions and read the response there. This
+   gives a ring of values around the pixel.
+2. Take three summaries of that ring: its **total**, and how much it varies **once** and **twice**
+   around the circle.
+3. Average each of those three over the picture **separately**.
+4. Report the averaged total as it is. Report the other two **divided by the averaged total**,
+   plus a small floor to keep the division safe.
+
+### Strongest-anywhere — 3 numbers per size
+
+1. Take the corner map, the stroke-end map, or the ring-total map, exactly as built above.
+2. Instead of averaging it, take its **largest** value anywhere in the picture.
 
 ### What the ordering column is saying
 
-Three blocks **combine at the pixel and average afterwards** — corner strength, stroke-end
-strength, and the ring of branch values. That ordering is the project's central design claim:
-multiplying two things at a pixel and *then* averaging is not the same as averaging each and
-multiplying, and the difference is precisely the evidence that they happened *at the same place*.
+Three blocks **combine at the pixel and average afterwards**: corner strength, stroke-end
+strength, and the ring of branch values. That ordering is the project's central design claim.
+Multiplying two things at a pixel and then averaging is not the same as averaging each and then
+multiplying, and the difference between them is precisely the evidence that the two things
+happened *at the same place*.
 
-Two blocks do the **opposite**. The branching ratios divide only after averaging — a deliberate
-fix, because dividing at each pixel produced nonsense wherever there was nothing to divide. The
-orientation summary averages each direction first and combines afterwards, and that one has simply
-never been compared against the alternative.
+Two blocks do the opposite.
 
-And until this week **every one of them ended in an average**, which is what the spatial max
-changed.
+The **branching ratios** divide only after averaging. That was a deliberate fix: dividing at each
+pixel produced nonsense wherever there was nothing to divide, and averaging those nonsense values
+made the result depend on how much of the picture was blank.
+
+The **orientation summary** averages each direction first and combines afterwards. This one has
+never been compared against the alternative. It may well be right — a description of a region's
+average direction profile is a reasonable thing to want — but it is the same ordering the
+conjunction layer exists to avoid, and nobody has measured which is better.
+
+One more inconsistency worth knowing: **every block ends in a square root except branching**,
+whose total is reported raw and whose ratios could not sensibly take one. That difference caused a
+real error on 2026-07-31, when a hand-written copy of one operator omitted the square root the
+shared code applies and produced numbers that looked like a genuine effect.
+
+And until this week **every block ended in an average**, which is what the strongest-anywhere
+numbers changed.
