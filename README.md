@@ -10,8 +10,14 @@ Each pipeline stage is an independent module (`include("X.module.jl"); using .X`
 companion Pluto notebook for sanity-checking it in isolation.
 
 **Start with [`PHASES.md`](PHASES.md).** It maps the current line of work — what each phase
-asked, what it found, and what was later corrected. [`PROGRESS_2026-07-30.md`](PROGRESS_2026-07-30.md)
+asked, what it found, and what was later corrected. [`PROGRESS_2026-07-31.md`](PROGRESS_2026-07-31.md)
 is the latest narrative report; the earlier `PROGRESS_*.md` files carry the history.
+
+**Latest result.** A fine scale at λ = 8 px and a spatial **max** alongside the existing spatial
+means take the front end from 31 to 53 features and close most of the gap to a frozen ImageNet
+ConvNeXt — thickness 0.234 → 0.040, fuzziness 0.241 → 0.051. See
+[`SimpleStrokeTests/RESULTS.md`](SimpleStrokeTests/RESULTS.md) and the predicted-vs-true scatters
+in `SimpleStrokeTests/figures_predictions/`.
 
 ---
 

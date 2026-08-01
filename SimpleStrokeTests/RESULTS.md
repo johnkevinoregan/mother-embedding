@@ -1121,3 +1121,168 @@ the *edge profile* itself: phase congruency, or the energy ratio across the stro
 (curvedness/vangle versus brokenness/arms), ~54 features, and neither needs the extra channel cost.
 Then test whether `orient ×2` on top is worth 2× extraction for its robustness gain. Any winner
 must hold on the extrapolation splits, not just i.i.d.
+---
+
+# Improving the front end: a fine scale and a spatial max
+
+*Added 2026-07-31. Figures: `figures_predictions/pred_*.png` — predicted against true for
+seven properties, six arms, at epochs 5/15/25/35/60, with binned medians and IQR overlaid.
+Scripts: `Add_DeepHead.jl` (arms), `Plot_Predictions.jl` / `Replot_Predictions.jl` (figures).*
+
+Two changes to the front end, arrived at from opposite directions, which turn out to be additive.
+
+## Final table — ordinary test, epoch 60, 16,000 train / 4,000 test
+
+| arm | nfeat | curved | broken | closed | vangle | arms | thick | fuzzy | polarity |
+|:--|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| our CNN, end to end | — | 0.509 | 0.106 | 0.985 | 0.548 | 0.222 | 0.722 | 0.911 | 0.749 |
+| ours, baseline | 31 | 0.931 | 0.723 | **0.998** | 0.949 | 0.962 | 0.713 | 0.738 | −0.109 |
+| ours + λ=8 | 41 | 0.932 | 0.764 | 0.997 | 0.942 | 0.961 | 0.858 | 0.886 | −0.167 |
+| ours + λ=8,4 | 51 | 0.922 | 0.766 | **0.998** | 0.933 | 0.957 | 0.871 | 0.920 | −0.234 |
+| ours + spatial max | 40 | 0.937 | 0.743 | **0.998** | 0.954 | 0.966 | 0.826 | 0.853 | −0.138 |
+| **ours + λ=8 + spatial max** | **53** | **0.938** | **0.785** | 0.997 | **0.959** | **0.969** | **0.907** | **0.928** | −0.216 |
+| frozen ConvNeXt | 1024 | 0.981 | 0.854 | **0.998** | 0.970 | 0.985 | 0.947 | 0.979 | 0.996 |
+
+`polarity` is the row where **low is the goal** — our features are built to carry no
+contrast-sign information, which is what lets them survive a polarity flip while the others
+collapse. It is not a loss.
+
+**Gap to frozen ConvNeXt, before and after:**
+
+| | 31 features | 53 features |
+|:--|--:|--:|
+| curvedness | 0.050 | 0.043 |
+| brokenness | 0.131 | **0.069** |
+| vangle | 0.021 | **0.011** |
+| arms | 0.023 | **0.016** |
+| **thickness** | 0.234 | **0.040** |
+| **fuzziness** | 0.241 | **0.051** |
+
+53 numbers with zero learned parameters, against 1024 numbers from 88.6 M parameters fitted to
+1.28 M photographs.
+
+---
+
+## Why the extra scale helped
+
+**The finest filter was too coarse to see an edge.** The ladder was λ = 56 / 29.9 / 16 px, with
+stroke widths of 3–12 px. The finest channel, at λ = 16 px with σ_x = 7.6 px, is *wider than most
+of the strokes it is looking at*. It can tell you a stroke is there and roughly how much energy it
+carries; it cannot resolve the stroke's own edge profile.
+
+**And that is exactly what separates thickness from blur.** A thick sharp stroke and a thin
+blurred one produce nearly identical responses in coarse channels — both dump energy at low
+spatial frequency. What distinguishes them is what happens at *fine* scales: a sharp edge has
+energy there and a soft one does not. With no channel finer than 16 px, the two were mapped to
+overlapping regions of feature space — a **degeneracy**, distinct causes giving the same
+measurement. The readout compensated with a rule calibrated on the training range, which is why
+the failure appeared under changed conditions (thickness → −2.06 when trained sharp and tested
+blurred) rather than as poor ordinary accuracy.
+
+λ = 8 px (ρ = 14, σ_x = 4.5 px) is the first channel small enough to sit *inside* a stroke and
+report on its edge. Result: thickness +0.145, fuzziness +0.148 — the largest movement any change
+has produced on those rows.
+
+**λ = 8 is also where the ladder's own spacing points.** 56 / 29.9 / 16 has a ratio of 1.87 per
+step, so the next rung is 8.55 px. This is an extension of the existing geometric progression, not
+a new kind of thing wedged in.
+
+**λ = 4 was tried too** and adds essentially nothing beyond λ = 8 on brokenness (+0.002 after
++0.041), though it keeps helping fuzziness (+0.034). Below λ = 8 there is little left to see: the
+generator's sharpest edge is a 0.8 px ramp, so the extra channels are resolving detail the stimuli
+do not contain.
+
+**Caveat for other datasets.** λ = 8 is real signal here because these images are natively 112 px.
+EMNIST and Fashion-MNIST are 28×28 upsampled 4×, so λ = 8 sits exactly at their original Nyquist
+limit and would mostly measure bilinear interpolation. Not a safe default without checking.
+
+---
+
+## Why the spatial max helped
+
+**Every spatial statistic in this front end was a weighted mean.** No max, no quantile, nothing
+sparse, anywhere.
+
+**A mean of an energy-like map is roughly `signal strength × ink coverage`.** Half of a 112×112
+image containing a stroke will have a mean roughly twice that of an image where a quarter does,
+*even if the local structure is identical*. So every pooled feature silently multiplied "how
+strong is the local structure" by "how much stroke is in the frame".
+
+**That is a confound for exactly the properties that were failing.** Thickness correlates strongly
+with ink coverage — a thicker stroke covers more pixels — so the mean-pooled features were
+reporting a mixture of local structure and global coverage, and the readout could not separate
+them. A max reports **peak local structure regardless of how much stroke there is**, removing the
+coverage factor entirely.
+
+Result, with no new filters at all: thickness +0.113, fuzziness +0.115, and small gains on every
+other row — about 78 % of what the extra scale bought, for **nine numbers and no extra extraction
+cost**.
+
+**This is the same bug the project already found once and misdiagnosed.** Phase 9 discovered that
+the ray ratios were being formed per pixel and averaged, so the pooled value scaled with ink
+coverage, and fixed it by pooling numerator and denominator separately. That was recorded as a
+property of *bounded ratios*. It was never specific to ratios — **it affects every mean-pooled
+feature in the front end**, and went unnoticed for two years because there was no max to compare a
+mean against.
+
+**Why a max and not a finer grid.** A finer pooling grid also localises the signal, but it makes
+the representation translation-variant, and stroke position is randomised here — which is why grid
+3 and grid 5 score *worse* than grid 1 on every property. A spatial max is local **and**
+translation invariant, which is the combination a grid cannot provide.
+
+**It also explains how frozen ConvNeXt copes with global average pooling.** Its late units are
+sparse and selective, so a unit's spatial mean already behaves like a detector. `A₁` and `A₂` are
+dense energy-like maps whose mean is dominated by everything that is *not* the feature of
+interest. Same pooling operation, very different consequences, depending on what is pooled.
+
+---
+
+## Why they add rather than overlap
+
+The two fixes are different in kind, and the numbers show it. On brokenness the combination is
+almost exactly the sum of the parts — `0.723 + 0.041 + 0.020 = 0.784` against **0.785** measured.
+
+* The **fine scale adds information** the bank could not previously see: no filter was small
+  enough to resolve an edge, so that measurement did not exist.
+* The **spatial max stops discarding information** that was already there: the maps contained the
+  signal, and the mean was averaging it away against a coverage-dependent background.
+
+One extends what is measured; the other extracts what was measured more faithfully. There is no
+reason for them to overlap, and empirically they do not.
+
+---
+
+## What is still unexplained: brokenness
+
+Gap detection is the one row nothing has properly moved. It sits at 0.785 against ConvNeXt's
+0.854, and the binned medians show every arm — ConvNeXt included — with a **dead zone** below a
+true brokenness of about 0.4, where predictions stay pinned near zero. ConvNeXt lifts off roughly
+one bin earlier than we do (0.233 at true 0.46, where we read 0.095).
+
+Three candidates have been eliminated or nearly so:
+
+| candidate | evidence |
+|:--|:--|
+| wavelength | two halvings of λ gave **+0.041 then +0.002** — exhausted |
+| pooling statistic | spatial max gave only **+0.020** |
+| pooling grid | finer grids make it **worse** (0.737 → 0.592 → 0.560), though confounded with translation variance |
+
+**The live candidate is `σ_along`** — the filter's extent *along* the contour, which is what
+bridges a gap. It has barely shrunk as scales were added, because `n_orient` rises with `ρ` and
+fights the reduction: `σ_along = W·n·dts/(2π²ρ)`, so λ fell 14× across the ladder while σ_along
+fell only 4.7× (17.0 → 3.6 px). At λ = 8 the filter still reaches 6.1 px along the stroke, and a
+gap shorter than that is bridged whatever the wavelength.
+
+**A free test:** hold the ladder fixed and use `nori = [8,12,16,8]`. Same wavelengths, same σφ,
+same feature count, but σ_along at the finest scale drops from 9.7 px to about 2.4 px.
+
+Also unqueued, and worth trying together:
+
+* **spatial variance** as a third summary — a broken stroke's `A₂` map is two isolated spikes and
+  an unbroken one's is not, so unevenness is a more natural gap detector than either mean or max;
+* **coverage-normalised means**, `mean(A₂)/mean(C₀)` — the same pool-then-divide the ray block
+  already uses, applied to the conjunction layer. More robust than a max, and it removes the
+  confound explicitly rather than sidestepping it;
+* **max applied to the remaining blocks** — `C₀` and `lowpass` are trivial; the ray *ratios* need
+  the value at the argmax of `c₀` rather than a max of the ratio; the orientation harmonics have
+  no per-pixel map to max, because `assemble` pools before forming them.
