@@ -31,7 +31,10 @@ const NTR, NTE = 16000, 4000
 # cannot drift apart in the parts that are meant to be identical.
 const HEAD  = get(ENV, "HEAD", "deep")
 const NAME  = HEAD == "res"  ? "ours res 256-128-64+skip" :
-              HEAD == "fine" ? "ours + fine λ=8 (41)" : "our features deep (31)"
+              HEAD == "fine"  ? "ours + fine λ=8 (41)" :
+              HEAD == "ultra" ? "ours + λ=8,4 (51)" :
+              HEAD == "smax"  ? "ours + spatial max (40)" :
+              HEAD == "both"  ? "ours + λ=8 + smax (53)" : "our features deep (31)"
 
 d = deserialize(joinpath(FIG, "predictions.jls"))
 PROPS, SNAPS, Yte = d.props, d.snaps, d.Yte
@@ -50,14 +53,26 @@ nva = NTR ÷ 6; tr = 1:NTR-nva; va = NTR-nva+1:NTR
 # Fashion-MNIST, which are 28×28 upsampled 4×, λ = 8 sits exactly at the original Nyquist and
 # would mostly measure bilinear interpolation — so this scale should not be made a default
 # without checking per dataset.
-Ftr, Fte = if HEAD == "fine"
-    ck = joinpath(CACHE, "ours_fine_g1_iid_$(NTR)_$(NTE).jls")
+Ftr, Fte = if HEAD in ("fine", "ultra", "smax", "both")
+    # `ultra` adds a FIFTH oriented scale at λ = 4 px (ρ = 28). Still well clear of Nyquist —
+    # these images are natively 112 px, so the limit is λ = 2 — but close to the point where the
+    # generator's own sharpest edge (a 0.8 px ramp) is all there is to see.
+    ck = joinpath(CACHE, "ours_$(HEAD)_g1_iid_$(NTR)_$(NTE).jls")
     if isfile(ck)
         deserialize(ck)
     else
         include(joinpath(@__DIR__, "Frontend.module.jl"))
-        sp = Main.Frontend.build_frontend(112; grid=1, ladder=[2.0, 3.742, 7.0, 14.0],
-                                          betas=[2.0, 1.6, 1.2, 1.0], nori=[8, 12, 16, 20])
+        lad, bet, nori_ = HEAD == "ultra" ?
+            ([2.0, 3.742, 7.0, 14.0, 28.0], [2.0, 1.6, 1.2, 1.0, 0.9], [8, 12, 16, 20, 24]) :
+            HEAD == "smax" ?
+            ([2.0, 3.742, 7.0], [2.0, 1.6, 1.2], [8, 12, 16]) :
+            HEAD == "both" ?
+            ([2.0, 3.742, 7.0, 14.0], [2.0, 1.6, 1.2, 1.0], [8, 12, 16, 20]) :
+            ([2.0, 3.742, 7.0, 14.0],       [2.0, 1.6, 1.2, 1.0],      [8, 12, 16, 20])
+        # `smax` keeps the ORIGINAL three-scale ladder and changes only the spatial summary, so it
+        # isolates mean-vs-max from every wavelength change.
+        sp = Main.Frontend.build_frontend(112; grid=1, ladder=lad, betas=bet, nori=nori_,
+                                          spatial_max = HEAD in ("smax", "both"))
         @printf("fine bank: %d features, %d channels\n", sp.n, length(sp.bank.filters))
         rdimg(path, n) = (a = read!(open(path), Vector{Float32}(undef, n*112*112));
                           [permutedims(reshape(@view(a[(i-1)*112*112+1 : i*112*112]), 112, 112))
@@ -83,7 +98,7 @@ m = if HEAD == "res"
     # than having to rebuild the linear part through three ReLU layers.
     trunk = Chain(Dense(nin => 256, relu), Dense(256 => 128, relu), Dense(128 => 64, relu))
     Chain(SkipConnection(trunk, vcat), Dense(64 + nin => np))
-elseif HEAD == "fine"
+elseif HEAD in ("fine", "ultra", "smax", "both")
     # the standard head, so this arm isolates the REPRESENTATION change
     Chain(Dense(nin => 256, relu), Dense(256 => 256, relu), Dense(256 => np))
 else
@@ -92,7 +107,7 @@ else
 end |> dev
 @printf("head %s: %s   (%d parameters)\n", HEAD,
         HEAD == "res"  ? "$nin → 256 → 128 → 64 ⊕ $nin = $(64+nin) → $np" :
-        HEAD == "fine" ? "$nin → 256 → 256 → $np" :
+        HEAD in ("fine","ultra","smax","both") ? "$nin → 256 → 256 → $np" :
                          "$nin → 512 → 128 → 64 → $np",
         sum(length, Flux.trainables(m)))
 opt = Flux.setup(Flux.Adam(1f-3), m); n = size(Xg, 2)
@@ -111,7 +126,9 @@ serialize(joinpath(FIG, "predictions.jls"), d)
 
 # ── the table, every arm at every snapshot epoch, from one run on identical data
 arms = ["our CNN (end to end)", "our features (31)", "ours + fine λ=8 (41)",
-        "our features deep (31)", "ours res 256-128-64+skip", "frozen ConvNeXt (1024)"]
+        "ours + λ=8,4 (51)", "ours + spatial max (40)", "ours + λ=8 + smax (53)",
+        "our features deep (31)",
+        "ours res 256-128-64+skip", "frozen ConvNeXt (1024)"]
 r2of(ŷ, y) = 1 - sum(abs2, ŷ .- y)/sum(abs2, y .- mean(y))
 for e in SNAPS
     @printf("\nepoch %d\n%-26s", e, "arm")

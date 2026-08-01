@@ -71,6 +71,7 @@ struct FrontendSpec
     d_factors
     harmonics::Tuple
     cross_scale::Symbol
+    spatial_max::Bool
 end
 
 """
@@ -84,7 +85,7 @@ function build_frontend(N::Int; grid::Int=3, scale_mode::Symbol=:per_scale,
                         a1_floor::Symbol=A1_FLOOR,
                         ladder=LADDER, nori=NORI, betas=BETAS, dts::Real=0.75,
                         d_factors=(1.0,), harmonics::Tuple=(2, 4),
-                        cross_scale::Symbol=:none)
+                        cross_scale::Symbol=:none, spatial_max::Bool=false)
     # `ladder`/`nori`/`betas`/`dts`/`d_factors` exist so the three capacity axes — scales,
     # orientations, ray offsets — can be swept. Defaults reproduce every published table.
     #
@@ -99,13 +100,13 @@ function build_frontend(N::Int; grid::Int=3, scale_mode::Symbol=:per_scale,
     HF, WF, _ = field_for((N, N), ladder; n_orient=nori, beta=betas, dtheta_on_sigma=dts)
     bank = make_bank((HF, WF), ladder; imwidth=N, n_orient=nori, beta=betas, dtheta_on_sigma=dts)
     wts  = grid_weights(N, N, grid)
-    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid, scale_mode, normalize, kappa, a1_floor, d_factors, harmonics, cross_scale)
-    FrontendSpec(bank, wts, lab, length(f), grid, scale_mode, normalize, kappa, a1_floor, d_factors, harmonics, cross_scale)
+    f, lab = _feat(zeros(Float32, N, N), bank, wts, grid, scale_mode, normalize, kappa, a1_floor, d_factors, harmonics, cross_scale, spatial_max)
+    FrontendSpec(bank, wts, lab, length(f), grid, scale_mode, normalize, kappa, a1_floor, d_factors, harmonics, cross_scale, spatial_max)
 end
 
 function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kappa=0.10f0,
                a1_floor=A1_FLOOR, d_factors=(1.0,), harmonics::Tuple=(2, 4),
-               cross_scale::Symbol=:none)
+               cross_scale::Symbol=:none, spatial_max::Bool=false)
     # Padding mode is `:replicate` by default in `energy_stack` — see the note on `embed`
     # in GaborStack. This wrapper previously subtracted the image median to work around
     # zero-padding breaking polarity invariance; the fix now lives in the front end itself,
@@ -227,6 +228,36 @@ function _feat(img, bank, wts, grid, scale_mode=:per_scale, normalize=:none, kap
             end
         end
     end
+    # ── SPATIAL MAX ────────────────────────────────────────────────────────────────────
+    # Every other statistic in this front end is a weighted spatial MEAN. That is the wrong
+    # summary for a **sparse local event**: a 3 px gap on a 68 px stroke fires `A₂` strongly at
+    # two pixels and near zero everywhere else, so its mean over the image is a tiny perturbation
+    # sitting on top of whatever A₂ does at the stroke's own two endpoints, which are always
+    # there. The smaller the gap, the more hopeless that ratio — which is exactly the dead zone
+    # seen in the brokenness scatters below true ≈ 0.4.
+    #
+    # A max is the natural summary for "is there a strong response ANYWHERE", and unlike a finer
+    # pooling grid it is **translation invariant**, so it does not pay the position-randomisation
+    # penalty that makes grid 3 lose to grid 1 on this dataset. Locality without position
+    # sensitivity is the combination the grid cannot give.
+    #
+    # It also explains how frozen ConvNeXt manages on global average pooling: its late units are
+    # sparse and selective, so their spatial mean already behaves like a detector. `A₂` is a dense
+    # energy-like map, where the mean is dominated by everything that is not a gap.
+    #
+    # `maximum` and not a high quantile: the A maps are pooled energies and already smooth, so a
+    # single hot pixel is unlikely, and a quantile would need a sort per map per image.
+    if spatial_max
+        for (k, l) in enumerate(al)
+            push!(fr, maximum(@view A[:, :, k]))
+            push!(lr, "smax.$(l.form).ρ$(round(l.rho0,digits=2))")
+        end
+        for ρ in sort(unique(l.rho0 for l in rl if l.form === :R0))
+            k0 = findfirst(l -> l.rho0 == ρ && l.form === :R0, rl)
+            push!(fr, maximum(@view Rm[:, :, k0]))
+            push!(lr, "smax.R0.ρ$(round(ρ,digits=2))")
+        end
+    end
     vcat(f1, fr), vcat(l1, lr)
 end
 
@@ -242,7 +273,7 @@ function featurize(imgs::Vector{Matrix{Float32}}, spec::FrontendSpec)
     Threads.@threads for i in eachindex(imgs)
         F[i, :] = _feat(imgs[i], spec.bank, spec.wts, spec.grid, spec.scale_mode,
                         spec.normalize, spec.kappa, spec.a1_floor, spec.d_factors,
-                        spec.harmonics, spec.cross_scale)[1]
+                        spec.harmonics, spec.cross_scale, spec.spatial_max)[1]
     end
     F
 end
