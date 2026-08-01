@@ -1,0 +1,22 @@
+Predicted vs true, 4000 test images, epochs 5/15/25/35/60
+
+  our features      18 s
+  frozen ConvNeXt    3 s
+      cnn epoch 10
+      cnn epoch 20
+      cnn epoch 30
+      cnn epoch 40
+      cnn epoch 50
+      cnn epoch 60
+  our CNN          115 s
+GKS: cannot open display - headless operation mode active
+  wrote pred_curvedness.png
+  wrote pred_brokenness.png
+  wrote pred_closedness.png
+  wrote pred_vangle.png
+  wrote pred_arms.png
+  wrote pred_thickness.png
+  wrote pred_fuzziness.png
+  Activating project at `~/claude-code/mother-embedding`
+
+wrote /home/kevin/claude-code/mother-embedding/SimpleStrokeTests/figures_predictions
