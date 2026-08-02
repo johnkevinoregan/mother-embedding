@@ -1,0 +1,42 @@
+front end: 381 features, 57 channels, grid 3
+
+  train   4000 / 112800     108 s
+  train   8000 / 112800     217 s
+  train  12000 / 112800     330 s
+  train  16000 / 112800     445 s
+  train  20000 / 112800     555 s
+  train  24000 / 112800     666 s
+  train  28000 / 112800     774 s
+  train  32000 / 112800     882 s
+  train  36000 / 112800     991 s
+  train  40000 / 112800    1099 s
+  train  44000 / 112800    1206 s
+  train  48000 / 112800    1314 s
+  train  52000 / 112800    1422 s
+  train  56000 / 112800    1529 s
+  train  60000 / 112800    1636 s
+  train  64000 / 112800    1743 s
+  train  68000 / 112800    1851 s
+  train  72000 / 112800    1957 s
+  train  76000 / 112800    2064 s
+  train  80000 / 112800    2171 s
+  train  84000 / 112800    2278 s
+  train  88000 / 112800    2385 s
+  train  92000 / 112800    2491 s
+  train  96000 / 112800    2597 s
+  train 100000 / 112800    2704 s
+  train 104000 / 112800    2811 s
+  train 108000 / 112800    2918 s
+  train 112000 / 112800    3025 s
+  train 112800 / 112800    3046 s
+train: 112800 × 381 in 3046 s (27.0 ms/img)
+
+  test   4000 /  18800     108 s
+  test   8000 /  18800     217 s
+  test  12000 /  18800     326 s
+  test  16000 /  18800     434 s
+  test  18800 /  18800     510 s
+  Activating project at `~/claude-code/mother-embedding`
+test: 18800 × 381 in 510 s (27.1 ms/img)
+
+done

@@ -1,0 +1,6 @@
+torch 2.13.0+cu126  device=cuda
+convnext_base: 88.6M params, stages [128, 256, 512, 1024]
+  train 112800 imgs   135.7 s (1.20 ms/img)
+  test   18800 imgs    23.3 s (1.24 ms/img)
+
+wrote /home/kevin/claude-code/mother-embedding/CurriculumEMNIST/cache

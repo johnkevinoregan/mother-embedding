@@ -1,0 +1,3 @@
+# ~1 GB of extracted features: reproducible from the two extraction scripts in a little
+# over an hour, and both are cached so re-running is a no-op once present.
+cache/

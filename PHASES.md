@@ -313,6 +313,41 @@ operator that already existed for this, makes it worse.
 
 ---
 
+## 13 — how much of the fit is memorised, and does the representation change that?
+
+`CurriculumEMNIST/`. EMNIST's training set cut into **4 disjoint subsets of 28,200**, with training
+switched to the next subset every 15 epochs and the optimiser never reset. The partition is
+i.i.d., so a learner that had extracted the task rather than memorised examples should not be able
+to tell the data changed — every discontinuity is a direct measurement of how much of the fit was
+example-specific, taken *during* training rather than inferred from a train/test gap.
+
+**Held-out accuracy walks straight through the switches**: +0.15 / −1.46 / −0.65 (ours) and
++0.34 / −0.24 / −0.43 (ConvNeXt) against a within-block noise floor of sd 0.51 / 0.54. On block
+means it rises monotonically across every switch. The discontinuity is entirely in the
+*training-set* curve, which drops ~7 points at each switch — memorisation made visible, and stable
+at 10–11 points across blocks.
+
+**Forgetting is a property of the readout, not the representation.** Subset 1's advantage over
+held-out decays 10.95 → 2.43 → 1.31 → 0.84 (ours) and 10.34 → 2.48 → 1.31 → 0.51 (ConvNeXt) —
+about 78 % released in the first 15 epochs after training leaves it, and the two arms agree to
+within 0.1 points after the first block. A 381-dimensional hand-designed vector and a
+1024-dimensional learned one are memorised and released on the same schedule. If more stable
+downstream learning is wanted, the front end is not the lever.
+
+**Switching beats not switching by ~1.4 points** for both arms; the no-switch controls peak near
+epoch 15–20 and then drift down overfitting the 28,200 examples they are stuck with.
+
+**Our 381 features beat frozen ConvNeXt's 1024** at every point on the curve (85.97 vs 85.70 at
+epoch 60). That is the opposite of Phase 11 — EMNIST is a line-drawing task at 28×28, which is what
+an oriented-energy front end is for, where Phase 11's stimuli were natively 112 px with graded
+photometric properties. The margin is under half a point on single seeds, so the honest reading is
+that the two are **equivalent here while ours uses 2.7× fewer numbers and no learned parameters**.
+
+Caveat on record: λ = 8 px sits at EMNIST's original Nyquist limit, so that channel largely
+measures bilinear interpolation here. The ablation without it has not been run.
+
+---
+
 ## The shape of it
 
 **0–4** establish that the operators do what they claim on synthetic ground truth. **5–7** ask
