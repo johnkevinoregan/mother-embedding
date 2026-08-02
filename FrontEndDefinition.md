@@ -249,69 +249,167 @@ describe a shape only crudely.
 
 ## 3. Corner strength $A_1$ — 1 number per scale per cell
 
-**Combine at the pixel, then average.** With $h = n_s/2$, shifting the direction index by $h$ is
-exactly a $90°$ turn; indices wrap modulo $n_s$.
+**The idea.** §1 asked which directions are present *in a region*. That cannot tell a corner from
+two separate strokes that happen to share a cell — both give a profile with two lobes. $A_1$ asks
+the stricter question: are two perpendicular directions present **at the same pixel**?
+
+**Combine at the pixel, then average.**
+
+### Step 1 — pair each direction with the one at right angles
+
+With $h = n_s/2$, shifting the direction index by $h$ moves $\theta$ by exactly $90°$, since
+$\theta_{s,k+h} = \theta_{s,k} + \tfrac{n_s}{2}\cdot\tfrac{\pi}{n_s} = \theta_{s,k} + \tfrac{\pi}{2}$.
+Indices wrap modulo $n_s$, and $n_s$ is even at every scale so the pairing is exact.
 
 ```math
 C_{0,s}(p) = \sum_{k=1}^{n_s} E_{s,k}(p)
 \qquad\qquad
-S_s(p) = \sum_{k=1}^{n_s} E_{s,k}(p) E_{s, k+h}(p)
+S_s(p) = \sum_{k=1}^{n_s} E_{s,k}(p)\, E_{s, k+h}(p)
 ```
 
+$C_0$ is the total energy at this pixel across all directions. $S$ is the sum of **products** of
+perpendicular pairs. Each pair appears twice, once from each end, so $S$ carries a factor of 2 —
+harmless, since it is a constant multiplier on the whole feature.
+
+**The product is the entire point.** $E_k E_{k+h}$ is large only if **both** factors are large.
+Adding them, $E_k + E_{k+h}$, would be large if *either* were — which a single straight line would
+satisfy. Multiplying demands both at once, at one pixel, which is what distinguishes a corner from
+a pair of strokes lying in the same neighbourhood.
+
+### Step 2 — normalise, and subtract the floor
+
 ```math
-A_{1,s}(p) = \max\left(0, \frac{S_s(p)}{C_{0,s}(p)} - c_s C_{0,s}(p)\right)
-\quad\text{if } C_{0,s}(p) > \varepsilon, \text{else } 0
+A_{1,s}(p) = \max\left(0,\; \frac{S_s(p)}{C_{0,s}(p)} \;-\; c_s\, C_{0,s}(p)\right)
+\qquad\text{if } C_{0,s}(p) > \varepsilon, \text{ else } 0
 ```
+
+**Why divide by $C_0$.** $S$ is a sum of products of energies, so it has units of energy *squared*
+and grows as the fourth power of image contrast. Dividing by $C_0$ brings it back to units of
+energy, matching $A_2$ and the orientation block, so the features stay on comparable scales and a
+doubling of contrast has a consistent effect across all of them.
+
+Writing $p_k = E_k / C_0$ for the normalised profile at that pixel makes the meaning plain:
+
+```math
+\frac{S_s(p)}{C_{0,s}(p)} \;=\; C_{0,s}(p) \sum_{k} p_k(p)\, p_{k+h}(p)
+```
+
+— that is, **the shape measure $\sum_k p_k p_{k+h}$ multiplied back by the total energy**. The shape
+measure alone would be meaningless where there is no ink, since a normalised profile of noise is
+still a profile. Multiplying by $C_0$ makes the result an energy, which is why averaging it is
+meaningful and why $0$ is the correct value in blank regions.
+
+**Why subtract $c_s C_0$.** A perfectly straight line should give $A_1 = 0$ and does not, because
+the channels have angular width and a line leaks into directions either side of its own. §7 derives
+the size of that leak in closed form: it is a fixed fraction $c_s$ of $C_0$, depending only on the
+bank's angular tuning and never on the image. Subtracting it and clamping at zero removes the floor
+exactly. The clamp is needed because $c_s$ is the *maximum* leak over line orientations, so at other
+orientations the subtraction slightly overshoots.
+
+### Step 3 — average and report
 
 ```math
 \text{feature} = \sqrt{\big\langle A_{1,s} \big\rangle_c}
 ```
 
-The product $E_k E_{k+h}$ is large only if **both** factors are large, which is what makes this a
-statement about a single pixel rather than about a region. Dividing by $C_0$ turns a squared
-quantity back into an energy. The $-c_s C_0$ term is the correction of §7.
+The square root converts energy to amplitude, matching $\sqrt{T}$ in §1.
+
+**What it cannot do.** $A_1$ is built on the orientation profile, which is $\pi$-periodic, so it
+cannot count branches. A T-junction and an X-crossing have identical direction content —
+$\{0°, 90°\}$ — and $A_1$ gives them the same answer. Distinguishing them is a $2\pi$ question, and
+that is what §5 exists for.
 
 ## 4. Stroke-end strength $A_2$ — 1 number per scale per cell
 
+**The idea.** Walk along a stroke and ask at each pixel: *does the stroke continue in both
+directions, or does it stop here?* In the middle of a stroke both sides look the same. At a
+termination one side has a stroke and the other has nothing. The asymmetry between the two sides is
+the signal.
+
 **Combine at the pixel, then average.**
 
+### Step 1 — find which way the stroke runs
+
 ```math
-k^{*}(p) = \arg\max_{k} E_{s,k}(p)
+k^{*}(p) = \arg\max_{k}\, E_{s,k}(p)
 \qquad\text{(ties resolve to the lowest } k)
 ```
 
 ```math
 \psi(p) = \theta_{s,k^{*}(p)} + \tfrac{\pi}{2}
 \qquad\qquad
-\mathbf{u}(p) = \big(\sin\psi(p), \cos\psi(p)\big)
+\mathbf{u}(p) = \big(\sin\psi(p),\, \cos\psi(p)\big)
 ```
 
-The stroke runs at right angles to the filter's carrier, so $\mathbf{u}$ points **along** it.
-Writing $e(p) = E_{s,k^{*}(p)}(p)$ and sampling bilinearly (zero outside the image),
+$\theta$ is the **carrier** direction — the direction in which the filter's stripes alternate, which
+is *across* the stroke, not along it. So the stroke itself runs at $\theta + 90°$, and $\mathbf{u}$
+is the unit step in that direction, written $(\Delta y, \Delta x)$ to match image indexing.
+
+**Why the single strongest direction, rather than all of them.** Taking a maximum over directions
+lets weakly-responding off-orientation channels contribute: their flanks are nearly empty, so their
+ratio below is ill-conditioned and produces spurious asymmetry. Restricting to the locally dominant
+channel — as an end-stopped cell in cortex does — gave a measured $10.4\times$ separation between a
+line end and a line interior, against $2.5\times$ for the maximum-over-directions version.
+
+### Step 2 — compare the two flanks
+
+With $e(p) = E_{s,k^{*}(p)}(p)$ the response at the pixel itself, and sampling bilinearly with zero
+outside the image,
 
 ```math
-E_{\pm}(p) = E_{s,k^{*}(p)}\big(p \pm d_s \mathbf{u}(p)\big)
+E_{\pm}(p) = E_{s,k^{*}(p)}\big(p \pm d_s\, \mathbf{u}(p)\big)
 ```
 
 ```math
-A_{2,s}(p) = e(p) \frac{\big|E_{+}(p) - E_{-}(p)\big|}{E_{+}(p) + E_{-}(p) + \kappa e(p)}
-\quad\text{if } e(p) > \varepsilon, \text{else } 0
+A_{2,s}(p) = e(p) \cdot \frac{\big|E_{+}(p) - E_{-}(p)\big|}{E_{+}(p) + E_{-}(p) + \kappa\, e(p)}
+\qquad\text{if } e(p) > \varepsilon, \text{ else } 0
 ```
+
+Both probes read **the same channel** $k^*$ as the centre pixel — the question is whether *this*
+stroke continues, not whether anything at all is over there.
+
+**The ratio.** In a stroke's interior $E_+ \approx E_-$, the numerator vanishes and $A_2 \approx 0$.
+At a termination one flank is empty, the numerator is as large as the denominator can make it, and
+the ratio approaches $1$. For an isolated blob *both* flanks are empty and it returns to $0$ — which
+is correct, since a blob is not a stroke end.
+
+**Why $\kappa e$ and not a fixed constant.** The denominator must be stabilised where both flanks
+are near zero. An absolute $\varepsilon$ there made the ratio saturate at $1$ wherever there was any
+energy at all, collapsing $A_2$ to a copy of plain energy. Scaling the stabiliser by the centre
+response instead means the conditioning is always in proportion to the signal, at every contrast.
+
+**Why the leading $e(p)$.** Without it $A_2$ would be a bare ratio, bounded and scale-free, and
+averaging it over a region would weight blank pixels as heavily as strong contours — the same defect
+that had to be fixed in §5. Multiplying by the centre response makes $A_2$ an energy, so its average
+is meaningful and $0$ is its correct value in blank regions.
+
+**Where the probe distance comes from.** $d_s = \gamma\,\sigma_{\parallel,s}$ places the flanks one
+along-contour envelope out, so they sit just beyond the filter's own excitatory region. A fixed
+pixel offset would be degenerate at coarse scales, where both flanks would fall inside a single
+envelope and the asymmetry would vanish by construction. This anchoring reproduces the published
+tables, but it is **not scale-free**: measured in dimensionless units the best offset tracks the
+stroke width rather than the filter's envelope, so `d_anchor = :structure` exists as the alternative
+for new datasets.
+
+### Step 3 — average and report
 
 ```math
 \text{feature} = \sqrt{\big\langle A_{2,s} \big\rangle_c}
 ```
 
-The ratio is $0$ where the stroke continues both ways and near $1$ at a termination. $\kappa e$ is a
-*relative* stabiliser: an absolute one collapsed $A_2$ to plain energy. The leading $e(p)$ makes the
-result an energy, so averaging it is meaningful.
-
 ## 5. Branching — 3 numbers per scale per cell
 
-**Average first, then divide.** With $K = 2 n_s$ probe directions,
+**The idea.** $A_1$ can say *two directions meet here* but not *how many strokes leave here*,
+because direction is $\pi$-periodic and a T and an X have identical direction content. Counting
+branches is a $2\pi$ question. The trick is to **step away from the point**: east and west read
+different pixels even though they are the same direction.
+
+**Average first, then divide.**
+
+### Step 1 — build a ring of probes
 
 ```math
-\varphi_j = \frac{2\pi (j-1)}{K}, \qquad j = 1 \dots K
+\varphi_j = \frac{2\pi (j-1)}{K}, \qquad j = 1 \dots K, \qquad K = 2 n_s
 \qquad\text{— a full turn, not a half turn}
 ```
 
@@ -321,20 +419,50 @@ result an energy, so averaging it is meaningful.
 ```
 
 ```math
-R_s(p, \varphi_j) = E_{s, \text{ch}(\varphi_j)}\Big(p + d_s\big(\sin\varphi_j, \cos\varphi_j\big)\Big)
+R_s(p, \varphi_j) = E_{s,\, \text{ch}(\varphi_j)}\Big(p + d_s\big(\sin\varphi_j,\, \cos\varphi_j\big)\Big)
 ```
 
-$R$ asks: *is there a contour at distance $d_s$ in direction $\varphi$, oriented along $\varphi$?*
-The spatial step is what recovers a full turn from directions that only span half of one — east and
-west read different pixels.
+$R$ asks: *is there a contour at distance $d_s$ in direction $\varphi$, and is it oriented along
+$\varphi$?* Both halves matter. Reading the response at an offset recovers the full turn; requiring
+the orientation there to match the direction of travel is what makes it a **branch** rather than any
+passing contour. The $+\tfrac{\pi}{2}$ in $\text{ch}$ converts a direction of travel into the
+carrier that a stroke running that way would excite.
+
+$R$ therefore has one lobe per branch leaving the point.
+
+### Step 2 — summarise the ring by its circular harmonics
 
 ```math
 a_{0,s}(p) = \sum_{j=1}^{K} R_s(p,\varphi_j)
 \qquad
-a_{1,s}(p) = \left|\sum_{j=1}^{K} R_s(p,\varphi_j) e^{ i\varphi_j}\right|
+a_{1,s}(p) = \left|\sum_{j=1}^{K} R_s(p,\varphi_j)\, e^{i\varphi_j}\right|
 \qquad
-a_{2,s}(p) = \left|\sum_{j=1}^{K} R_s(p,\varphi_j) e^{ i2\varphi_j}\right|
+a_{2,s}(p) = \left|\sum_{j=1}^{K} R_s(p,\varphi_j)\, e^{i2\varphi_j}\right|
 ```
+
+This is the same Fourier idea as §1, on the ring instead of the orientation profile — but here the
+domain really is a full $2\pi$, so the harmonics run in $\varphi, 2\varphi$ rather than
+$2\theta, 4\theta$.
+
+$a_0$ is the total, roughly proportional to how many branches there are. $a_1$ measures **one-sided
+asymmetry**: it is large when the branches are lopsided and zero when they balance. $a_2$ measures
+two-fold structure. Magnitudes are taken per pixel, so the phases — which depend on how the figure
+happens to be rotated — are discarded and what remains is rotation-invariant.
+
+Idealised values, for a point with $m$ equally spaced branches:
+
+| configuration | $a_0$ | $a_1/a_0$ | $a_2/a_0$ |
+|:--|--:|--:|--:|
+| endpoint, 1 branch | 1 | 1 | 1 |
+| straight line, 2 opposite | 2 | 0 | 1 |
+| corner, 2 branches at $90°$ | 2 | $1/\sqrt{2}$ | 0 |
+| T-junction, 3 branches | 3 | $1/3$ | $1/3$ |
+| X-crossing, 4 branches | 4 | 0 | 0 |
+
+The first column is the count; the two ratios are the type signature. Note that a straight line and
+an X-crossing agree on $a_1/a_0$ and differ only in $a_0$ — the count really is doing work.
+
+### Step 3 — average, then divide
 
 ```math
 f_s = 10^{-3}\cdot \frac{1}{n_c}\sum_{c} \big\langle a_{0,s} \big\rangle_c
@@ -349,12 +477,25 @@ f_s = 10^{-3}\cdot \frac{1}{n_c}\sum_{c} \big\langle a_{0,s} \big\rangle_c
 \frac{\big\langle a_{2,s}\big\rangle_c}{\big\langle a_{0,s}\big\rangle_c + f_s}
 ```
 
-The two ratios are formed **after** averaging, not per pixel. Per pixel they are bounded quantities
-with no limit as $a_0 \to 0$, so writing $0$ there asserted "perfectly symmetric" wherever there was
-no evidence, and averaging those zeros made the result scale with how much of the picture was blank.
+**The ordering here was a bug and is now the fix.** Forming $a_1/a_0$ at each pixel and averaging
+the result seems natural and is wrong. The ratio is a *bounded, scale-free* quantity with no limit
+as $a_0 \to 0$: where there is no contour, there is no asymmetry to measure, and any value written
+there is fiction. The original code wrote $0$, which asserts "perfectly symmetric" — a strong claim
+— at every blank pixel. Averaging those zeros then made the feature scale with **how much of the
+picture was blank**, so it reported ink coverage as much as branch structure.
 
-Idealised values for a point with $m$ equally spaced branches: $a_1/a_0 = 0$ for two opposite
-branches or for four; $= 1/\sqrt{2}$ for two branches at $90°$; $= 1/3$ for a T-junction.
+Dividing after averaging avoids all of this: both numerator and denominator are energies, both
+average meaningfully, and the quotient is defined everywhere.
+
+**Contrast this with $A_1$ and $A_2$**, which divide *at the pixel*. The difference is that those
+two multiply by an energy afterwards, so the result is energy-like and tends to zero where there is
+nothing. A quantity is safe to average when zero is its true limit in empty regions; it is not safe
+when it is a bounded ratio. That distinction — **energy-like versus scale-free** — is the general
+rule, and it is why the same treatment is not needed in §3 and §4.
+
+**The floor $f_s$** is relative, a thousandth of the image's own mean $a_0$, so an empty cell tends
+smoothly to zero instead of through a branch. An absolute floor would mean something different at
+every contrast.
 
 ## 6. Strongest-anywhere — 3 numbers per scale
 
