@@ -1,0 +1,7 @@
+kNN over subset 1 (28200 stored images), cosine similarity
+
+representation                            1-NN    5-NN   10-NN   25-NN
+ours, frozen (381)                      78.54%  80.89%  80.82%  79.72%
+ConvNeXt-base frozen, stage 4 (1024)    76.43%  78.73%  78.78%  77.66%
+raw pixels (784)                        72.01%  73.72%  73.45%  71.32%
+  Activating project at `~/claude-code/mother-embedding`

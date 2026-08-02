@@ -1,0 +1,11 @@
+held-out classes: [3, 4, 23, 25, 27, 30, 33, 36, 40, 46]
+24000 support-pool images, 4000 query images
+
+representation                                  1-shot      2-shot      5-shot     10-shot     20-shot
+ours, frozen (381)                          57.93±0.62  68.36±0.48  78.28±0.36  83.05±0.27  85.83±0.19
+ConvNeXt-base frozen ImageNet (1024)        60.22±0.66  70.01±0.51  79.59±0.37  83.39±0.27  85.62±0.22
+ConvNeXt-tiny scratch on 37 classes (768)   74.49±0.64  82.10±0.37  87.52±0.19  89.31±0.09  90.19±0.07
+raw pixels (784)                            48.03±0.62  58.16±0.53  69.50±0.35  74.86±0.22  78.12±0.14
+  Activating project at `~/claude-code/mother-embedding`
+
+wrote fewshot/fewshot_results.jls   (mean ± 95% CI over 200 episodes)
