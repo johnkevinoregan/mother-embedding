@@ -1,0 +1,279 @@
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 30
++ '[' -f fewshot/scratch_test.f32 ']'
++ sleep 10
++ julia --project=.. -t 14 FewShot_Eval.jl
++ julia --project=.. Plot_FewShot.jl
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 60
++ '[' -f scratch_runs/base224_set1.tsv ']'
++ sleep 10
++ julia --project=.. Plot_Curriculum.jl
++ echo 'ALL DONE'
+ALL DONE

@@ -316,35 +316,49 @@ operator that already existed for this, makes it worse.
 ## 13 — how much of the fit is memorised, and does the representation change that?
 
 `CurriculumEMNIST/`. EMNIST's training set cut into **4 disjoint subsets of 28,200**, with training
-switched to the next subset every 15 epochs and the optimiser never reset. The partition is
-i.i.d., so a learner that had extracted the task rather than memorised examples should not be able
-to tell the data changed — every discontinuity is a direct measurement of how much of the fit was
-example-specific, taken *during* training rather than inferred from a train/test gap.
+switched to the next subset every 15 epochs and the optimiser never reset. The partition is i.i.d.,
+so a learner that had extracted the task rather than memorised examples should not be able to tell
+the data changed — every discontinuity measures how much of the fit was example-specific, taken
+*during* training rather than inferred from a train/test gap. Four arms: our 381 frozen features,
+frozen ImageNet ConvNeXt, and ConvNeXt-tiny and -base **trained end to end on EMNIST from random
+initialisation**.
 
-**Held-out accuracy walks straight through the switches**: +0.15 / −1.46 / −0.65 (ours) and
-+0.34 / −0.24 / −0.43 (ConvNeXt) against a within-block noise floor of sd 0.51 / 0.54. On block
-means it rises monotonically across every switch. The discontinuity is entirely in the
-*training-set* curve, which drops ~7 points at each switch — memorisation made visible, and stable
-at 10–11 points across blocks.
+**Memorisation is large, uniform and useless.** Every arm holds a 10–14 point margin on whatever it
+is currently looking at. The from-scratch arms interpolate their subset outright — 100.000 % on all
+28,200 images in one block. And the from-scratch *control*, which never switches, drove training
+accuracy from 94.4 % to a literal 100 % while its held-out score moved 83.10 → 85.06, most of that
+the learning-rate schedule. **Perfecting the memorisation bought almost nothing.**
 
-**Forgetting is a property of the readout, not the representation.** Subset 1's advantage over
-held-out decays 10.95 → 2.43 → 1.31 → 0.84 (ours) and 10.34 → 2.48 → 1.31 → 0.51 (ConvNeXt) —
-about 78 % released in the first 15 epochs after training leaves it, and the two arms agree to
-within 0.1 points after the first block. A 381-dimensional hand-designed vector and a
-1024-dimensional learned one are memorised and released on the same schedule. If more stable
-downstream learning is wanted, the front end is not the lever.
+**For frozen representations, forgetting is a readout property.** Subset 1's advantage over held-out
+decays 10.95 → 2.43 → 1.31 → 0.84 (ours) and 10.34 → 2.48 → 1.31 → 0.51 (frozen ConvNeXt) — agreeing
+to within 0.1 points after the first block, despite one being 381 hand-designed numbers and the
+other 1024 learned from 1.28 M photographs. The front end is not the lever for it.
 
-**Switching beats not switching by ~1.4 points** for both arms; the no-switch controls peak near
-epoch 15–20 and then drift down overfitting the 28,200 examples they are stuck with.
+**Training the representation is what changes that.** The frozen arms cross the switches invisibly
+(−1.3 and −0.2 sd). The from-scratch arms **jump up** at every switch, +3.3 and +4.9 sd, and retain
+about double the advantage on old data one block after leaving it. The total benefit of fresh data
+is the same for everyone (~1.3–2.0 points); what differs is whether it arrives as a step or as a
+slow accumulation.
 
-**Our 381 features beat frozen ConvNeXt's 1024** at every point on the curve (85.97 vs 85.70 at
-epoch 60). That is the opposite of Phase 11 — EMNIST is a line-drawing task at 28×28, which is what
-an oriented-energy front end is for, where Phase 11's stimuli were natively 112 px with graded
-photometric properties. The margin is under half a point on single seeds, so the honest reading is
-that the two are **equivalent here while ours uses 2.7× fewer numbers and no learned parameters**.
+**And the from-scratch advantage is not memorisation.** Hold out 10 of the 47 classes entirely,
+train on the other 37, then classify the withheld ones few-shot from the penultimate features. At
+**1-shot: 74.5 % against 60.2 (frozen ImageNet), 57.9 (ours) and 48.0 (raw pixels)** — on characters
+it has never seen, where stored base-class images can contribute nothing directly. The gain is
+spread over 9 of 10 classes, so it is not leakage from near-duplicate glyphs.
 
-Caveat on record: λ = 8 px sits at EMNIST's original Nyquist limit, so that channel largely
-measures bilinear interpolation here. The ablation without it has not been run.
+**kNN calibrates all of it.** Pure lookup against 28,200 stored images reaches 80.89 % on our
+features and 78.78 % on frozen ConvNeXt's, against trained readouts at 85.18 and 84.90 — so ~95 % of
+EMNIST accuracy needs no learning at all, and 73.7 points of it no representation at all. Our 381
+designed features are a **better** nearest-neighbour space than 1024 ImageNet features.
+
+**Rank at epoch 60:** ConvNeXt-base scratch 88.06, tiny scratch 87.01, ours 85.97, frozen ConvNeXt
+85.70. Our features **lead at epoch 15** and are passed only once the networks have seen more than
+one subset. Training the representation on the task is worth ~2 points over hand-designing it.
+
+Caveats on record: the from-scratch arms use a different optimiser and schedule, so cross-arm
+*levels* are confounded (within-arm switching-vs-control contrasts are bit-exact and clean); no
+augmentation anywhere, so this is not ConvNeXt at its best; λ = 8 px sits at EMNIST's original
+Nyquist limit and largely measures interpolation here.
 
 ---
 

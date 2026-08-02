@@ -50,7 +50,10 @@ function panel(sw, ctl, title)
     ep = 1:length(sw.test)
     # zoom to the data: on a 0–100 axis every curve is a flat line near the top and the whole
     # point of the figure — the step at each switch — is invisible
-    all_ = vcat(sw.test, sw.current, sw.set1, ctl.test)
+    # from epoch 10 on: the from-scratch arms start near chance and climb 45 points in the first
+    # few epochs, which on a full-range axis flattens every curve and hides the switches entirely
+    w = 10:length(sw.test)
+    all_ = vcat(sw.test[w], sw.current[w], sw.set1[w], ctl.test[w])
     lo, hi = minimum(all_), maximum(all_); pad = 0.08*(hi-lo)
     yl = (100*(lo-pad), 100*(hi+pad))
     pl = plot(; xlabel="epoch", ylabel="accuracy (%)", title=title, titlefontsize=9,
@@ -71,11 +74,11 @@ end
 PANELS = [("ours",         "ours (switching)",  "ours (set 1 only)",
            "our front end, frozen (381 features)"),
           ("convnext",     "ConvNeXt (switching)", "ConvNeXt (set 1 only)",
-           "frozen ImageNet ConvNeXt-base stage 4 (1024 features)"),
+           "frozen ImageNet ConvNeXt-base, stage 4 (1024 features)"),
           ("scratch_tiny", "ConvNeXt-tiny scratch (switching)", "ConvNeXt-tiny scratch (set 1 only)",
-           "ConvNeXt-tiny trained end to end from random init, 112 px (27.9 M params)"),
+           "ConvNeXt-tiny from random init, end to end (27.9 M params, 112 px)"),
           ("scratch_base", "ConvNeXt-base scratch (switching)", "ConvNeXt-base scratch (set 1 only)",
-           "ConvNeXt-base trained end to end from random init, 224 px (87.6 M params)")]
+           "ConvNeXt-base from random init, end to end (87.6 M params, 224 px)")]
 
 for (tag, a, b, lbl) in PANELS
     sw, ctl = byname(a), byname(b)
@@ -91,13 +94,13 @@ COMPARE = [("ours (switching)", "ours, frozen (381)", :navy, :solid, 2.6),
            ("ConvNeXt-tiny scratch (switching)", "ConvNeXt-tiny, trained from scratch", :seagreen, :dash, 1.9),
            ("ConvNeXt-base scratch (switching)", "ConvNeXt-base, trained from scratch", :darkorange, :dash, 1.9)]
 have = [(byname(n), l, c, s, w) for (n, l, c, s, w) in COMPARE if byname(n) !== nothing]
-allc = vcat([r.test for (r, _, _, _, _) in have]...)
+allc = vcat([r.test[10:end] for (r, _, _, _, _) in have]...)   # see the note in `panel`
 lo, hi = minimum(allc), maximum(allc); pad = 0.08*(hi-lo)
 n_ep = length(have[1][1].test)
 pl = plot(; xlabel="epoch", ylabel="held-out test accuracy (%)", legend=:bottomright,
           legendfontsize=6, grid=true, gridalpha=0.2, size=(720, 480),
           ylims=(100*(lo-pad), 100*(hi+pad)), xlims=(0, n_ep+1), titlefontsize=9,
-          title="EMNIST balanced — held-out accuracy across training-subset switches\n(no-switch controls are in the per-arm figures)")
+          title="EMNIST balanced — held-out accuracy across training-subset switches\n(axis set by epochs 10+; no-switch controls are in the per-arm figures)")
 for s in have[1][1].switches; vline!(pl, [s-0.5]; c=:grey60, ls=:dash, lw=1.0, label=""); end
 for (r, l, c, s, w) in have
     plot!(pl, 1:length(r.test), 100 .* r.test; c=c, ls=s, lw=w, label=l)

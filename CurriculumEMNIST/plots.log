@@ -1,0 +1,37 @@
+GKS: cannot open display - headless operation mode active
+  Activating project at `~/claude-code/mother-embedding`
+wrote curriculum_ours.png
+wrote curriculum_convnext.png
+wrote curriculum_scratch_tiny.png
+wrote curriculum_scratch_base.png
+wrote curriculum_compare.png
+
+arm                                   nfeat     ep15     ep60     best  mem gap
+ours (switching)                        381    85.41    85.97    87.18    11.66
+ours (set 1 only)                       381    85.41    84.51    85.63    13.51
+ConvNeXt (switching)                   1024    84.70    85.70    86.78    10.86
+ConvNeXt (set 1 only)                  1024    84.70    84.43    85.30    14.16
+ConvNeXt-tiny scratch (switching)         —    83.10    87.01    88.19    12.15
+ConvNeXt-tiny scratch (set 1 only)        —    83.10    85.06    85.06    14.94
+ConvNeXt-base scratch (switching)         —    85.73    88.06    88.94    11.86
+ConvNeXt-base scratch (set 1 only)        —    85.73    86.81    86.82    13.19
+
+change in held-out accuracy across each switch (epoch before → epoch after):
+  ours (switching)                      +0.15  -1.46  -0.65
+  ConvNeXt (switching)                  +0.34  -0.24  -0.43
+  ConvNeXt-tiny scratch (switching)     +2.91  +1.41  +1.29
+  ConvNeXt-base scratch (switching)     +1.41  +1.84  +1.35
+
+within-block epoch-to-epoch noise floor (sd of held-out change):
+  ours (switching)                      sd 0.51   range -0.97 to +1.37
+  ConvNeXt (switching)                  sd 0.54   range -1.27 to +1.92
+  ConvNeXt-tiny scratch (switching)     sd 3.79   range -1.43 to +26.70
+  ConvNeXt-base scratch (switching)     sd 3.19   range -1.09 to +23.02
+
+subset-1 advantage over held-out at the end of each block:
+  ours (switching)                       10.95    2.43    1.31    0.84
+  ConvNeXt (switching)                   10.34    2.48    1.31    0.51
+  ConvNeXt-tiny scratch (switching)      11.26    4.50    2.22    2.06
+  ConvNeXt-base scratch (switching)       8.17    2.46    1.80    1.13
+
+figures in /home/kevin/claude-code/mother-embedding/CurriculumEMNIST/figures

@@ -1,0 +1,37 @@
+held-out classes (1-based): [3, 4, 23, 25, 27, 30, 33, 36, 40, 46]
+training on 37 base classes, 88800 images; 10 classes withheld entirely
+
+  ep  1/30  train acc 0.3775  (49 s)
+  ep  2/30  train acc 0.7785  (86 s)
+  ep  3/30  train acc 0.8434  (123 s)
+  ep  4/30  train acc 0.8635  (161 s)
+  ep  5/30  train acc 0.8785  (201 s)
+  ep  6/30  train acc 0.8856  (241 s)
+  ep  7/30  train acc 0.8928  (278 s)
+  ep  8/30  train acc 0.8983  (314 s)
+  ep  9/30  train acc 0.9048  (354 s)
+  ep 10/30  train acc 0.9115  (394 s)
+  ep 11/30  train acc 0.9172  (433 s)
+  ep 12/30  train acc 0.9265  (470 s)
+  ep 13/30  train acc 0.9343  (506 s)
+  ep 14/30  train acc 0.9430  (546 s)
+  ep 15/30  train acc 0.9524  (586 s)
+  ep 16/30  train acc 0.9623  (625 s)
+  ep 17/30  train acc 0.9717  (661 s)
+  ep 18/30  train acc 0.9797  (699 s)
+  ep 19/30  train acc 0.9869  (739 s)
+  ep 20/30  train acc 0.9930  (779 s)
+  ep 21/30  train acc 0.9959  (816 s)
+  ep 22/30  train acc 0.9978  (853 s)
+  ep 23/30  train acc 0.9988  (891 s)
+  ep 24/30  train acc 0.9992  (931 s)
+  ep 25/30  train acc 0.9996  (971 s)
+  ep 26/30  train acc 0.9998  (1008 s)
+  ep 27/30  train acc 0.9998  (1045 s)
+  ep 28/30  train acc 0.9998  (1083 s)
+  ep 29/30  train acc 0.9997  (1123 s)
+  ep 30/30  train acc 0.9998  (1163 s)
+  train: 24000 held-out-class images -> features
+  test: 4000 held-out-class images -> features
+
+wrote /home/kevin/claude-code/mother-embedding/CurriculumEMNIST/fewshot

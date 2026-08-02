@@ -12,20 +12,34 @@ at epoch 15, 30 or 45 is therefore a direct measurement of how much of the fit w
 examples in front of it — and unlike a train/test gap, it is measured *during* training, on the
 same curve.
 
-Two arms, identical readout, identical subsets, identical order:
+Four arms, identical subsets in identical order:
 
-| arm | features |
-|:--|--:|
-| our front end — 4-scale ladder + spatial max, grid 3 | 381 |
-| frozen ImageNet ConvNeXt-base, stage 4, global average pooled | 1024 |
+| arm | what is trained |
+|:--|:--|
+| our front end — 4-scale ladder + spatial max, grid 3 (381 features) | readout only |
+| frozen ImageNet ConvNeXt-base, stage 4, global average pooled (1024) | readout only |
+| ConvNeXt-tiny from random init, 112 px (27.9 M params) | everything, on EMNIST |
+| ConvNeXt-base from random init, 224 px (87.6 M params) | everything, on EMNIST |
+
+The two frozen arms compare *representations* with the learning held constant. The two from-scratch
+arms ask what the architecture achieves with no ImageNet pretraining at all — they are trained on
+EMNIST and nothing else.
 
 ## Running it
 
 ```bash
-julia --project=.. -t 14 Extract_Ours.jl          # ~60 min, cached
-../ConVNextTest/.venv/bin/python extract_convnext_emnist.py   # ~3 min, cached
-julia --project=.. Curriculum.jl                  # ~2 min
+julia --project=.. -t 14 Extract_Ours.jl                       # ~69 min, cached
+../ConVNextTest/.venv/bin/python extract_convnext_emnist.py    # ~3 min, cached
+julia --project=.. Curriculum.jl                               # frozen arms, ~2 min
+../ConVNextTest/.venv/bin/python train_convnext_scratch.py     # from scratch, ~3.5 h
 julia --project=.. Plot_Curriculum.jl
+
+# does the accuracy rest on remembering images, or on extracted structure?
+julia --project=.. -t 14 KNN_Baseline.jl                       # pure lookup baseline
+../ConVNextTest/.venv/bin/python fewshot_train.py              # train on 37 of 47 classes
+julia --project=.. -t 14 FewShot_Eval.jl                       # the 10 unseen ones
+julia --project=.. -t 14 PerClass_FewShot.jl
+julia --project=.. Plot_FewShot.jl
 ```
 
 `CU_ARMS=convnext` runs one arm alone. `extract_convnext_emnist.py --check` prints the pixel

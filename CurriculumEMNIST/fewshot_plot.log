@@ -1,0 +1,10 @@
+  Activating project at `~/claude-code/mother-embedding`
+ERROR: LoadError: ParseError:
+# Error @ /home/kevin/claude-code/mother-embedding/CurriculumEMNIST/Plot_FewShot.jl:26:50
+          title="Few-shot transfer to 10 EMNIST classes the trained network never saw\n" *
+                "held out: $(join(string.(held), \", \"))   ($NEPI episodes, band = 95% CI)")
+#                                                ╙ ── not a unary operator
+Stacktrace:
+ [1] top-level scope
+   @ ~/claude-code/mother-embedding/CurriculumEMNIST/Plot_FewShot.jl:26
+in expression starting at /home/kevin/claude-code/mother-embedding/CurriculumEMNIST/Plot_FewShot.jl:26
