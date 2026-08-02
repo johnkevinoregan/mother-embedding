@@ -241,11 +241,30 @@ available even at the coarsest scale. It was tested in the capacity sweep and is
 on curvedness — which fits, since curvature is about how the profile *spreads*, and two harmonics
 describe a shape only crudely.
 
-## 2. Overall brightness — 1 number per cell
+## 2. Low-frequency contrast — 1 number per cell
 
 ```math
 \text{feature} = \sqrt{\big\langle E_{\text{lp}} \big\rangle_c}
 ```
+
+**Not brightness.** The low-pass filter has its DC term set to zero
+(`GaborStack.module.jl:285`, "keep it DC-free like the rest"), so the image's mean level is removed
+before anything else happens. What survives is how much the picture *varies* at very coarse scale —
+the filter sits at $\rho_{\text{lp}} = 1.0$, that is $\lambda = 112$ px, about the width of the
+whole image.
+
+**A black stroke on white and a white stroke on black give the identical value.** The filter is
+radially symmetric and real, so the filtered image is real, and squaring discards its sign. This
+channel is therefore **exactly as polarity-invariant as the oriented ones**, which measurement
+confirms: the `lowpass` block alone predicts polarity at $-0.000$, the same as `orient`.
+
+Worth stating plainly, because the project long assumed the opposite. A comment in the Phase 9
+harness predicted that `lowpass`, "which carries mean level, should get it easily" — it does not,
+because the mean level is precisely what was thrown away.
+
+**What it does carry** is coarse layout: where the ink is and roughly how much, at a scale far
+below any stroke detail. Alone it reaches $0.659$ on closedness and $0.309$ on thickness against
+$0.036$ on curvedness — it sees the gross shape of the figure and nothing about its contours.
 
 ## 3. Corner strength $A_1$ — 1 number per scale per cell
 

@@ -395,8 +395,14 @@ function main()
     # ── block attribution: which part of the representation carries each property?
     # The sharp prediction is on `polarity`. Quadrature energy discards the sign of contrast
     # by construction, so `orient` should fail to predict it — being unable to is the
-    # correct result — while `lowpass`, which carries mean level, should get it easily. If
-    # `orient` predicts polarity the invariance claim is simply wrong.
+    # correct result. If `orient` predicts polarity the invariance claim is simply wrong.
+    #
+    # This comment used to continue "while `lowpass`, which carries mean level, should get it
+    # easily". That was WRONG, and measurement says so: `lowpass` predicts polarity at -0.000,
+    # exactly like `orient`. The low-pass filter has its DC term zeroed (GaborStack.module.jl:285)
+    # so the mean level is removed, and being radially symmetric and real it gives a real output
+    # whose sign the squaring discards. Nothing in the front end carries contrast polarity, which
+    # is the design intent.
     "blocks" in STAGES && println("\n" * "="^92)
     "blocks" in STAGES && println("Block attribution — linear readout on one block at a time (test R²)")
     println("="^92)
