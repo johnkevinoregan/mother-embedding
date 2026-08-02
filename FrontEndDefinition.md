@@ -125,29 +125,121 @@ to every cell.
 
 ## 1. Orientation summary — 5 numbers per scale per cell
 
+**The idea.** Within a cell, ask one question: *how is energy distributed across directions?* The
+answer is a function of orientation, sampled at the $n_s$ directions the bank provides. These five
+numbers are the first few terms of its Fourier series.
+
 **Average first, then combine.**
+
+### Step 1 — average each direction separately
 
 ```math
 \bar{E}_{s,k,c} = \langle E_{s,k} \rangle_c
 ```
 
+The mean over cell $c$ of the squared modulus of the Gabor response at scale $s$, direction $k$.
+This gives the cell's orientation profile for each scale and each direction.
+
+There is a separate profile for every scale, because a cell can be dominated by one direction at a
+coarse scale and another at a fine one. Steps 2 and 3 are applied to each profile independently. At
+grid 1 with the production bank that is $8 + 12 + 16 = 36$ averages — three profiles, of 8, 12 and
+16 values — each reduced to 5 features, giving the 15 orientation features.
+
+### Step 2 — expand the profile as a Fourier series
+
+Orientation is **$\pi$-periodic**: a line at $\theta$ and the same line at $\theta + \pi$ are
+identical. So the profile must repeat every half-turn, and its Fourier series runs in
+$2\theta,\ 4\theta,\ 6\theta \dots$ rather than $\theta,\ 2\theta,\ 3\theta \dots$
+
+```math
+\bar{E}_{s,c}(\theta) \;=\; \frac{1}{n_s}\Big(\;
+T_{s,c}
+\;+\; 2\,\big|Z^{(2)}_{s,c}\big| \cos\!\big(2\theta - \arg Z^{(2)}_{s,c}\big)
+\;+\; 2\,\big|Z^{(4)}_{s,c}\big| \cos\!\big(4\theta - \arg Z^{(4)}_{s,c}\big)
+\;+\; \text{higher terms} \;\Big)
+```
+
+where the coefficients come from projecting the profile onto each basis function:
+
 ```math
 T_{s,c} = \sum_{k=1}^{n_s} \bar{E}_{s,k,c}
 \qquad
-Z^{(2)}_{s,c} = \sum_{k=1}^{n_s} \bar{E}_{s,k,c} e^{ i 2\theta_{s,k}}
+Z^{(2)}_{s,c} = \sum_{k=1}^{n_s} \bar{E}_{s,k,c}\, e^{i 2\theta_{s,k}}
 \qquad
-Z^{(4)}_{s,c} = \sum_{k=1}^{n_s} \bar{E}_{s,k,c} e^{ i 4\theta_{s,k}}
+Z^{(4)}_{s,c} = \sum_{k=1}^{n_s} \bar{E}_{s,k,c}\, e^{i 4\theta_{s,k}}
 ```
+
+Reading the three terms off the expansion:
+
+| term | what it is |
+|:--|:--|
+| $T/n_s$ | the **flat part** — average energy across all directions, with no dependence on $\theta$ |
+| $2\lvert Z^{(2)}\rvert / n_s$ | the size of the ripple going **once round per half-turn**. Its peak sits at $\theta = \arg(Z^{(2)})/2$, which is therefore the **dominant orientation** |
+| $2\lvert Z^{(4)}\rvert / n_s$ | the size of the ripple going **twice round per half-turn**, peaking at $\arg(Z^{(4)})/4$ |
+
+The series is truncated there; only these three are kept.
+
+Two checks, which are what make the features interpretable.
+
+**A single straight line** puts all its energy at one direction $\theta_0$. Then $T = E$ and
+$Z^{(2)} = E\,e^{i2\theta_0}$, so the once-round ripple has full amplitude and peaks exactly at
+$\theta_0$.
+
+**Two lines crossing at $90°$** give
+$Z^{(2)} = E\,e^{i2\theta_0} + E\,e^{i2\theta_0 + i\pi} = 0$ — the once-round ripple **vanishes
+identically** — while
+$Z^{(4)} = E\,e^{i4\theta_0} + E\,e^{i4\theta_0 + i2\pi} = 2E\,e^{i4\theta_0}$, at full amplitude.
+That is why a crossing is invisible to the first harmonic and maximal in the second.
+
+A note on convention: these coefficients differ from the textbook ones by a factor $n_s$ and a
+conjugation, because there is no $1/n_s$ and the exponent carries a $+$ sign. Neither matters. $T$
+is only ever used as a total or as a divisor, and $Z^{(2)}, Z^{(4)}$ are only used after dividing
+by $T$, where the factor cancels. The $+$ sign is deliberate: it makes $\arg Z^{(2)} = +2\theta_0$,
+so $\arg(Z^{(2)})/2$ reads the orientation off directly rather than giving its negative.
+
+### Step 3 — normalise by the total
 
 ```math
-z_2 = \frac{Z^{(2)}}{T}, \qquad z_4 = \frac{Z^{(4)}}{T} \qquad (\text{both } 0 \text{ if } T=0)
+z_2 = \frac{Z^{(2)}}{T}, \qquad z_4 = \frac{Z^{(4)}}{T} \qquad (\text{both } 0 \text{ if } T = 0)
 ```
 
-Features: $\quad \sqrt{T}, \quad \mathrm{Re} z_2, \quad \mathrm{Im} z_2, \quad |z_2|, \quad |z_4|$
+$Z^{(2)}$ and $Z^{(4)}$ have units of energy, so they grow both with image contrast and with how
+much stroke happens to be in the cell. Dividing by $T$ removes both influences: $z_2$ and $z_4$ are
+**dimensionless and contrast-invariant**, with magnitude bounded in $[0,1]$. They describe the
+*shape* of the orientation profile rather than its size.
 
-$e^{i2\theta}$ rather than $e^{i\theta}$ because direction is defined modulo $\pi$: doubling the
-angle makes a direction and its opposite land on the same point of the circle. $|z_2| = 0$ when all
-directions are equally present and $1$ when only one is; $\arg(z_2)/2$ is the dominant direction.
+### The five reported numbers
+
+| feature | what it is |
+|:--|:--|
+| $\sqrt{T}$ | **how much** oriented structure there is. The square root converts energy back to amplitude, so it scales linearly with image contrast rather than quadratically |
+| $\mathrm{Re}\,z_2,\ \ \mathrm{Im}\,z_2$ | the **orientation vector**. Its angle gives the dominant direction, $\arg(z_2)/2$; its length gives how dominant that direction is. Reported as two components rather than as angle-plus-length because an angle wraps from $\pi$ back to $0$, and a linear readout cannot follow a discontinuity |
+| $\lvert z_2 \rvert$ | **coherence**: $0$ if all directions are equally present, $1$ if all the energy is in one. Rotation-invariant — the same for a line at any angle |
+| $\lvert z_4 \rvert$ | the second harmonic's size. Rotation-invariant, and responds to profiles with **two lobes $90°$ apart** |
+
+**Why both $\lvert z_2\rvert$ and $\lvert z_4\rvert$ are needed:**
+
+| what is in the cell | $\lvert z_2\rvert$ | $\lvert z_4\rvert$ |
+|:--|--:|--:|
+| a single straight line | 1 | 1 |
+| two lines crossing at $90°$ | **0** | 1 |
+| no dominant direction | 0 | **0** |
+
+Neither number alone separates the three cases. The pair does.
+
+### Two consequences worth flagging
+
+$\lvert z_4\rvert$ is a **corner-and-crossing measure computed at the cell level** — which is what
+$A_1$ (§3) computes at the pixel level. They are the same idea in opposite orders:
+average-then-combine here, combine-then-average there. The difference between them is exactly the
+covariance discussed at the end of this document, and it has never been measured.
+
+**Why the series stops at the second harmonic.** With $n_s$ directions sampled over $\pi$, the
+harmonic $e^{i2m\theta}$ is estimable without aliasing only while $2m \le n_s - 2$, so $m \le 3$ at
+$n_s = 8$. Keeping $m = 0, 1, 2$ is therefore a choice rather than a limit: the third harmonic is
+available even at the coarsest scale. It was tested in the capacity sweep and is worth **+0.026**
+on curvedness — which fits, since curvature is about how the profile *spreads*, and two harmonics
+describe a shape only crudely.
 
 ## 2. Overall brightness — 1 number per cell
 
