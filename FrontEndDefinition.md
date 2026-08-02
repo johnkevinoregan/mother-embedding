@@ -182,13 +182,13 @@ The series is truncated there; only these three are kept.
 Two checks, which are what make the features interpretable.
 
 **A single straight line** puts all its energy at one direction $\theta_0$. Then $T = E$ and
-$Z^{(2)} = E\,e^{i2\theta_0}$, so the once-round ripple has full amplitude and peaks exactly at
+$Z^{(2)} = E e^{i2\theta_0}$, so the once-round ripple has full amplitude and peaks exactly at
 $\theta_0$.
 
 **Two lines crossing at $90°$** give
-$Z^{(2)} = E\,e^{i2\theta_0} + E\,e^{i2\theta_0 + i\pi} = 0$ — the once-round ripple **vanishes
+$Z^{(2)} = E e^{i2\theta_0} + E e^{i2\theta_0 + i\pi} = 0$ — the once-round ripple **vanishes
 identically** — while
-$Z^{(4)} = E\,e^{i4\theta_0} + E\,e^{i4\theta_0 + i2\pi} = 2E\,e^{i4\theta_0}$, at full amplitude.
+$Z^{(4)} = E e^{i4\theta_0} + E e^{i4\theta_0 + i2\pi} = 2E e^{i4\theta_0}$, at full amplitude.
 That is why a crossing is invisible to the first harmonic and maximal in the second.
 
 A note on convention: these coefficients differ from the textbook ones by a factor $n_s$ and a
@@ -213,7 +213,7 @@ much stroke happens to be in the cell. Dividing by $T$ removes both influences: 
 | feature | what it is |
 |:--|:--|
 | $\sqrt{T}$ | **how much** oriented structure there is. The square root converts energy back to amplitude, so it scales linearly with image contrast rather than quadratically |
-| $\mathrm{Re}\,z_2,\ \ \mathrm{Im}\,z_2$ | the **orientation vector**. Its angle gives the dominant direction, $\arg(z_2)/2$; its length gives how dominant that direction is. Reported as two components rather than as angle-plus-length because an angle wraps from $\pi$ back to $0$, and a linear readout cannot follow a discontinuity |
+| $\mathrm{Re}(z_2), \mathrm{Im}(z_2)$ | the **orientation vector**. Its angle gives the dominant direction, $\arg(z_2)/2$; its length gives how dominant that direction is. Reported as two components rather than as angle-plus-length because an angle wraps from $\pi$ back to $0$, and a linear readout cannot follow a discontinuity |
 | $\lvert z_2 \rvert$ | **coherence**: $0$ if all directions are equally present, $1$ if all the energy is in one. Rotation-invariant — the same for a line at any angle |
 | $\lvert z_4 \rvert$ | the second harmonic's size. Rotation-invariant, and responds to profiles with **two lobes $90°$ apart** |
 
@@ -316,7 +316,7 @@ The square root converts energy to amplitude, matching $\sqrt{T}$ in §1.
 
 **What it cannot do.** $A_1$ is built on the orientation profile, which is $\pi$-periodic, so it
 cannot count branches. A T-junction and an X-crossing have identical direction content —
-$\{0°, 90°\}$ — and $A_1$ gives them the same answer. Distinguishing them is a $2\pi$ question, and
+$0°$ and $90°$ — and $A_1$ gives them the same answer. Distinguishing them is a $2\pi$ question, and
 that is what §5 exists for.
 
 ## 4. Stroke-end strength $A_2$ — 1 number per scale per cell
@@ -383,7 +383,7 @@ averaging it over a region would weight blank pixels as heavily as strong contou
 that had to be fixed in §5. Multiplying by the centre response makes $A_2$ an energy, so its average
 is meaningful and $0$ is its correct value in blank regions.
 
-**Where the probe distance comes from.** $d_s = \gamma\,\sigma_{\parallel,s}$ places the flanks one
+**Where the probe distance comes from.** $d_s = \gamma \sigma_{\parallel,s}$ places the flanks one
 along-contour envelope out, so they sit just beyond the filter's own excitatory region. A fixed
 pixel offset would be degenerate at coarse scales, where both flanks would fall inside a single
 envelope and the asymmetry would vanish by construction. This anchoring reproduces the published
