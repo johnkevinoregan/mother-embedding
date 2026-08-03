@@ -149,7 +149,60 @@ grid 1 with the production bank that is $8 + 12 + 16 = 36$ averages — three pr
 
 Orientation is **$\pi$-periodic**: a line at $\theta$ and the same line at $\theta + \pi$ are
 identical. So the profile must repeat every half-turn, and its Fourier series runs in
-$2\theta,\ 4\theta,\ 6\theta \dots$ rather than $\theta,\ 2\theta,\ 3\theta \dots$
+$e^{i2\theta},\ e^{i4\theta},\ e^{i6\theta} \dots$ rather than $e^{i\theta},\ e^{i2\theta} \dots$
+
+**The exponential form.** Any $\pi$-periodic function has the expansion
+
+```math
+\bar{E}_{s,c}(\theta) \;=\; \sum_{m=-\infty}^{\infty} c_m \, e^{i 2 m \theta},
+\qquad
+c_m \;=\; \frac{1}{n_s}\sum_{k=1}^{n_s} \bar{E}_{s,k,c}\, e^{-i 2 m \theta_{s,k}}
+```
+
+Two properties of it matter here:
+
+* $c_0$ is real and equals the mean of the profile.
+* Because $\bar{E}$ is **real**, $c_{-m} = \overline{c_m}$. The negative-index coefficients are not
+  independent information — they are the conjugates of the positive ones — so everything is
+  contained in $m = 0, 1, 2, \dots$
+
+That second fact is what turns the complex series into a real one. Pairing each $m$ with its
+partner $-m$:
+
+```math
+c_m e^{i2m\theta} + c_{-m} e^{-i2m\theta}
+\;=\; c_m e^{i2m\theta} + \overline{c_m e^{i2m\theta}}
+\;=\; 2\,\mathrm{Re}\big(c_m e^{i2m\theta}\big)
+\;=\; 2\,|c_m|\cos\big(2m\theta + \arg c_m\big)
+```
+
+so the cosine form below is not a different expansion — it is this one with the conjugate pairs
+collected.
+
+**What we actually compute.**
+
+```math
+T_{s,c} = \sum_{k=1}^{n_s} \bar{E}_{s,k,c}
+\qquad
+Z^{(2)}_{s,c} = \sum_{k=1}^{n_s} \bar{E}_{s,k,c}\, e^{+i 2 \theta_{s,k}}
+\qquad
+Z^{(4)}_{s,c} = \sum_{k=1}^{n_s} \bar{E}_{s,k,c}\, e^{+i 4 \theta_{s,k}}
+```
+
+**How these relate to the $c_m$.** Compare the two definitions directly. The sum defining
+$Z^{(2m)}$ is the sum defining $c_m$ with the $1/n_s$ dropped and the sign of the exponent
+flipped — and flipping that sign on a real-weighted sum is exactly conjugation:
+
+```math
+Z^{(2m)}_{s,c} \;=\; n_s\,\overline{c_m} \;=\; n_s\, c_{-m}
+```
+
+So our $Z^{(2)}$ is $n_s$ times the textbook coefficient at index $-1$, and $Z^{(4)}$ is $n_s$
+times the one at index $-2$. Two differences from the textbook: a **factor $n_s$**, and a
+**conjugation**.
+
+Substituting back gives the profile in cosine form, and the minus signs inside the cosines are
+precisely where the conjugation surfaces:
 
 ```math
 \bar{E}_{s,c}(\theta) \;=\; \frac{1}{n_s}\Big(\;
@@ -157,16 +210,6 @@ T_{s,c}
 \;+\; 2\,\big|Z^{(2)}_{s,c}\big| \cos\!\big(2\theta - \arg Z^{(2)}_{s,c}\big)
 \;+\; 2\,\big|Z^{(4)}_{s,c}\big| \cos\!\big(4\theta - \arg Z^{(4)}_{s,c}\big)
 \;+\; \text{higher terms} \;\Big)
-```
-
-where the coefficients come from projecting the profile onto each basis function:
-
-```math
-T_{s,c} = \sum_{k=1}^{n_s} \bar{E}_{s,k,c}
-\qquad
-Z^{(2)}_{s,c} = \sum_{k=1}^{n_s} \bar{E}_{s,k,c}\, e^{i 2\theta_{s,k}}
-\qquad
-Z^{(4)}_{s,c} = \sum_{k=1}^{n_s} \bar{E}_{s,k,c}\, e^{i 4\theta_{s,k}}
 ```
 
 Reading the three terms off the expansion:
@@ -191,11 +234,35 @@ identically** — while
 $Z^{(4)} = E e^{i4\theta_0} + E e^{i4\theta_0 + i2\pi} = 2E e^{i4\theta_0}$, at full amplitude.
 That is why a crossing is invisible to the first harmonic and maximal in the second.
 
-A note on convention: these coefficients differ from the textbook ones by a factor $n_s$ and a
-conjugation, because there is no $1/n_s$ and the exponent carries a $+$ sign. Neither matters. $T$
-is only ever used as a total or as a divisor, and $Z^{(2)}, Z^{(4)}$ are only used after dividing
-by $T$, where the factor cancels. The $+$ sign is deliberate: it makes $\arg Z^{(2)} = +2\theta_0$,
-so $\arg(Z^{(2)})/2$ reads the orientation off directly rather than giving its negative.
+#### Why the two departures from the textbook convention are harmless
+
+**The factor $n_s$.** It appears in $T$ and in every $Z$ alike — $T = n_s c_0$ and
+$Z^{(2m)} = n_s \overline{c_m}$ — and every downstream use is a ratio of one to the other:
+
+```math
+z_2 \;=\; \frac{Z^{(2)}}{T} \;=\; \frac{n_s \overline{c_1}}{n_s c_0} \;=\; \frac{\overline{c_1}}{c_0}
+```
+
+The $n_s$ cancels identically and never reaches a feature. The one exception is $\sqrt{T}$, which
+is reported directly and so carries an uncancelled $\sqrt{n_s}$ — a fixed scale factor on a single
+feature, which the first weight of a linear readout absorbs.
+
+**The conjugation.** It costs nothing, since conjugation preserves modulus and $\lvert z_2\rvert$
+and $\lvert z_4\rvert$ are therefore unchanged — and it buys a sign. Take a cell containing a
+single line at $\theta_0$, so all the energy $E$ sits at one direction:
+
+| | our convention | textbook |
+|:--|:--|:--|
+| coefficient | $Z^{(2)} = E e^{+i2\theta_0}$ | $c_1 = \frac{E}{n_s}e^{-i2\theta_0}$ |
+| its argument | $\arg Z^{(2)} = +2\theta_0$ | $\arg c_1 = -2\theta_0$ |
+| recovering $\theta_0$ | $\theta_0 = \arg(Z^{(2)})/2$ | $\theta_0 = -\arg(c_1)/2$ |
+
+Both work; ours reads the orientation off directly instead of requiring a sign flip, and it is
+what puts the cosine peak at $\theta = \arg(Z^{(2)})/2$ rather than at $-\arg(c_1)/2$.
+
+The only visible consequence is that $\mathrm{Im}(z_2)$ carries the opposite sign to the textbook
+convention. Since $\mathrm{Re}(z_2)$ and $\mathrm{Im}(z_2)$ are handed to a learned readout as a
+pair, a global sign on one component is absorbed by the first weight it meets.
 
 ### Step 3 — normalise by the total
 
