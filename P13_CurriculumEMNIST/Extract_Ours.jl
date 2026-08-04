@@ -16,7 +16,7 @@
 using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 using Statistics, Printf, Serialization, LinearAlgebra, FFTW
 include(joinpath(@__DIR__, "..", "LoadEMNIST.module.jl"))
-include(joinpath(@__DIR__, "..", "P9+12_SimpleStrokeTests", "Frontend.module.jl"))
+include(joinpath(@__DIR__, "..", "P9_P12_SimpleStrokeTests", "Frontend.module.jl"))
 using .LoadEMNIST, .Frontend
 BLAS.set_num_threads(min(16, Sys.CPU_THREADS)); FFTW.set_num_threads(1)
 

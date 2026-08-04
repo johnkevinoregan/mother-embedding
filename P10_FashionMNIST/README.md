@@ -130,7 +130,7 @@ standards. Consistent with the claim that a designed front end should help most 
 1. The features land between the published MLP (~88 %) and the replicating CNN cluster
    (~94 %), so **≈ 88–91 %**, because texture suits multi-scale oriented energy.
 2. **The AND layer adds ≈ 0**, as on EMNIST — silhouettes contain few junctions.
-3. **Grid 3 beats grid 1**, the reverse of `P9+12_SimpleStrokeTests`. Grid 1 won there only because
+3. **Grid 3 beats grid 1**, the reverse of `P9_P12_SimpleStrokeTests`. Grid 1 won there only because
    position was randomised, making a fixed grid pure liability; here garments are centred with
    parts in consistent places. If grid 1 wins anyway, that earlier result was about pooling in
    general rather than about position randomisation, which would change how it should be read.
@@ -139,6 +139,6 @@ standards. Consistent with the claim that a designed front end should help most 
 
 Black uniform background, one centred object, contrast barely varying within a frame, 28×28
 upsampled to 112. Those are exactly the conditions under which **divisive normalisation**
-would matter, so that design question — see `P9+12_SimpleStrokeTests/RESULTS.md` — remains open
+would matter, so that design question — see `P9_P12_SimpleStrokeTests/RESULTS.md` — remains open
 after this. Natural greyscale images are needed for it; BSDS boundary detection is the
 intended target.

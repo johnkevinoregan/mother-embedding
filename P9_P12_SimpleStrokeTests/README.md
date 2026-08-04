@@ -1,4 +1,4 @@
-# P9+12_SimpleStrokeTests — how to reproduce everything here
+# P9_P12_SimpleStrokeTests — how to reproduce everything here
 
 A synthetic dataset of **single strokes on a grey field**, labelled with eight **graded
 properties** rather than class labels, plus the experiments run on it. Phases 9 and 12.
@@ -64,7 +64,7 @@ cd ~/claude-code/mother-embedding
 julia --project=. -e 'using Pluto; Pluto.run()'
 ```
 
-then open `P9+12_SimpleStrokeTests/Explore_Contours.jl`. Sliders for every generative parameter,
+then open `P9_P12_SimpleStrokeTests/Explore_Contours.jl`. Sliders for every generative parameter,
 with the target vector recomputed live, so you can see what any setting actually produces.
 
 ## If you have only ever used Pluto
@@ -76,14 +76,14 @@ run skips the ~30 s of startup and compilation:
 
 ```
 julia --project=/home/kevin/claude-code/mother-embedding
-julia> cd("/home/kevin/claude-code/mother-embedding/P9+12_SimpleStrokeTests")
+julia> cd("/home/kevin/claude-code/mother-embedding/P9_P12_SimpleStrokeTests")
 julia> include("Preview_Contours.jl")
 ```
 
 **From the shell**, one command that exits when finished:
 
 ```bash
-cd ~/claude-code/mother-embedding/P9+12_SimpleStrokeTests
+cd ~/claude-code/mother-embedding/P9_P12_SimpleStrokeTests
 julia --project=.. Preview_Contours.jl
 ```
 
@@ -114,7 +114,7 @@ It echoes each command before running it, so you can copy one out and vary it by
 Fast — about 4 minutes, mostly the 3,000-image audit.
 
 ```bash
-cd ~/claude-code/mother-embedding/P9+12_SimpleStrokeTests
+cd ~/claude-code/mother-embedding/P9_P12_SimpleStrokeTests
 julia --project=.. Preview_Contours.jl
 ```
 
@@ -197,7 +197,7 @@ Everything is seeded, so these commands give the numbers in `RESULTS.md` exactly
 experiment is built around, and the block attribution with its shuffle control.
 
 ```bash
-cd ~/claude-code/mother-embedding/P9+12_SimpleStrokeTests
+cd ~/claude-code/mother-embedding/P9_P12_SimpleStrokeTests
 P9_NTRAIN=12000 P9_NTEST=3000 P9_KS=500,2000,6000,12000 \
 P9_EPOCHS=50 P9_ARMS=1,2,4,5 P9_OUT=results_nocnn \
   julia --project=.. -t 16 Phase9_Readouts.jl 2>&1 | tee nocnn.log

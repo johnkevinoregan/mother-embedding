@@ -30,7 +30,7 @@
 using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 using Statistics, Printf, Random, LinearAlgebra, Serialization, FFTW
 include(joinpath(@__DIR__, "..", "LoadEMNIST.module.jl"))
-include(joinpath(@__DIR__, "..", "P9+12_SimpleStrokeTests", "Frontend.module.jl"))
+include(joinpath(@__DIR__, "..", "P9_P12_SimpleStrokeTests", "Frontend.module.jl"))
 using .LoadEMNIST, .Frontend
 
 const IMG   = 112

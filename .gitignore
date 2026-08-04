@@ -21,6 +21,6 @@ __pycache__/
 # twice and fills diffs with base64. Rebuild from the plotting script when needed.
 P11_ConVNextTest/figures/*.html
 
-# Feature cache written by P9+12_SimpleStrokeTests/Sweep_Capacity.jl. Regenerable, ~81 MB, and tied
+# Feature cache written by P9_P12_SimpleStrokeTests/Sweep_Capacity.jl. Regenerable, ~81 MB, and tied
 # to the Julia version that wrote it. Should never have been tracked.
-P9+12_SimpleStrokeTests/sweep_cache/
+P9_P12_SimpleStrokeTests/sweep_cache/

@@ -20,7 +20,7 @@ end
 md"""
 # The stimulus generator, interactively
 
-Every image in `P9+12_SimpleStrokeTests` is **one stroke on a uniform grey field**, and the label
+Every image in `P9_P12_SimpleStrokeTests` is **one stroke on a uniform grey field**, and the label
 is a vector of eight graded properties rather than a class. This notebook lets you drive the
 generator by hand and watch both the picture and its target vector.
 

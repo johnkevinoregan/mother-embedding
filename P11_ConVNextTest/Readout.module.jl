@@ -1,9 +1,9 @@
 # ── PLAIN MODULE, not a notebook — do not open in Pluto ─────────────────────
 #
 # The Phase 9 readout protocol, so a ConvNeXt arm is scored by exactly the same rules as
-# every arm in `P9+12_SimpleStrokeTests/RESULTS.md`.
+# every arm in `P9_P12_SimpleStrokeTests/RESULTS.md`.
 #
-# EVERY FUNCTION HERE IS COPIED VERBATIM FROM `P9+12_SimpleStrokeTests/Phase9_Readouts.jl`, with
+# EVERY FUNCTION HERE IS COPIED VERBATIM FROM `P9_P12_SimpleStrokeTests/Phase9_Readouts.jl`, with
 # only the ENV-driven constants turned into keyword arguments. It is duplicated rather than
 # `include`d because that file runs `main()` on load — including it would regenerate 20,000
 # stimuli and run the whole Phase 9 experiment as a side effect. **If the Phase 9 readout

@@ -61,7 +61,7 @@ function allblocks(img28)
                       PoolSpec(grid=3, blocks=(:orient,:lowpass,:A1,:A2)); Wts=WTS)
     # ray_maps returns c₀, |c₁|, |c₂| unnormalised; the ratios are formed after pooling, with
     # a relative floor. Dividing per pixel and averaging weighted every low-energy location
-    # equally with a strong contour — see RayHarmonics and P9+12_SimpleStrokeTests/RESULTS.md.
+    # equally with a strong contour — see RayHarmonics and P9_P12_SimpleStrokeTests/RESULTS.md.
     PR = pool_maps(Rm, WTS); fr = Float32[]; lr = String[]
     for ρ in unique(l.rho0 for l in rl)
         k0 = findfirst(l -> l.rho0 == ρ && l.form === :R0, rl)

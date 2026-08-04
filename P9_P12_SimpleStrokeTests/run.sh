@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runnable commands for P9+12_SimpleStrokeTests.  Usage:  ./run.sh <name>
+# Runnable commands for P9_P12_SimpleStrokeTests.  Usage:  ./run.sh <name>
 #
 #   ./run.sh preview     figures + dataset audit          ~4 min
 #   ./run.sh fast        every arm except the CNN         ~20 min

@@ -1,4 +1,4 @@
-# P9+12_SimpleStrokeTests — results
+# P9_P12_SimpleStrokeTests — results
 
 Everything this directory has produced, in the order it happened. `RESULTSexpanded.md` is a
 separate, longer commentary on Phase 9 and is left as it was.
@@ -69,7 +69,7 @@ the code that was named.
 
 # Part 1 — Phase 9: the dataset and what it showed
 
-`P9+12_SimpleStrokeTests` asks a different question from every phase before it. Phases 5–8 asked
+`P9_P12_SimpleStrokeTests` asks a different question from every phase before it. Phases 5–8 asked
 whether a classifier could separate some categories; the answer was almost always yes, which
 is why Phase 8 produced no information at all. Here the question is **how much of each
 geometric property a *linear* readout can recover from a representation** — because a

@@ -17,7 +17,7 @@ qualitative conclusion a stronger classifier does not reproduce; and §7.11 of
 control became Phase 6.
 
 Directories: `P0-8_RationalGaborFeatures/` (the front end and the EMNIST phases),
-`P9+12_SimpleStrokeTests/` (Phase 9), `P10_FashionMNIST/` (Phase 10). Each has its own `README.md` for
+`P9_P12_SimpleStrokeTests/` (Phase 9), `P10_FashionMNIST/` (Phase 10). Each has its own `README.md` for
 how to run it and `RESULTS.md` for the tables; this file is the map across all of them.
 
 ---
@@ -105,7 +105,7 @@ a trained classifier cannot separate them.
 
 ## 9 — changing the question
 
-`P9+12_SimpleStrokeTests/`. Phases 5–8 asked *can a classifier separate these*, and on synthetic
+`P9_P12_SimpleStrokeTests/`. Phases 5–8 asked *can a classifier separate these*, and on synthetic
 stimuli the answer is nearly always yes, which is why Phase 8 produced no information.
 
 Phase 9 asks instead: **fit a linear readout and see how much of each property it recovers** —
@@ -277,12 +277,12 @@ a thickness/fuzziness confound ConvNeXt does not have.
 
 ## 12 — turning the front end's own dials
 
-`P9+12_SimpleStrokeTests/`, on the Phase 9 stimuli. Everything before this tests the front end **as
+`P9_P12_SimpleStrokeTests/`, on the Phase 9 stimuli. Everything before this tests the front end **as
 built**; this asks whether it improves when given more to work with. The pooling grid had been
 swept; the number of scales, the number of orientations, the order of the orientation harmonics
 and the number of ray probe distances had not.
 
-**Plain-language account: [`P9+12_SimpleStrokeTests/FINDINGS.md`](P9+12_SimpleStrokeTests/FINDINGS.md).**
+**Plain-language account: [`P9_P12_SimpleStrokeTests/FINDINGS.md`](P9_P12_SimpleStrokeTests/FINDINGS.md).**
 Detail in `SWEEP.md` (reduced-n, partly retracted), `SWEEP_FULLN.md` (the confirmation) and
 `XSCALE.md` (cross-scale, retracted and corrected).
 

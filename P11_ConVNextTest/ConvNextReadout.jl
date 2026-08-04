@@ -45,7 +45,7 @@ using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 using Statistics, Printf, Random, LinearAlgebra, Serialization, FFTW
 using Flux, CUDA
 include(joinpath(@__DIR__, "Readout.module.jl"))
-include(joinpath(@__DIR__, "..", "P9+12_SimpleStrokeTests", "Frontend.module.jl"))
+include(joinpath(@__DIR__, "..", "P9_P12_SimpleStrokeTests", "Frontend.module.jl"))
 using .Readout, .Frontend
 
 const DATA   = joinpath(@__DIR__, "data")

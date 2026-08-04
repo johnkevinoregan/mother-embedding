@@ -1,5 +1,5 @@
 # ── PLAIN SCRIPT, not a Pluto notebook ──────────────────────────────────────
-# `julia --project=.. Replot_Predictions.jl`   (from the P9+12_SimpleStrokeTests directory)
+# `julia --project=.. Replot_Predictions.jl`   (from the P9_P12_SimpleStrokeTests directory)
 #
 # Redraws the predicted-vs-true scatters from `figures_predictions/predictions.jls` with a
 # **binned median and interquartile range** overlaid, and a line joining the medians.

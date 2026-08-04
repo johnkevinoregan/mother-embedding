@@ -1,5 +1,5 @@
 # ── PLAIN SCRIPT, not a Pluto notebook ──────────────────────────────────────
-# `julia --project=.. -t 16 Sweep_Capacity.jl`   (from the P9+12_SimpleStrokeTests directory)
+# `julia --project=.. -t 16 Sweep_Capacity.jl`   (from the P9_P12_SimpleStrokeTests directory)
 #
 # The three capacity axes the project has never swept: scales, orientations, ray offsets.
 #

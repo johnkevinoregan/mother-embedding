@@ -78,7 +78,7 @@ scales_of(meta)::Vector{Float64} = unique(Float64(m.rho0) for m in meta if m.kin
 # ---------------------------------------------------------------- A1
 
 # NOTE on the `eps` guards in this file, checked when the ray transform's equivalent guard
-# turned out to be a bug (see RayHarmonics and P9+12_SimpleStrokeTests/RESULTS.md).
+# turned out to be a bug (see RayHarmonics and P9_P12_SimpleStrokeTests/RESULTS.md).
 #
 # An epsilon guard that writes a fill value is safe **only when the fill value is the true
 # limit of the quantity as the energy goes to zero.** That is the case here and was not the
@@ -158,7 +158,7 @@ meaningless there).
   ρ=2.
 
 > **⚠ Reproducing the published tables requires `floor=:none`.** Every A₁ number in
-> `P9+12_SimpleStrokeTests/RESULTS.md`, `P10_FashionMNIST/RESULTS.md`, `P11_ConVNextTest/RESULTS.md` and the
+> `P9_P12_SimpleStrokeTests/RESULTS.md`, `P10_FashionMNIST/RESULTS.md`, `P11_ConVNextTest/RESULTS.md` and the
 > EMNIST phases was computed before this default changed, i.e. with `:none`. They have **not**
 > been re-run. Pass `a1_floor=:none` through `and_maps` / `build_frontend` — or set
 > `FRONTEND_A1_FLOOR=none` for the experiment scripts — to reproduce them exactly. Any new number

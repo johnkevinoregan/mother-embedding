@@ -1,5 +1,5 @@
 # ── PLAIN SCRIPT, not a Pluto notebook ──────────────────────────────────────
-# `julia --project=.. -t 14 Add_DeepHead.jl`   (from the P9+12_SimpleStrokeTests directory)
+# `julia --project=.. -t 14 Add_DeepHead.jl`   (from the P9_P12_SimpleStrokeTests directory)
 #
 # Adds a fourth arm: our 31 features with a **deeper, tapering head** — 31 → 512 → 128 → 64 → 8 —
 # against the 31 → 256 → 256 → 8 used everywhere else.
@@ -49,7 +49,7 @@ nva = NTR ÷ 6; tr = 1:NTR-nva; va = NTR-nva+1:NTR
 # geometric spacing — 56 / 29.9 / 16 has ratio 1.87, so the next rung is 8.55 px and 8 is
 # essentially it. That needs its own extraction; the other heads reuse the 31-feature cache.
 #
-# λ = 8 is real signal here because P9+12_SimpleStrokeTests is natively 112 px. On EMNIST and
+# λ = 8 is real signal here because P9_P12_SimpleStrokeTests is natively 112 px. On EMNIST and
 # Fashion-MNIST, which are 28×28 upsampled 4×, λ = 8 sits exactly at the original Nyquist and
 # would mostly measure bilinear interpolation — so this scale should not be made a default
 # without checking per dataset.

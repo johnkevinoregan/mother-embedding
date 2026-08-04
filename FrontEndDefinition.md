@@ -1,10 +1,10 @@
 # The front end, defined
 
 Every feature the front end produces, with the arithmetic written out. Companion to the
-plain-language version in `P9+12_SimpleStrokeTests/RESULTS.md`.
+plain-language version in `P9_P12_SimpleStrokeTests/RESULTS.md`.
 
 Source of truth: `P0-8_RationalGaborFeatures/{GaborStack,AndLayer,RayHarmonics,Pooling}.module.jl`
-and `P9+12_SimpleStrokeTests/Frontend.module.jl`.
+and `P9_P12_SimpleStrokeTests/Frontend.module.jl`.
 
 ---
 

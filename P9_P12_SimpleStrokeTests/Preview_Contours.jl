@@ -36,7 +36,7 @@ for (ev, name) in rows, k in 1:NCOL
     push!(panels, tile(img, ttl))
 end
 plot(panels...; layout=(length(rows), NCOL), size=(146NCOL, 150length(rows)),
-     plot_title="P9+12_SimpleStrokeTests — 10 random samples per event type",
+     plot_title="P9_P12_SimpleStrokeTests — 10 random samples per event type",
      plot_titlefontsize=12)
 savefig(joinpath(@__DIR__, "contactsheet.png")); println("wrote contactsheet.png")
 

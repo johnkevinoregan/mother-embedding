@@ -174,13 +174,13 @@ being starved: independent information is worth more when there is less of it.
 This is the reverse of Phase 9, where 31 globally pooled features beat 775 gridded ones on
 every property, and it settles what that result meant.
 
-**In `P9+12_SimpleStrokeTests` position is randomised**, so a fixed spatial grid is pure liability —
+**In `P9_P12_SimpleStrokeTests` position is randomised**, so a fixed spatial grid is pure liability —
 the same shape at a different location produces different numbers and the readout must learn to
 undo it. **Here garments are centred with their parts in consistent places** — sleeves up, soles
 down, straps at the top of a bag — so the grid carries real information.
 
 So the Phase 9 grid result was about **position randomisation in that dataset**, not about
-pooling in general, and the caution attached to it in `P9+12_SimpleStrokeTests/RESULTS.md` was
+pooling in general, and the caution attached to it in `P9_P12_SimpleStrokeTests/RESULTS.md` was
 correct. The right grid is a function of whether object parts land in predictable places, which
 for natural images they largely do.
 

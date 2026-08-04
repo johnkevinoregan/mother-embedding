@@ -1,5 +1,5 @@
 # ── PLAIN SCRIPT, not a Pluto notebook ──────────────────────────────────────
-# `julia --project=.. -t 14 Plot_Predictions.jl`   (from the P9+12_SimpleStrokeTests directory)
+# `julia --project=.. -t 14 Plot_Predictions.jl`   (from the P9_P12_SimpleStrokeTests directory)
 #
 # Predicted value against true value, for every property except polarity, for three arms, at
 # several points during training.

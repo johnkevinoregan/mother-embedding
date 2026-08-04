@@ -4,7 +4,7 @@
 # Step 1 of 3. Generate the Phase 9 stimuli and write them where Python can read them.
 #
 # The whole value of this experiment is that ConvNeXt is scored on the **same images** as
-# every arm in `P9+12_SimpleStrokeTests/RESULTS.md`, so the splits, seeds and generator keywords
+# every arm in `P9_P12_SimpleStrokeTests/RESULTS.md`, so the splits, seeds and generator keywords
 # here are copied from `Phase9_Readouts.jl` rather than re-chosen. Change one and the
 # comparison silently stops being a comparison.
 #
@@ -20,7 +20,7 @@
 
 using Pkg; Pkg.activate(joinpath(@__DIR__, ".."))
 using Statistics, Printf, Random, Serialization
-include(joinpath(@__DIR__, "..", "P9+12_SimpleStrokeTests", "Contours.module.jl"))
+include(joinpath(@__DIR__, "..", "P9_P12_SimpleStrokeTests", "Contours.module.jl"))
 using .Contours
 
 const N      = 112

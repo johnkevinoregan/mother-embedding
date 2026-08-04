@@ -3,7 +3,7 @@
 #
 # Phase 10 — does the front end work on something that is not characters?
 #
-# Everything so far is EMNIST (handwritten letters) or P9+12_SimpleStrokeTests (synthetic single
+# Everything so far is EMNIST (handwritten letters) or P9_P12_SimpleStrokeTests (synthetic single
 # strokes). Both are line drawings on an empty background. The project's stated target is a
 # general front end for greyscale images, and neither dataset tests that.
 #
@@ -27,7 +27,7 @@
 #      texture suits multi-scale oriented energy.
 #   2. The AND layer should add ~0 again. Silhouettes have few junctions, which is the same
 #      reason it added +0.01 on EMNIST.
-#   3. **Grid 3 should beat grid 1 here** — the reverse of P9+12_SimpleStrokeTests. There, grid 1
+#   3. **Grid 3 should beat grid 1 here** — the reverse of P9_P12_SimpleStrokeTests. There, grid 1
 #      won because position was randomised, so a fixed grid was pure liability. Here objects
 #      are centred and their parts are in consistent places (sleeves up, sole down), so
 #      spatial pooling should pay. If grid 1 wins anyway, the earlier result was about
@@ -38,9 +38,9 @@ using Statistics, Printf, Random, LinearAlgebra, Serialization, FFTW
 using Flux, OneHotArrays, Plots, CUDA
 include(joinpath(@__DIR__, "..", "LoadEMNIST.module.jl"))     # IDX reader; format is identical
 # `Frontend` is the shared wrapper round P0-8_RationalGaborFeatures. It lives under
-# P9+12_SimpleStrokeTests for historical reasons rather than good ones; it is general and belongs
+# P9_P12_SimpleStrokeTests for historical reasons rather than good ones; it is general and belongs
 # somewhere neutral, but moving it would break paths in a run that is currently going.
-include(joinpath(@__DIR__, "..", "P9+12_SimpleStrokeTests", "Frontend.module.jl"))
+include(joinpath(@__DIR__, "..", "P9_P12_SimpleStrokeTests", "Frontend.module.jl"))
 using .LoadEMNIST, .Frontend
 
 const DIR    = joinpath(homedir(), "Julia", "DATABASES", "FashionMNIST")

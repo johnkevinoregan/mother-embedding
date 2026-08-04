@@ -20,8 +20,8 @@ part of the pipeline.
 **Latest result.** A fine scale at λ = 8 px and a spatial **max** alongside the existing spatial
 means take the front end from 31 to 53 features and close most of the gap to a frozen ImageNet
 ConvNeXt — thickness 0.234 → 0.040, fuzziness 0.241 → 0.051. See
-[`P9+12_SimpleStrokeTests/RESULTS.md`](P9+12_SimpleStrokeTests/RESULTS.md) and the predicted-vs-true scatters
-in `P9+12_SimpleStrokeTests/figures_predictions/`.
+[`P9_P12_SimpleStrokeTests/RESULTS.md`](P9_P12_SimpleStrokeTests/RESULTS.md) and the predicted-vs-true scatters
+in `P9_P12_SimpleStrokeTests/figures_predictions/`.
 
 ---
 
@@ -33,7 +33,7 @@ how to run it and `RESULTS.md` for the tables.
 | directory | phases | what it is |
 |:--|:--|:--|
 | **`P0-8_RationalGaborFeatures/`** | 0–8 | **The front end itself**, and its tests on EMNIST. Log-Gabor oriented energy, exactly polarity-invariant, with an ablatable layer of pointwise conjunctions applied *before* spatial pooling. Scale ladder derived from measured spectra rather than hard-coded. |
-| **`P9+12_SimpleStrokeTests/`** | 9 | A synthetic dataset labelled with **graded properties** rather than classes, which turns the question from "can a classifier separate these" into "how much of each property is linearly available". Where the conjunction layer first paid for itself, where the front end's own dials were swept, and where the **λ=8 scale and spatial max** took it from 31 to 53 features. |
+| **`P9_P12_SimpleStrokeTests/`** | 9 | A synthetic dataset labelled with **graded properties** rather than classes, which turns the question from "can a classifier separate these" into "how much of each property is linearly available". Where the conjunction layer first paid for itself, where the front end's own dials were swept, and where the **λ=8 scale and spatial max** took it from 31 to 53 features. |
 | **`P10_FashionMNIST/`** | 10 | The first dataset here that is **not a line drawing** — filled silhouettes with texture, and published baselines to calibrate against. |
 | **`P11_ConVNextTest/`** | 11 | The front end against a **frozen ImageNet ConvNeXt** on the Phase 9 stimuli — identical readout, identical images. Where the "designed features make geometry explicit" claim was retired, and where the polarity invariance earned its keep. |
 | **`P13_CurriculumEMNIST/`** | 13 | EMNIST with the training set cut into 4 disjoint subsets and **switched every 15 epochs**, measuring memorisation and forgetting *during* training rather than inferring them from a train/test gap. Adds ConvNeXt **trained end to end** as a third kind of arm, and separates "remembered the images" from "extracted the structure" with a **few-shot test on classes never seen**. |
@@ -160,10 +160,10 @@ A plain script — note `--project=..` from inside a subdirectory, and `-t` for 
 feature extraction is parallel across images:
 
 ```bash
-cd P9+12_SimpleStrokeTests && julia --project=.. -t 16 Phase9_Readouts.jl
+cd P9_P12_SimpleStrokeTests && julia --project=.. -t 16 Phase9_Readouts.jl
 ```
 
-`P9+12_SimpleStrokeTests/run.sh` wraps the common cases. Experiment scripts take their settings from
+`P9_P12_SimpleStrokeTests/run.sh` wraps the common cases. Experiment scripts take their settings from
 environment variables (`P9_*`, `F_*`) so a run can be resized without editing code.
 
 ---

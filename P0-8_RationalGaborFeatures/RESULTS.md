@@ -441,7 +441,7 @@ constructed on which the conjunction layer beats the orientation statistics** �
 not the binary `F`/`f` probe, and not a synthetic benchmark built specifically to require
 co-location.
 
-> **SUPERSEDED — see `P9+12_SimpleStrokeTests/RESULTS.md` (Phase 9).** A task has now been
+> **SUPERSEDED — see `P9_P12_SimpleStrokeTests/RESULTS.md` (Phase 9).** A task has now been
 > constructed. On a graded-property contour dataset the conjunction and ray blocks are worth
 > **+0.166 R² on brokenness, +0.164 on corner angle and +0.132 on junction order** over a
 > shuffle control matching column count and marginals — against +0.01 here.
