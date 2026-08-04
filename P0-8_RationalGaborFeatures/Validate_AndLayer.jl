@@ -287,9 +287,16 @@ let
     cases = [("straight (2)", barstim(N, 0.0)), ("L-corner (2, meeting)", corner(N, π/2)),
              ("T-junction (3)", tee(N)), ("X-crossing (4)", cross_bars(N))]
     raw = Float64[]; norm = Float64[]; ink = Int[]
+    # "ink" = pixels that DIFFER FROM THE BACKGROUND, not pixels that are bright. The obvious
+    # `count(>(0.5), im)` assumes light strokes on a dark field and inverts under a polarity
+    # flip: for these figures it returns 12544 − ink, which reverses the ordering outright
+    # (straight goes from least to most). The front end itself is exactly polarity-invariant —
+    # its features match to 1e-8 relative on a figure and its inverse — so a diagnostic that is
+    # not would contradict the thing it sits next to.
+    stroke_count(im) = (bg = im[1, 1]; count(x -> abs(x - bg) > 0.5f0, im))
     for (_, im) in cases
         Es = E(im); A, _ = and_maps(Es, bank.meta; forms=(:A1,))
-        push!(raw, sum(A)); push!(norm, sum(A)/sum(Es)); push!(ink, count(>(0.5f0), im))
+        push!(raw, sum(A)); push!(norm, sum(A)/sum(Es)); push!(ink, stroke_count(im))
     end
     p1 = Plots.bar(raw; xticks=(1:4, [nm for (nm,_) in cases]), legend=false, ylabel="Σ A₁",
                    title="raw ΣA₁ — but ink is $(join(ink, " / "))", titlefontsize=8,

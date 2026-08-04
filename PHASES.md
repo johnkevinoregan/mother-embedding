@@ -493,7 +493,11 @@ Three threads run throughout.
 
 1. **A₁ appeared to order junctions by ray count** — straight 6.3e4 < L 9.5e4 < T 1.15e5 < X 1.58e5
    — and this went into the README and a commit message. It was tracking **total ink**
-   (980 / 1052 / 1359 / 1708 px). With ink held constant a T and an X give 1.15e5 against 1.16e5,
+   (980 / 1052 / 1359 / 1708 px). *"Ink" throughout this document means **how many pixels differ
+   from the background**, never how dark or how bright they are. The front end is exactly
+   polarity-invariant — a figure and its inverse give features matching to 1e-8 relative — so
+   every "amount of ink" argument here holds verbatim for white strokes on black. The metaphor is
+   borrowed from the black-on-white convention and the quantity is not.* With ink held constant a T and an X give 1.15e5 against 1.16e5,
    and normalised by energy the ordering *inverts*: an L-corner (0.0415) outranks a T (0.0391).
    Theory says it must be so — A₁ reads the orientation profile, which is **π-periodic**, while ray
    count is a **2π** property, and a T and an X have identical orientation content.
