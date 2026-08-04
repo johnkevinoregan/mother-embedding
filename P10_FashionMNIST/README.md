@@ -55,6 +55,7 @@ directory to force re-extraction.
 
 ## Phase 10b — the follow-up
 
+julia --project=.. Plot_Phase10.jl        # accuracy-per-epoch curves from curves.jls
 ```bash
 cd ~/claude-code/mother-embedding/P10_FashionMNIST
 julia --project=.. -t 16 Phase10b_Collinearity.jl 2>&1 | tee collinearity2.log

@@ -228,3 +228,47 @@ BSDS boundary detection remains the intended target.
    images (arXiv:1906.08255), so every number on this page, ours included, is slightly
    optimistic. It costs ~0.4 points where it has been measured, and it applies to all arms, so
    no comparison here is affected.
+
+---
+
+## Convergence — the curves this phase originally did not keep
+
+Phase 10 first reported final numbers and saved **no accuracy curves at all**. The only per-epoch
+record anywhere was four sampled lines for the CNN arm in `phase10_full.log`, and nothing for the
+feature arms — so none of the numbers below could be checked for convergence. Re-run 2026-08-04
+with per-epoch validation *and* test accuracy recorded for every arm.
+
+Recording only. Selection is still best-epoch-on-validation, unchanged, so the numbers stay
+comparable — and they are: **all fourteen feature-arm accuracies reproduce exactly**, to the digit.
+Only the CNN moved, 93.10 → 92.98, which is cuDNN nondeterminism in the convolution backward pass.
+
+`Phase10_FashionMNIST.jl` → `curves.jls` → `Plot_Phase10.jl` → `figures/phase10_curves.png`
+(one panel per arm, with the selected epoch marked) and `figures/phase10_curves_compare.png`.
+
+**The feature arms are converged.** Every one has a last-five-epoch slope under 0.08 points/epoch
+and a last-five standard deviation of 0.22 or less, and every reported number sits within 0.31
+points of its own plateau. Best-epoch-on-validation is doing essentially nothing for them — which
+is the result we wanted and could not previously demonstrate.
+
+**The pixel calibration arm is the exception, and it is the one that matters for the external
+comparison.**
+
+| | last-5 sd | last-5 slope | selected epoch | reported − plateau |
+|:--|--:|--:|--:|--:|
+| `pixels + MLP` | **0.85** | **+0.479 /epoch** | **24 of 25** | **+0.70** |
+| every feature arm | ≤ 0.22 | ≤ 0.08 | 15–25 | −0.37 … +0.31 |
+
+That arm is four times noisier than any other, still climbing when training stops, and its reported
+87.70 % sits 0.70 points above its own last-five mean — so best-epoch selection *is* picking a
+favourable point off a noisy curve, and 25 epochs is not enough for it.
+
+**What this changes.** The arm-versus-arm and arm-versus-control comparisons are unaffected: those
+are all between feature arms, all converged, all reproduced exactly. What it qualifies is
+**Prediction 1**, which calibrates our features against "the published MLP ≈ 88 %" using this arm.
+The comparison is between a published, presumably converged figure and one of ours that is neither
+converged nor stable. It is not wrong, but it is softer than it reads, and it should be quoted with
+that attached. Re-running the pixel arm to 60+ epochs would settle it and costs minutes.
+
+**The `g1: + A SHUFFLED` control selected epoch 25 of 25**, its last. Its end slope is +0.036
+points/epoch, so it is flat rather than truncated, and the control conclusion stands — but it is
+worth noting as the other place the run brushed its epoch budget.

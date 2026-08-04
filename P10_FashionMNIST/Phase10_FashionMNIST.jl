@@ -92,6 +92,13 @@ end
 """
 Accuracy of a two-layer MLP on a column subset, standardised, best epoch on a validation
 slice carved out of training. Same protocol as Phase 9 so the numbers are comparable.
+
+Returns `(acc, val, test)` — the reported accuracy plus the **per-epoch curves**. Test accuracy
+is now evaluated every epoch as well as at the best-validation epoch. That is recording, not
+selection: the reported number is still chosen on the validation slice alone, so the protocol is
+unchanged and the numbers stay comparable with earlier runs. The curves exist because a final
+number cannot distinguish a converged run from a sample of a trajectory — this phase originally
+kept none, which made its numbers uncheckable.
 """
 function arm(Xtr, ytr, Xte, yte, cols; hidden=256, epochs=EPOCHS, seed=1, nclass=10)
     Random.seed!(seed)
@@ -102,15 +109,18 @@ function arm(Xtr, ytr, Xte, yte, cols; hidden=256, epochs=EPOCHS, seed=1, nclass
     Yt = onehotbatch(ytr[tr], 1:nclass)
     m = Chain(Dense(length(cols) => hidden, relu), Dense(hidden => nclass))
     opt = Flux.setup(Flux.Adam(1f-3), m); n = size(A, 2); best = 0.0; bestte = 0.0
+    vcurve = Float64[]; tcurve = Float64[]
     for _ in 1:epochs
         for i in Iterators.partition(randperm(n), 128)
             _, gs = Flux.withgradient(mm -> Flux.logitcrossentropy(mm(A[:, i]), Yt[:, i]), m)
             Flux.update!(opt, m, gs[1])
         end
         v = mean(onecold(m(V), 1:nclass) .== ytr[va])
-        if v > best; best = v; bestte = mean(onecold(m(T), 1:nclass) .== yte); end
+        t = mean(onecold(m(T), 1:nclass) .== yte)
+        push!(vcurve, 100v); push!(tcurve, 100t)
+        if v > best; best = v; bestte = t; end       # selection on validation only
     end
-    100bestte
+    (acc = 100bestte, val = vcurve, test = tcurve)
 end
 
 """
@@ -142,7 +152,7 @@ function cnn_arm(itr28, ytr, ite28, yte; epochs=CEPOCH, seed=1, bs=128, nclass=1
               Dense(256 => nclass)) |> dev
     opt = Flux.setup(Flux.Adam(1f-3), m)
     Yt = dev(onehotbatch(ytr[tr], 1:nclass)); n = length(tr)
-    best = 0.0; bestte = 0.0
+    best = 0.0; bestte = 0.0; vcurve = Float64[]; tcurve = Float64[]
     function acc(M, y)
         Flux.testmode!(m)
         p = reduce(vcat, [onecold(cpu(m(M[:,:,:,j])), 1:nclass)
@@ -154,15 +164,17 @@ function cnn_arm(itr28, ytr, ite28, yte; epochs=CEPOCH, seed=1, bs=128, nclass=1
             _, gs = Flux.withgradient(mm -> Flux.logitcrossentropy(mm(Xtr[:,:,:,i]), Yt[:,i]), m)
             Flux.update!(opt, m, gs[1])
         end
-        v = acc(Xva, ytr[va])
-        if v > best; best = v; bestte = acc(T, yte); end
-        e % 10 == 0 && (@printf("      cnn epoch %3d  val %.4f\n", e, v); flush(stdout))
+        v = acc(Xva, ytr[va]); t = acc(T, yte)
+        push!(vcurve, 100v); push!(tcurve, 100t)
+        if v > best; best = v; bestte = t; end       # selection on validation only
+        e % 5 == 0 && (@printf("      cnn epoch %3d  val %.4f  test %.4f\n", e, v, t); flush(stdout))
     end
-    100bestte
+    (acc = 100bestte, val = vcurve, test = tcurve)
 end
 
 function main()
     @printf("Phase 10 — Fashion-MNIST, %d threads\n\n", Threads.nthreads())
+    curves = Pair{String,NamedTuple}[]      # every arm's per-epoch trajectory, for Plot_Phase10.jl
     itr, ytr = load_split("train", NTRAIN); ite, yte = load_split("t10k", NTEST)
     @printf("%d train, %d test, 10 classes (chance 10.0 %%)\n", length(itr), length(ite))
 
@@ -170,7 +182,8 @@ function main()
     flat(v) = permutedims(reduce(hcat, [vec(x) for x in v]))
     Xp_tr = flat(itr); Xp_te = flat(ite)
     px = arm(Xp_tr, ytr, Xp_te, yte, 1:size(Xp_tr, 2))
-    @printf("\npixels + MLP (calibration; published MLP ≈ 88 %%)   %.2f %%\n", px)
+    push!(curves, "pixels + MLP" => px)
+    @printf("\npixels + MLP (calibration; published MLP ≈ 88 %%)   %.2f %%\n", px.acc)
     Xp_tr = nothing; Xp_te = nothing; GC.gc()
 
     # the CNN gets the data at its native resolution, not our upsampled version
@@ -181,9 +194,10 @@ function main()
     raw_tr = [Float32.(permutedims(@view A_tr[:,:,i])) for i in 1:length(ytr)]
     raw_te = [Float32.(permutedims(@view A_te[:,:,i])) for i in 1:length(yte)]
     A_tr = nothing; A_te = nothing
-    tc = @elapsed (cnnacc = cnn_arm(raw_tr, ytr, raw_te, yte))
+    tc = @elapsed (cnnres = cnn_arm(raw_tr, ytr, raw_te, yte))
+    push!(curves, "CNN 28×28" => cnnres)
     @printf("CNN trained here, 28×28, no augmentation             %.2f %%   (%.0f s)\n",
-            cnnacc, tc)
+            cnnres.acc, tc)
     raw_tr = nothing; raw_te = nothing; GC.gc()
 
     for g in GRIDS
@@ -209,8 +223,9 @@ function main()
                   ("rays alone",     ("rays",))]
         for (nm, bs) in blocks
             cols = block_cols(spec, bs...)
-            @printf("  %-16s %4d cols   %.2f %%\n", nm, length(cols),
-                    arm(Ftr, ytr, Fte, yte, cols))
+            r = arm(Ftr, ytr, Fte, yte, cols)
+            push!(curves, "g$(g): $nm" => r)
+            @printf("  %-16s %4d cols   %.2f %%\n", nm, length(cols), r.acc)
             flush(stdout)
         end
 
@@ -223,15 +238,23 @@ function main()
         base = block_cols(spec, "orient", "lowpass")
         acols = block_cols(spec, "A1", "A2")
         allc = block_cols(spec, "orient", "lowpass", "A1", "A2")
-        accs = Float64[]
+        accs = Float64[]; svals = Vector{Float64}[]; stests = Vector{Float64}[]
         for rep in 1:NSHUF
             Fs = copy(Ftr); perm = randperm(MersenneTwister(1000 + rep), size(Fs, 1))
             Fs[:, acols] = Fs[perm, acols]
-            push!(accs, arm(Fs, ytr, Fte, yte, allc; seed = rep))
+            r = arm(Fs, ytr, Fte, yte, allc; seed = rep)
+            push!(accs, r.acc); push!(svals, r.val); push!(stests, r.test)
         end
+        # the control's curve is the mean over shuffles; the spread across them is the
+        # meaningful error bar, and it is already reported as ± below
+        push!(curves, "g$(g): + A SHUFFLED (control)" =>
+              (acc = mean(accs), val = mean(svals), test = mean(stests)))
         @printf("  %-16s %4d cols   %.2f %% ± %.2f   (%d shuffles) ← CONTROL\n",
                 "+ A SHUFFLED", length(allc), mean(accs), std(accs), NSHUF)
         flush(stdout)
     end
+    serialize(joinpath(@__DIR__, "curves.jls"), (curves = curves, epochs = EPOCHS, cepochs = CEPOCH))
+    @printf("\nwrote curves.jls — %d arms. Plot with `julia --project=.. Plot_Phase10.jl`\n",
+            length(curves))
 end
 main()

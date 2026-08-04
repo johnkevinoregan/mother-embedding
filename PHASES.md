@@ -211,7 +211,7 @@ design choice that depends on image statistics.
 
 ## 10 — something that is not characters
 
-*Source — `P10_FashionMNIST/`: `Phase10_FashionMNIST.jl` and `Phase10b_Collinearity.jl` → tables in `RESULTS.md`; captured runs `phase10_full.log`, `collinearity2.log`. **This phase kept no accuracy curves** — the only per-epoch record anywhere is four sampled lines for the CNN arm in `phase10_full.log`, and nothing at all for the feature arms. It predates the standing rule and is the one phase whose numbers cannot be checked for convergence.*
+*Source — `P10_FashionMNIST/`: `Phase10_FashionMNIST.jl` → tables in `RESULTS.md`, curves in `curves.jls`; `Plot_Phase10.jl` → `figures/phase10_curves.png` (one panel per arm, selected epoch marked) and `figures/phase10_curves_compare.png`. `Phase10b_Collinearity.jl` → `collinearity2.log`. Captured runs: `phase10_curves.log` (the 2026-08-04 re-run that added the curves; all fourteen feature-arm numbers reproduced exactly) and `phase10_full.log` (the original, which kept no curves). See `RESULTS.md` §Convergence — the feature arms are converged, the pixel calibration arm is not.*
 
 `P10_FashionMNIST/`. Silhouettes with texture rather than line drawings, and **published
 baselines** to calibrate against instead of only our own arms.

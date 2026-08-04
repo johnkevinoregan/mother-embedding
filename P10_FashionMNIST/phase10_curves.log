@@ -1,0 +1,35 @@
+Phase 10 — Fashion-MNIST, 16 threads
+
+60000 train, 10000 test, 10 classes (chance 10.0 %)
+
+pixels + MLP (calibration; published MLP ≈ 88 %)   87.70 %
+      cnn epoch   5  val 0.9197  test 0.9155
+      cnn epoch  10  val 0.9307  test 0.9258
+      cnn epoch  15  val 0.9329  test 0.9278
+      cnn epoch  20  val 0.9291  test 0.9188
+      cnn epoch  25  val 0.9317  test 0.9285
+      cnn epoch  30  val 0.9338  test 0.9307
+      cnn epoch  35  val 0.9300  test 0.9237
+      cnn epoch  40  val 0.9295  test 0.9279
+CNN trained here, 28×28, no augmentation             92.98 %   (74 s)
+
+=== grid 1 — 31 features, extraction from cache ===
+  orient+lowpass     16 cols   78.31 %
+  + A1+A2            22 cols   80.69 %
+  + rays             25 cols   81.50 %
+  everything         31 cols   81.63 %
+  A1+A2 alone         6 cols   55.39 %
+  rays alone          9 cols   65.20 %
+  + A SHUFFLED       22 cols   77.84 % ± 0.27   (5 shuffles) ← CONTROL
+
+=== grid 3 — 279 features, extraction from cache ===
+  orient+lowpass    144 cols   89.03 %
+  + A1+A2           198 cols   89.70 %
+  + rays            225 cols   89.57 %
+  everything        279 cols   89.66 %
+  A1+A2 alone        54 cols   86.51 %
+  rays alone         81 cols   86.26 %
+  + A SHUFFLED      198 cols   88.08 % ± 0.14   (5 shuffles) ← CONTROL
+  Activating project at `~/claude-code/mother-embedding`
+
+wrote curves.jls — 16 arms. Plot with `julia --project=.. Plot_Phase10.jl`
