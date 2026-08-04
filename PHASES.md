@@ -492,15 +492,26 @@ Three threads run throughout.
 **Three apparent results were killed by exactly these controls.**
 
 1. **A₁ appeared to order junctions by ray count** — straight 6.3e4 < L 9.5e4 < T 1.15e5 < X 1.58e5
-   — and this went into the README and a commit message. It was tracking **total ink**
-   (980 / 1052 / 1359 / 1708 px). *"Ink" throughout this document means **how many pixels differ
-   from the background**, never how dark or how bright they are. The front end is exactly
-   polarity-invariant — a figure and its inverse give features matching to 1e-8 relative — so
-   every "amount of ink" argument here holds verbatim for white strokes on black. The metaphor is
-   borrowed from the black-on-white convention and the quantity is not.* With ink held constant a T and an X give 1.15e5 against 1.16e5,
-   and normalised by energy the ordering *inverts*: an L-corner (0.0415) outranks a T (0.0391).
-   Theory says it must be so — A₁ reads the orientation profile, which is **π-periodic**, while ray
-   count is a **2π** property, and a T and an X have identical orientation content.
+   — and this went into the README and a commit message. **Normalised by energy the ordering
+   breaks**: an L-corner (0.0415) outranks a T (0.0400), two rays above three, so ΣA₁ is not a ray
+   count.
+
+   *The stated reason was itself wrong, corrected 2026-08-04.* This used to say ΣA₁ was tracking
+   **total ink** (980 / 1052 / 1359 / 1708 px), and to cite a control in which a T and an X with
+   ink held constant gave 1.15e5 against 1.16e5. Re-measured, ΣA₁ tracks the **number of i2D
+   events** — free stroke ends plus the junction — not stroke area: `ΣA₁ / i2D-events` is flat to
+   ±5 % across these figures while `ΣA₁ / ink` varies by ±20 %. And the control does not
+   reproduce; matching stroke area in either direction puts X above T by 23–28 %. See
+   `P0-8_RationalGaborFeatures/RESULTS.md` §"Three corrections" for the numbers and two caveats.
+   The heading survives — the energy-normalised ordering still refutes ray counting — but the
+   mechanism named under it did not.
+
+   Theory constrains this, though less tightly than the original wording implied: A₁ reads the
+   orientation profile, which is **π-periodic**, while ray count is a **2π** property, and a T and
+   an X contain the same orientations {0°, 90°}. That fixes the orientation *labels*, not the
+   *magnitudes* — and real filters have spatial extent, so at a T's centre the vertical channel
+   sees stroke on one side only and carries about half the energy an X's does. A₁ does separate
+   the two in practice; it just does not do so by counting rays.
 2. **A T-versus-X separation** that came from unmatched orientation energy rather than from
    junction type.
 3. **Blocks appearing to win on merit when part of the win was capacity** — visible only once the

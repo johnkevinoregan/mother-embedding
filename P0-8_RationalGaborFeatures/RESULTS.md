@@ -480,9 +480,27 @@ classifier. The exposure was only ever a claim about absolute orientation values
 ### 1. A₁ does not order junctions by ray count
 
 Phase 3 reported straight 6.3e4 < L 9.5e4 < T 1.15e5 < X 1.58e5 as an unprompted result and
-it went into the README and a commit message. **It tracks total ink** (980 / 1052 / 1359 /
-1708 px). Normalised by energy the ordering breaks — L-corner **0.0415** outranks
-T-junction **0.0391** — and with ink held constant a T and an X give 1.15e5 against 1.16e5.
+it went into the README and a commit message. **The conclusion stands: normalised by energy the
+ordering breaks**, with L-corner **0.0415** outranking T-junction **0.0400** — two rays above
+three — so ΣA₁ is not a ray count.
+
+> **The stated *reason* was wrong, corrected 2026-08-04.** This paragraph used to say "it tracks
+> total ink (980 / 1052 / 1359 / 1708 px)". Re-measured, ΣA₁ tracks **the number of i2D events**
+> — free stroke ends plus the junction, so 2 / 3 / 4 / 5 for these figures — and not stroke area.
+> `ΣA₁ / i2D-events` is 3.04 / 3.11 / 2.84 / 3.17 (×10⁴), a ±5 % spread, while `ΣA₁ / ink` swings
+> 62 / 89 / 84 / 93, ±20 %, with the straight bar a clear outlier. The flat ratio is the one that
+> identifies what is being counted.
+>
+> The supporting control does not reproduce either. This said "with ink held constant a T and an X
+> give 1.15e5 against 1.16e5", i.e. indistinguishable. Matching stroke area in both directions —
+> shrinking the X to the T's area, and growing the T to the X's — gives **X above T by 28 % and
+> 23 %**, with or without the i1D floor. Two caveats: the original ink-matching procedure was not
+> recorded, so the matching here had to be invented; and the original absolute numbers do not
+> reproduce (an unfloored T gives 1.222e5 against the 1.15e5 quoted), so the stimulus parameters
+> differ somewhere.
+>
+> What this does **not** disturb: the heading, which the energy-normalised ordering still
+> supports, and everything downstream of it.
 
 The theory says it must be so. A₁ is built on the orientation profile, which is
 **π-periodic**; ray count is a **2π** property, and a T and an X have identical orientation
