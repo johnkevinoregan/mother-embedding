@@ -101,7 +101,7 @@ the endpoint-detection section).
 
 The two lists are then merged. The name just contrasts with the *single-channel*
 greedy and local-maxima detectors. It borrows *propose ≠ classify* from the
-`P00_Dense_Gabors` feature layer: different feature **types** get their own detection
+`P0.2_Dense_Gabors` feature layer: different feature **types** get their own detection
 operation. The catch (see the synthetic section) is that the endpoint channel
 fails even on clean figures — just past a real tip the *background* asymmetry is
 also ≈ 1, so the tip is not a strict local maximum of `|c₁|/c₀`.

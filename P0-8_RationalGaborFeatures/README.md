@@ -189,7 +189,7 @@ The theory says it must be so: A₁ is built on the orientation profile, which i
 content, {0°, 90°}. What A₁ separates is one orientation (0.029) from orientations
 *meeting* (0.039–0.044) — **i2D-ness, not junction order**. Since `F` has a 3-ray T and `f`
 a 4-ray X, **A₁ was structurally the wrong operator for the case that motivated it.** The
-operator for ray count is `c₀` from the ray transform in `P00_New_Gabor_FPE/`, which is 2π by
+operator for ray count is `c₀` from the ray transform in `P0.3_New_Gabor_FPE/`, which is 2π by
 construction because its `d`-offset makes east and west read different pixels.
 
 **The numbers above are dense-map contrasts; the classifier sees pooled ones.** Pooling at
@@ -371,7 +371,7 @@ Open, in the order that would settle the most:
    — stripping out the 40-class dilution. If A alone beats orient alone on that pair, the
    information is different and useful and merely drowned by averaging.
 4. **`c₀` from the ray transform.** A₁ is π-periodic and provably cannot count rays, which
-   is precisely what `F`/`f` requires. The ray transform in `P00_New_Gabor_FPE/` gets 2π
+   is precisely what `F`/`f` requires. The ray transform in `P0.3_New_Gabor_FPE/` gets 2π
    structure from a spatial offset and is **linear in the energy field** — a simpler
    operator that captures what the bilinear one cannot.
 5. **A task that requires i2D structure.** The negative is about EMNIST, not the layer:

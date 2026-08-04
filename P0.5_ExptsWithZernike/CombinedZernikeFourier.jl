@@ -47,7 +47,7 @@ Two descriptors in this project score almost the same and measure different thin
   (`ZernikeCharacterMoments.jl`): `|A_nm|` + `Re/Im A_nm`, `n ≤ 8` ⇒ **75 numbers**.
   Rotation-invariant magnitudes, *centred* on the object, no spatial layout.
 - **Block F** — the Fourier tic-tac-toe grid
-  (`../P00_ExptsWithGlobalFourier/TicTacToeFourierSignature.jl`): 9 features in each of
+  (`../P0.4_ExptsWithGlobalFourier/TicTacToeFourierSignature.jl`): 9 features in each of
   9 cells ⇒ **81 numbers**. Translation-invariant *within* each cell, all spatial
   layout, no global shape.
 

@@ -388,7 +388,7 @@ end
 md"""
 ### Is the signature diagnostic of letter identity?
 
-Same protocol as `P00_New_Gabor_FPE/KeyPointDiagnosticity.md`: EMNIST, 12 classes
+Same protocol as `P0.3_New_Gabor_FPE/KeyPointDiagnosticity.md`: EMNIST, 12 classes
 (`O C I L T X K A H Y E F`), leave-one-out **nearest-class-mean** on the
 standardised feature vector. **Chance = 8.3 %.** For reference, the best previous
 descriptor in this project (global shape harmonics `|M1..6|` + radial profile)

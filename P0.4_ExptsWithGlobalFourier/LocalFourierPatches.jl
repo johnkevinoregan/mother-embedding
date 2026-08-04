@@ -448,7 +448,7 @@ md"""
   instead by using only products of DC-free derivatives.
   `|F|` is also **not** rotation-invariant: rotating the letter rotates
   the whole `(v,u)` grid. Making that explicit is the point of the polar/harmonic
-  encodings in `P00_New_Gabor_FPE/` — take `|F|` on rings of constant `√(u²+v²)` and
+  encodings in `P0.3_New_Gabor_FPE/` — take `|F|` on rings of constant `√(u²+v²)` and
   Fourier-transform *around* the ring and you get rotation-invariant magnitudes, the
   same construction as the ray harmonics `cₙ` one level down.
 - **Aliasing guard.** `K` is clamped to `(P−1)÷2`. At `P = 5` only orders `−2…2`

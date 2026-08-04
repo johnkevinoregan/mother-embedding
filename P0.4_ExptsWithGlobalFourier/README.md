@@ -1,7 +1,7 @@
-# P00_ExptsWithGlobalFourier
+# P0.4_ExptsWithGlobalFourier
 
 Experiments with Fourier descriptions of a character, as an alternative to the
-Gabor / ray-harmonic front end in `P00_New_Gabor_FPE/`. Same image format as the rest
+Gabor / ray-harmonic front end in `P0.3_New_Gabor_FPE/`. Same image format as the rest
 of the project: EMNIST 28×28 upsampled to a 112×112 letter, embedded in a
 **224×224 field** (border 56), stroke width ≈ 13 px; synthetic figures (bar,
 diagonal, plus, T, X, L, ring) drawn on the same 112 patch.
@@ -58,7 +58,7 @@ DC removal, polarity):
 - **Verified numerically** (`|F|` shift-invariance to 4e-8 for the box window; exact
   reconstruction and 100 % energy at `K = (P−1)/2`; `F(0,0)` = windowed mean).
 - **Not rotation-invariant** — rotating the letter rotates the whole `(v,u)` grid.
-  Recovering that is what the ring/harmonic construction in `P00_New_Gabor_FPE/` does.
+  Recovering that is what the ring/harmonic construction in `P0.3_New_Gabor_FPE/` does.
 
 ## `TicTacToeFourierSignature.jl` + `TicTacToeSignature.md`
 
@@ -93,7 +93,7 @@ So: the answer to the original question is *yes* for stroke orientation, *no* fo
 loops — and the unplanned result is that the crude 3×3 orientation signature beats
 every local descriptor tried in this project so far.
 
-**Follow-up:** `../P00_ExptsWithZernike/CombinedZernikeFourier.jl` concatenates this 3×3
+**Follow-up:** `../P0.5_ExptsWithZernike/CombinedZernikeFourier.jl` concatenates this 3×3
 grid with global Zernike moments and reaches **82.8 % (84.2 % η²-weighted)** — the two
 are complementary because this descriptor is translation-invariant per cell while
 Zernike is rotation-invariant about a centre, so they fail on different letters.
@@ -102,5 +102,5 @@ Zernike is rotation-invariant about a centre, so they fail on different letters.
 
 ```bash
 cd /home/kevin/claude-code/mother-embedding
-julia --project=. -e 'using Pluto; Pluto.run(host="0.0.0.0", port=1235, launch_browser=false, notebook="P00_ExptsWithGlobalFourier/TicTacToeFourierSignature.jl")'
+julia --project=. -e 'using Pluto; Pluto.run(host="0.0.0.0", port=1235, launch_browser=false, notebook="P0.4_ExptsWithGlobalFourier/TicTacToeFourierSignature.jl")'
 ```

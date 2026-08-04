@@ -20,7 +20,7 @@ met data.*
 
 The reference arm came first, and it landed exactly: the old F3×3+2 no-DC features,
 re-extracted and re-trained *in this harness*, give **92.30 %** against the 92.30 %
-recorded in §7.10 of `P00_TestFeaturesWithMLP/README_MLP_FPE_Experiment.md`. So the rest is
+recorded in §7.10 of `P0.6_TestFeaturesWithMLP/README_MLP_FPE_Experiment.md`. So the rest is
 readable.
 
 | arm | n | final | best |
@@ -490,7 +490,7 @@ content {0°, 90°}. What A₁ separates is one orientation (0.029) from orienta
 (0.039–0.044) — **i2D-ness, not junction order**.
 
 **So A₁ was structurally the wrong operator for `F`/`f`**, which is a 3-ray T against a
-4-ray X. The operator for ray count is `c₀` from the ray transform in `P00_New_Gabor_FPE/`,
+4-ray X. The operator for ray count is `c₀` from the ray transform in `P0.3_New_Gabor_FPE/`,
 which is 2π by construction because its `d`-offset makes east and west read different
 pixels — and which is **linear in the energy field**, so the simpler operator captures what
 the bilinear one cannot.

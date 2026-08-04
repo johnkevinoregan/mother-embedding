@@ -1018,7 +1018,7 @@ features) to ~20 min (the widest codes).
 
 ```bash
 cd mother-embedding
-julia --project=. -t 4 -e 'using Pluto; Pluto.run(notebook="P00_TestFeaturesWithMLP/MLPonFeatures.jl")'
+julia --project=. -t 4 -e 'using Pluto; Pluto.run(notebook="P0.6_TestFeaturesWithMLP/MLPonFeatures.jl")'
 ```
 
 The `-t 4` matters: the FPE encoders are threaded, and are slow without it.

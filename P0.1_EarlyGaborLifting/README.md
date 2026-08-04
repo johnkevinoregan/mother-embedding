@@ -1,4 +1,4 @@
-# P00_EarlyGaborLifting — the first attempt
+# P0.1_EarlyGaborLifting — the first attempt
 
 The original work, and the ancestor of everything else in this repository: a **Gabor lifting**
 and a T-junction detector built directly on it. Kept because the reason it was superseded is
@@ -37,7 +37,7 @@ is about which rays *leave* a point, and mod-π orientation cannot tell east fro
 cosine similarity of `E(θ)` at the centre of canonical figures: L vs T 0.903, L vs X 0.887,
 T vs X 0.923. Those three are effectively the same vector, so no scoring rule reads them apart.
 
-The fix, developed in `P00_New_Gabor_FPE/` and now in
+The fix, developed in `P0.3_New_Gabor_FPE/` and now in
 `P0-8_RationalGaborFeatures/RayHarmonics.module.jl`, is to sample the energy at an **offset** —
 `R(p, φ) = E(p + d·u(φ), θ = φ mod π)` — which restores the 2π structure because east and west
 read different pixels.

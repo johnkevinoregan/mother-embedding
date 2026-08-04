@@ -1,7 +1,7 @@
-# P00_ExptsWithZernike
+# P0.5_ExptsWithZernike
 
 Zernike-moment description of a character — the disc-supported counterpart of
-`P00_ExptsWithGlobalFourier/`. Same image format as the rest of the project: EMNIST 28×28
+`P0.4_ExptsWithGlobalFourier/`. Same image format as the rest of the project: EMNIST 28×28
 upsampled to a 112×112 letter (stroke ≈ 13 px), or a synthetic figure on the same
 frame.
 
@@ -70,7 +70,7 @@ complementary rather than competing.
 
 The grid counterpart: an N×N grid (3×3 default) over the character, each cell
 described by Zernike moments on **its own disc** — the direct Zernike answer to
-`P00_ExptsWithGlobalFourier/TicTacToeFourierSignature.jl`. Per cell: ink `a₀`, structure
+`P0.4_ExptsWithGlobalFourier/TicTacToeFourierSignature.jl`. Per cell: ink `a₀`, structure
 `ac`, orientation `O₂` (pooled `m=2`), crossing `f₄` (`m=4` power share), symmetric
 content `m₀`, and `loop = −Re A₄₀/(|A₂₀|+|A₄₀|)`.
 
@@ -145,7 +145,7 @@ the other sees.
 ## `AllClassesDiagnosticity.jl`
 
 Every other number in this project is measured on the same **12 uppercase letters**
-inherited from `P00_New_Gabor_FPE/KeyPointDiagnosticity.md`. This notebook re-runs the same
+inherited from `P0.3_New_Gabor_FPE/KeyPointDiagnosticity.md`. This notebook re-runs the same
 two descriptors on the **full EMNIST-balanced 47-class set** (10 digits, 26 uppercase,
 11 lowercase), chance **2.13 %**. Class set, instances/class, `n_max`, grid size and
 sampling are all on sliders.
@@ -209,5 +209,5 @@ classification, 30 instances per original class throughout:
 
 ```bash
 cd /home/kevin/claude-code/mother-embedding
-julia --project=. -e 'using Pluto; Pluto.run(host="0.0.0.0", port=1235, launch_browser=false, notebook="P00_ExptsWithZernike/ZernikeCharacterMoments.jl")'
+julia --project=. -e 'using Pluto; Pluto.run(host="0.0.0.0", port=1235, launch_browser=false, notebook="P0.5_ExptsWithZernike/ZernikeCharacterMoments.jl")'
 ```

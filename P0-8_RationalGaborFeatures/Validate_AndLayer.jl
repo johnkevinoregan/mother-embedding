@@ -278,7 +278,7 @@ i2D-ness, not junction order.
 This matters beyond bookkeeping. `F` has a 3-ray T where `f` has a 4-ray X, so **A₁ was
 structurally the wrong operator for the case that motivated it**, which is consistent with
 its moving only 8 of 251 `F`/`f` errors on EMNIST. The operator for ray *count* is `c₀`
-from the ray transform in `P00_New_Gabor_FPE/`, which is 2π by construction because its
+from the ray transform in `P0.3_New_Gabor_FPE/`, which is 2π by construction because its
 `d`-offset makes east and west read different pixels.
 """
 

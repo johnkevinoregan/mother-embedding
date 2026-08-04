@@ -5,7 +5,7 @@
 # number we already have.
 #
 # The discipline here is that the REFERENCE ARM comes first. Section 7.10 of
-# P00_TestFeaturesWithMLP/README_MLP_FPE_Experiment.md records 92.30 % for the old F3x3+2
+# P0.6_TestFeaturesWithMLP/README_MLP_FPE_Experiment.md records 92.30 % for the old F3x3+2
 # no-DC features on 40 homoglyph-merged classes. That arm is re-extracted and re-trained
 # here, in this harness, with this training loop. If it does not land on 92.30 % then the
 # harness is wrong and nothing else in the table means anything — a new pipeline that

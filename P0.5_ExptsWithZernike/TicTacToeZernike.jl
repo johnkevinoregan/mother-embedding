@@ -40,7 +40,7 @@ end
 md"""
 # A tic-tac-toe **Zernike** signature
 
-The same construction as `P00_ExptsWithGlobalFourier/TicTacToeFourierSignature.jl` — an
+The same construction as `P0.4_ExptsWithGlobalFourier/TicTacToeFourierSignature.jl` — an
 N×N grid over the character, one small descriptor per cell — but each cell is
 described by **Zernike moments on the cell's own disc** instead of low-order Fourier
 coefficients. Same image format (112×112 letter, stroke ≈ 13 px), same diagnosticity

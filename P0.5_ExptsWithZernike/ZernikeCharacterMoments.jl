@@ -41,7 +41,7 @@ md"""
 # Zernike moments of a zero-DC character
 
 One **global** Zernike description of the whole character — the disc-supported
-counterpart of `P00_ExptsWithGlobalFourier/`. Same image format as the rest of the
+counterpart of `P0.4_ExptsWithGlobalFourier/`. Same image format as the rest of the
 project: EMNIST 28×28 upsampled to a 112×112 letter (stroke ≈ 13 px), or a synthetic
 figure on the same frame.
 
@@ -420,8 +420,8 @@ end
 md"""
 ### Is it diagnostic of letter identity?
 
-Same protocol as `P00_New_Gabor_FPE/KeyPointDiagnosticity.md` and
-`P00_ExptsWithGlobalFourier/TicTacToeSignature.md`: EMNIST, 12 classes
+Same protocol as `P0.3_New_Gabor_FPE/KeyPointDiagnosticity.md` and
+`P0.4_ExptsWithGlobalFourier/TicTacToeSignature.md`: EMNIST, 12 classes
 (`O C I L T X K A H Y E F`), leave-one-out **nearest-class-mean** on the standardised
 vector. **Chance = 8.3 %.**
 

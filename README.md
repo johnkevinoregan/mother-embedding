@@ -33,7 +33,11 @@ in `P9_P12_SimpleStrokeTests/figures_predictions/`.
 * **`P9_P12_`** — underscores list *separate* phases: this one holds phases 9 and 12, and
   deliberately not 10 and 11, which live in `P10_FashionMNIST/` and `P11_ConVNextTest/`.
   `P9-12_` would therefore be wrong.
-* **`P00_`** — predates the phase numbering; `PHASES.md` assigns these no number.
+* **`P0.1_` … `P0.6_`** — predate the phase numbering, so `PHASES.md` assigns them no number.
+  The decimal records their **order of creation**. That order comes from the documentation, not
+  from git: the repository was initialised on 2026-07-08 around work that already existed, so
+  several of these share one initial commit and `git log --follow` misattributes others by
+  chasing content similarity into unrelated files.
 
 **Current work.** Four directories, numbered as phases, each with its own `README.md` for
 how to run it and `RESULTS.md` for the tables.
@@ -46,18 +50,19 @@ how to run it and `RESULTS.md` for the tables.
 | **`P11_ConVNextTest/`** | 11 | The front end against a **frozen ImageNet ConvNeXt** on the Phase 9 stimuli — identical readout, identical images. Where the "designed features make geometry explicit" claim was retired, and where the polarity invariance earned its keep. |
 | **`P13_CurriculumEMNIST/`** | 13 | EMNIST with the training set cut into 4 disjoint subsets and **switched every 15 epochs**, measuring memorisation and forgetting *during* training rather than inferring them from a train/test gap. Adds ConvNeXt **trained end to end** as a third kind of arm, and separates "remembered the images" from "extracted the structure" with a **few-shot test on classes never seen**. |
 
-**Earlier investigations**, each self-contained, in rough order of age. They are worth reading
-because several were superseded for *diagnosable reasons*, and those diagnoses shaped what came
-after.
+**Earlier investigations**, each self-contained, **in order of creation** — which is what the
+`P0.1`–`P0.6` numbering records. They are worth reading because several were superseded for
+*diagnosable reasons*, and those diagnoses shaped what came after; read in order, each row is
+largely a response to the one above it.
 
 | directory | what it tried | outcome |
 |:--|:--|:--|
-| `P00_ExptsWithGlobalFourier/` | Describe a character with low-order 2D **Fourier** coefficients, globally and on a 3×3 grid | The 3×3 "tic-tac-toe" signature became the reference feature set that `P0-8_RationalGaborFeatures/` had to beat |
-| `P00_ExptsWithZernike/` | Describe it with **Zernike moments** on a disc | Better features, *worse* classification — and the reason why is instructive |
-| `P00_TestFeaturesWithMLP/` | Score those features with a **real** classifier on the official EMNIST split instead of a deliberately weak one | Overturned earlier conclusions; see the methodological warning below. `README_MLP_FPE_Experiment.md` is self-contained |
-| `P00_New_Gabor_FPE/` | Junction type by **linear projection only** — ray profiles → circular harmonics | The ray transform survives into the current front end. Diagnosed *why* orientation energy alone cannot count rays |
-| `P00_Dense_Gabors/` | Dense per-pixel Gabor sampling with peak-counting and ring analysis | **Superseded.** Kept as a baseline and a cautionary tale: its thresholds were patching a hole in the representation |
-| `P00_EarlyGaborLifting/` | The **first attempt** — a Gabor lifting and a hand-built T-junction detector | Superseded, and the diagnosis of *why* produced the ray transform. See the last section |
+| `P0.1_EarlyGaborLifting/` | The **first attempt** — a Gabor lifting and a hand-built T-junction detector | Superseded, and the diagnosis of *why* produced the ray transform. See the last section |
+| `P0.2_Dense_Gabors/` | Dense per-pixel Gabor sampling with peak-counting and ring analysis | **Superseded.** Kept as a baseline and a cautionary tale: its thresholds were patching a hole in the representation |
+| `P0.3_New_Gabor_FPE/` | Junction type by **linear projection only** — ray profiles → circular harmonics | The ray transform survives into the current front end. Diagnosed *why* orientation energy alone cannot count rays |
+| `P0.4_ExptsWithGlobalFourier/` | Describe a character with low-order 2D **Fourier** coefficients, globally and on a 3×3 grid | The 3×3 "tic-tac-toe" signature became the reference feature set that `P0-8_RationalGaborFeatures/` had to beat |
+| `P0.5_ExptsWithZernike/` | Describe it with **Zernike moments** on a disc | Better features, *worse* classification — and the reason why is instructive |
+| `P0.6_TestFeaturesWithMLP/` | Score those features with a **real** classifier on the official EMNIST split instead of a deliberately weak one | Overturned earlier conclusions; see the methodological warning below. `README_MLP_FPE_Experiment.md` is self-contained |
 
 ---
 
@@ -66,7 +71,7 @@ after.
 **The evaluation protocol was wrong for a long time.** Leave-one-out nearest-class-mean, used
 throughout the early work, **understates features by ~24 points** and in one recorded case
 manufactured a qualitative conclusion that a stronger classifier does not reproduce. Every
-accuracy comparison predating `P00_TestFeaturesWithMLP/` should be read with that in mind —
+accuracy comparison predating `P0.6_TestFeaturesWithMLP/` should be read with that in mind —
 `PROGRESS_2026-07-26.md` §9 has the details.
 
 **Orientation energy cannot count rays, and this is provable rather than empirical.** The
@@ -95,7 +100,7 @@ T-junction vs X-crossing : 0.9234
 ```
 
 L, T and X are effectively the same vector. No amount of downstream learning recovers what the
-representation never encoded — which is why `P00_Dense_Gabors/` needed its ring probe, and why the
+representation never encoded — which is why `P0.2_Dense_Gabors/` needed its ring probe, and why the
 **ray transform** replaced it:
 
 ```
@@ -176,7 +181,7 @@ environment variables (`P9_*`, `F_*`) so a run can be resized without editing co
 
 ---
 
-## The original work — `P00_EarlyGaborLifting/`
+## The original work — `P0.1_EarlyGaborLifting/`
 
 The first attempt, and the ancestor of everything above: a **Gabor lifting** and a hand-built
 T-junction detector reading stem/crossbar pairs scored by phase compatibility. It has its own
@@ -185,6 +190,6 @@ does not scale, and the π-periodicity result above says no scoring rule on the 
 fibre alone can separate L from T from X.
 
 **Only `LoadEMNIST.module.jl` remains in this root directory**, because every phase uses it.
-Everything else from that period moved into `P00_EarlyGaborLifting/` on 2026-07-30; the move was
+Everything else from that period moved into `P0.1_EarlyGaborLifting/` on 2026-07-30; the move was
 safe because nothing outside those notebooks ever included them — earlier greps suggesting
 otherwise were matching the module names in prose.

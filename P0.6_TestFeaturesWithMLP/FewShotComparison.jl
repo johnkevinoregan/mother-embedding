@@ -8,7 +8,7 @@
 # F3x3+2 no-DC Fourier features against a small CNN trained on raw pixels, at
 # k = 10, 20, 50, 100 training images per merged class, 5 seeds each.
 #
-#   julia --project=. -t 8 P00_TestFeaturesWithMLP/FewShotComparison.jl
+#   julia --project=. -t 8 P0.6_TestFeaturesWithMLP/FewShotComparison.jl
 #
 # ~90 minutes on 8 CPU threads, dominated by the 20 CNN runs.  Writes
 # figures/fewshot_curves.png and figures/fewshot_sample_efficiency.png.

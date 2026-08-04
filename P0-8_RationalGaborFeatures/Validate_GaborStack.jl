@@ -38,7 +38,7 @@ The gate that must pass **before any accuracy number is worth reading**.
 Every test uses synthetic stimuli with known ground truth, and every pass criterion is
 stated before its number appears. This exists because a front end validated only by
 downstream accuracy can be broken in ways a classifier quietly compensates for —
-`P00_Dense_Gabors`' keypoint detector turned out to be miscalibrated on *clean* input, and
+`P0.2_Dense_Gabors`' keypoint detector turned out to be miscalibrated on *clean* input, and
 that was found far too late.
 
 It caught two real bugs that no accuracy number would have surfaced:

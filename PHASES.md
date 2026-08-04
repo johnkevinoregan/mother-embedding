@@ -5,15 +5,15 @@ validator notebooks rather than as experiment scripts; **5 onward** are experime
 script each.
 
 **What came before Phase 0.** The numbering starts with `P0-8_RationalGaborFeatures/`, so it does
-not cover the earlier lines of work: the dense-Gabor keypoint detector (`P00_Dense_Gabors/`,
-superseded), junction type by linear projection (`P00_New_Gabor_FPE/`), the Fourier grid
-(`P00_ExptsWithGlobalFourier/`), Zernike moments (`P00_ExptsWithZernike/`), and the MLP re-evaluation
-in `P00_TestFeaturesWithMLP/` that overturned the leave-one-out nearest-class-mean conclusions
+not cover the earlier lines of work: the dense-Gabor keypoint detector (`P0.2_Dense_Gabors/`,
+superseded), junction type by linear projection (`P0.3_New_Gabor_FPE/`), the Fourier grid
+(`P0.4_ExptsWithGlobalFourier/`), Zernike moments (`P0.5_ExptsWithZernike/`), and the MLP re-evaluation
+in `P0.6_TestFeaturesWithMLP/` that overturned the leave-one-out nearest-class-mean conclusions
 used throughout the earlier work. Those are documented in the root `README.md` and the
 `PROGRESS_*.md` journal. Two results from that period matter for reading what follows: the
 leave-one-out protocol **understated features by ~24 points** and in one case manufactured a
 qualitative conclusion a stronger classifier does not reproduce; and §7.11 of
-`P00_TestFeaturesWithMLP/README_MLP_FPE_Experiment.md` is the few-shot comparison whose missing
+`P0.6_TestFeaturesWithMLP/README_MLP_FPE_Experiment.md` is the few-shot comparison whose missing
 control became Phase 6.
 
 Directories: `P0-8_RationalGaborFeatures/` (the front end and the EMNIST phases),

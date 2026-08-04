@@ -93,7 +93,7 @@ measure that happens to correlate with it when everything else is held fixed.
 
 ## 4. The 9-cell signature is strongly diagnostic of letter identity
 
-Protocol identical to `P00_New_Gabor_FPE/KeyPointDiagnosticity.md`: 360 EMNIST instances,
+Protocol identical to `P0.3_New_Gabor_FPE/KeyPointDiagnosticity.md`: 360 EMNIST instances,
 12 classes (`O C I L T X K A H Y E F`), 30 each, leave-one-out **nearest-class-mean**
 on the standardised vector. Chance = 8.3 %. Lattice sampling, K=3, 3×3 unless noted.
 

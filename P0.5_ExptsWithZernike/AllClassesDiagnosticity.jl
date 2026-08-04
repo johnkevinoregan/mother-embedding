@@ -43,7 +43,7 @@ md"""
 
 Every accuracy in this project so far has been measured on the same **12 uppercase
 letters** (`O C I L T X K A H Y E F`), the set inherited from
-`P00_New_Gabor_FPE/KeyPointDiagnosticity.md`. That set is convenient and comparable, but it
+`P0.3_New_Gabor_FPE/KeyPointDiagnosticity.md`. That set is convenient and comparable, but it
 is also *easy*: no digits, no lowercase, and none of the genuinely ambiguous glyph
 pairs. This notebook re-runs the same descriptors on the **full EMNIST-balanced
 47-class set** — 10 digits, 26 uppercase, and the 11 lowercase letters whose shapes
