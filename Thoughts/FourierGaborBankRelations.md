@@ -112,6 +112,64 @@ written down in `PHASES.md` or the phase `RESULTS.md` files.
 
 ---
 
+## What the higher harmonics measure
+
+We keep $m = 0, 1, 2$ — that is $T$, $Z^{(2)}$ and $Z^{(4)}$. What would $Z^{(6)}$ and above add?
+
+Not "more detail". The harmonics work by **cancellation**. For $K$ orientations equally spaced by
+$\pi/K$,
+
+```math
+c_m \;\propto\; \sum_{j=0}^{K-1} e^{-i2m(\theta_0 + j\pi/K)} \;=\; 0
+\quad\text{unless}\quad m \equiv 0 \pmod K
+```
+
+so harmonic $m$ is silent on any arrangement whose symmetry order does not divide it. Measured at
+the junction point of ray figures, $|c_m|/|c_0|$ (one scale, 36 orientations):
+
+| figure | orientations | m=1 ($Z^{(2)}$) | m=2 ($Z^{(4)}$) | **m=3 ($Z^{(6)}$)** | m=4 | m=5 | m=6 |
+|:--|:--|--:|--:|--:|--:|--:|--:|
+| 1 ray (stroke end) | {0} | 0.766 | 0.590 | 0.403 | 0.261 | 0.175 | 0.143 |
+| straight line | {0} | 0.985 | 0.941 | 0.871 | 0.781 | 0.678 | 0.567 |
+| L-corner, 90° | {0,90} | 0.133 | 0.606 | 0.104 | 0.253 | 0.034 | 0.137 |
+| T-junction | {0,90} | 0.429 | 0.826 | 0.493 | 0.621 | 0.444 | 0.452 |
+| X-crossing, 90° | {0,90} | **0.000** | 0.832 | **0.000** | 0.740 | **0.000** | 0.585 |
+| **Y-junction, 120°** | {0,60,120} | 0.031 | **0.005** | **0.365** | 0.045 | 0.001 | 0.076 |
+| 6-ray star, 60° | {0,60,120} | 0.002 | 0.059 | **0.477** | 0.002 | 0.028 | 0.543 |
+
+**They are junction-*angle* detectors, not junction-*count* detectors.**
+
+* $Z^{(2)}$ — is there a single dominant orientation. Vanishes as soon as two orientations are
+  equally represented: 0.000 for the X.
+* $Z^{(4)}$ — is there a **90°** arrangement. Large for L, T and X (0.61–0.83); **0.005 for the Y**.
+* $Z^{(6)}$ — is there a **60°** arrangement. 0.365 for the Y; **0.000 for the X**. The exact
+  complement of $Z^{(4)}$.
+
+So $Z^{(4)}$ and $Z^{(6)}$ separate right-angle structure from Y-structure with no overlap, and
+nothing below $m=3$ can express that distinction. It is genuinely new information rather than a
+re-encoding.
+
+**They also read orientation-peak width, which is curvature.** A single straight line excites
+*every* harmonic with slow decay (0.985, 0.941, 0.871, 0.781 …), because a narrow bump in $\theta$
+has broad Fourier content. A curved contour has a broadened peak, so its harmonics fall off faster,
+and the ratio between successive harmonics reads the spread directly. That is why the Phase 12
+capacity sweep found $C_6/C_8$ worth **+0.026 on curvedness and nothing elsewhere**: the stroke
+dataset has almost no 60° junctions, so the angle-detection half of their value was never
+exercised. The harmonics were tested on a dataset that could not show what they are for.
+
+**Two things the table also shows.**
+
+The **T breaks the pattern** — $m=1$ is 0.429 where L and X give ≈ 0, despite the same orientation
+content {0°, 90°}. Its stem extends only one way, so the local energy is asymmetric. π-periodicity
+constrains the orientation *labels*, not the *magnitudes*, and finite filters put genuine 2π
+information into the magnitudes.
+
+**Y and the 6-ray star are indistinguishable** — both peak at $m=3$ with everything else suppressed,
+because three rays at 120° and six at 60° have identical orientation content mod π. That is the
+π-periodicity limit in its purest form, and it is precisely what the ray transform exists to break.
+
+---
+
 ## Caveats
 
 The angular equivalence for $Z^{(2m)}$ is stated as $\approx$ rather than $=$: it is exact only if
