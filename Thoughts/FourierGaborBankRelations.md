@@ -170,6 +170,78 @@ because three rays at 120° and six at 60° have identical orientation content m
 
 ---
 
+## The scale axis has no counterpart, and cannot easily be given one
+
+The orientation axis is handled properly: rotation acts as a *translation* along $\theta$, so the
+moduli $|z_2|, |z_4|$ are rotation-invariant and the phase $\arg(Z^{(2)})/2$ carries the direction.
+Size and shape are cleanly separated.
+
+Dilation acts the same way on the scale axis — a zoom translates the profile along $\log \rho$ —
+so the natural analogue is a **Mellin** transform (a Fourier transform in $\log \rho$), whose
+magnitudes would be dilation-invariant. In principle. In practice it does not survive contact with
+the ladder we have.
+
+**Measured.** Normalised scale profile of a small plus, zoomed by exactly the ladder ratio (1.87,
+so one rung per step), on a 5-rung ladder spanning λ = 75 … 6 px:
+
+| zoom | λ=75 | λ=40 | λ=21 | λ=11 | λ=6 |
+|:--|--:|--:|--:|--:|--:|
+| ×1.00 | 0.476 | 0.268 | 0.142 | 0.084 | 0.029 |
+| ×1.87 | 0.516 | 0.262 | 0.154 | 0.051 | 0.017 |
+| ×3.50 | 0.571 | 0.295 | 0.093 | 0.031 | 0.009 |
+
+Weight does move coarser — the fine rungs fall 0.084 → 0.051 → 0.031 — but **the profile does not
+translate**. It piles up against the coarse end.
+
+Two reasons, both structural:
+
+* **The ladder is too short.** Production is ρ = 2 → 14, i.e. λ = 56 → 8 px: a span of 7×, under
+  three octaves, in four rungs. One 1.87× zoom consumes an entire rung. Energy that should move
+  past λ=56 has nowhere to go and nothing enters from below λ=8. $\log \rho$ is a short segment,
+  not a line, and translation on a short segment is mostly boundary effect.
+* **The profile is pinned at one end.** Every scale profile measured here falls monotonically from
+  the coarsest rung. A compact object's spectrum peaks just above DC, and DC is removed, so the
+  coarsest passband always wins. The profile is a decaying tail anchored at one end, not a bump
+  free to slide.
+
+## And full scale invariance is the wrong target anyway
+
+**Stroke thickness is one of the properties we are trying to report.** A dilation-invariant
+representation would discard precisely the signal Phase 12 spent its effort recovering. What is
+wanted is not invariance but the same *split* the orientation axis already has:
+
+| axis | covariant part — "which / how big" | invariant part — "what kind" |
+|:--|:--|:--|
+| orientation | $\arg(Z^{(2)})/2$, the dominant direction | $\lvert z_2\rvert, \lvert z_4\rvert$ |
+| **scale** | **position of the profile in $\log \rho$** | **shape of the profile** |
+
+We have the top row and not the bottom one. And the bottom row *is* the thickness/fuzziness
+problem: both are changes to the scale profile — one moves its position, the other changes its
+shape — and the front end reports neither. It hands the readout four raw per-scale totals and
+leaves it to separate a position from a shape, which needs a division, which MLPs do badly. That is
+the same failure mode as the ray ratios (fixed by pool-then-divide) and the spatial mean (fixed by
+adding a max): **the normalisation belongs in the front end.**
+
+The concrete form, then, is not a Mellin invariance — the ladder cannot support one — but: for each
+$\theta$-harmonic, normalise its profile across scale to unit sum and keep **slope and curvature in
+$\log \rho$**. Slope ≈ position ≈ size; curvature ≈ shape. Six numbers per cell, no new filters.
+
+Supporting measurement, on the four-way thickness × blur cross (normalised sqrt-energy per scale,
+production ladder):
+
+| stimulus | log-slope | curvature |
+|:--|--:|--:|
+| thin, sharp | −0.144 | −0.044 |
+| thin, **blurred** | **−0.233** | **−0.069** |
+| **thick**, sharp | **−0.244** | **−0.036** |
+| thick, blurred | −0.300 | −0.020 |
+
+The degeneracy is *exactly* a degeneracy of the first moment: thin-blurred and thick-sharp differ
+by 4 % in slope. The second moment separates them by nearly 2×, in the opposite direction, so it is
+not redundant with the first. Untested on real data; this is four synthetic bars at one blur level.
+
+---
+
 ## Caveats
 
 The angular equivalence for $Z^{(2m)}$ is stated as $\approx$ rather than $=$: it is exact only if
