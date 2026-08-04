@@ -20,8 +20,8 @@ part of the pipeline.
 **Latest result.** A fine scale at λ = 8 px and a spatial **max** alongside the existing spatial
 means take the front end from 31 to 53 features and close most of the gap to a frozen ImageNet
 ConvNeXt — thickness 0.234 → 0.040, fuzziness 0.241 → 0.051. See
-[`SimpleStrokeTests/RESULTS.md`](SimpleStrokeTests/RESULTS.md) and the predicted-vs-true scatters
-in `SimpleStrokeTests/figures_predictions/`.
+[`P9+12_SimpleStrokeTests/RESULTS.md`](P9+12_SimpleStrokeTests/RESULTS.md) and the predicted-vs-true scatters
+in `P9+12_SimpleStrokeTests/figures_predictions/`.
 
 ---
 
@@ -32,11 +32,11 @@ how to run it and `RESULTS.md` for the tables.
 
 | directory | phases | what it is |
 |:--|:--|:--|
-| **`RationalGaborFeatures/`** | 0–8 | **The front end itself**, and its tests on EMNIST. Log-Gabor oriented energy, exactly polarity-invariant, with an ablatable layer of pointwise conjunctions applied *before* spatial pooling. Scale ladder derived from measured spectra rather than hard-coded. |
-| **`SimpleStrokeTests/`** | 9 | A synthetic dataset labelled with **graded properties** rather than classes, which turns the question from "can a classifier separate these" into "how much of each property is linearly available". Where the conjunction layer first paid for itself, where the front end's own dials were swept, and where the **λ=8 scale and spatial max** took it from 31 to 53 features. |
-| **`FashionMNIST/`** | 10 | The first dataset here that is **not a line drawing** — filled silhouettes with texture, and published baselines to calibrate against. |
-| **`ConVNextTest/`** | 11 | The front end against a **frozen ImageNet ConvNeXt** on the Phase 9 stimuli — identical readout, identical images. Where the "designed features make geometry explicit" claim was retired, and where the polarity invariance earned its keep. |
-| **`CurriculumEMNIST/`** | 13 | EMNIST with the training set cut into 4 disjoint subsets and **switched every 15 epochs**, measuring memorisation and forgetting *during* training rather than inferring them from a train/test gap. Adds ConvNeXt **trained end to end** as a third kind of arm, and separates "remembered the images" from "extracted the structure" with a **few-shot test on classes never seen**. |
+| **`P0-8_RationalGaborFeatures/`** | 0–8 | **The front end itself**, and its tests on EMNIST. Log-Gabor oriented energy, exactly polarity-invariant, with an ablatable layer of pointwise conjunctions applied *before* spatial pooling. Scale ladder derived from measured spectra rather than hard-coded. |
+| **`P9+12_SimpleStrokeTests/`** | 9 | A synthetic dataset labelled with **graded properties** rather than classes, which turns the question from "can a classifier separate these" into "how much of each property is linearly available". Where the conjunction layer first paid for itself, where the front end's own dials were swept, and where the **λ=8 scale and spatial max** took it from 31 to 53 features. |
+| **`P10_FashionMNIST/`** | 10 | The first dataset here that is **not a line drawing** — filled silhouettes with texture, and published baselines to calibrate against. |
+| **`P11_ConVNextTest/`** | 11 | The front end against a **frozen ImageNet ConvNeXt** on the Phase 9 stimuli — identical readout, identical images. Where the "designed features make geometry explicit" claim was retired, and where the polarity invariance earned its keep. |
+| **`P13_CurriculumEMNIST/`** | 13 | EMNIST with the training set cut into 4 disjoint subsets and **switched every 15 epochs**, measuring memorisation and forgetting *during* training rather than inferring them from a train/test gap. Adds ConvNeXt **trained end to end** as a third kind of arm, and separates "remembered the images" from "extracted the structure" with a **few-shot test on classes never seen**. |
 
 **Earlier investigations**, each self-contained, in rough order of age. They are worth reading
 because several were superseded for *diagnosable reasons*, and those diagnoses shaped what came
@@ -44,12 +44,12 @@ after.
 
 | directory | what it tried | outcome |
 |:--|:--|:--|
-| `ExptsWithGlobalFourier/` | Describe a character with low-order 2D **Fourier** coefficients, globally and on a 3×3 grid | The 3×3 "tic-tac-toe" signature became the reference feature set that `RationalGaborFeatures/` had to beat |
-| `ExptsWithZernike/` | Describe it with **Zernike moments** on a disc | Better features, *worse* classification — and the reason why is instructive |
-| `TestFeaturesWithMLP/` | Score those features with a **real** classifier on the official EMNIST split instead of a deliberately weak one | Overturned earlier conclusions; see the methodological warning below. `README_MLP_FPE_Experiment.md` is self-contained |
-| `New_Gabor_FPE/` | Junction type by **linear projection only** — ray profiles → circular harmonics | The ray transform survives into the current front end. Diagnosed *why* orientation energy alone cannot count rays |
-| `Dense_Gabors/` | Dense per-pixel Gabor sampling with peak-counting and ring analysis | **Superseded.** Kept as a baseline and a cautionary tale: its thresholds were patching a hole in the representation |
-| `EarlyGaborLifting/` | The **first attempt** — a Gabor lifting and a hand-built T-junction detector | Superseded, and the diagnosis of *why* produced the ray transform. See the last section |
+| `P00_ExptsWithGlobalFourier/` | Describe a character with low-order 2D **Fourier** coefficients, globally and on a 3×3 grid | The 3×3 "tic-tac-toe" signature became the reference feature set that `P0-8_RationalGaborFeatures/` had to beat |
+| `P00_ExptsWithZernike/` | Describe it with **Zernike moments** on a disc | Better features, *worse* classification — and the reason why is instructive |
+| `P00_TestFeaturesWithMLP/` | Score those features with a **real** classifier on the official EMNIST split instead of a deliberately weak one | Overturned earlier conclusions; see the methodological warning below. `README_MLP_FPE_Experiment.md` is self-contained |
+| `P00_New_Gabor_FPE/` | Junction type by **linear projection only** — ray profiles → circular harmonics | The ray transform survives into the current front end. Diagnosed *why* orientation energy alone cannot count rays |
+| `P00_Dense_Gabors/` | Dense per-pixel Gabor sampling with peak-counting and ring analysis | **Superseded.** Kept as a baseline and a cautionary tale: its thresholds were patching a hole in the representation |
+| `P00_EarlyGaborLifting/` | The **first attempt** — a Gabor lifting and a hand-built T-junction detector | Superseded, and the diagnosis of *why* produced the ray transform. See the last section |
 
 ---
 
@@ -58,7 +58,7 @@ after.
 **The evaluation protocol was wrong for a long time.** Leave-one-out nearest-class-mean, used
 throughout the early work, **understates features by ~24 points** and in one recorded case
 manufactured a qualitative conclusion that a stronger classifier does not reproduce. Every
-accuracy comparison predating `TestFeaturesWithMLP/` should be read with that in mind —
+accuracy comparison predating `P00_TestFeaturesWithMLP/` should be read with that in mind —
 `PROGRESS_2026-07-26.md` §9 has the details.
 
 **Orientation energy cannot count rays, and this is provable rather than empirical.** The
@@ -78,7 +78,7 @@ west. Measured cosine similarity of `E(θ)` at the centre of canonical figures:
 > class** (linear) and quantifies over all signals; the argument below restricts the **input
 > representation** (the local orientation fibre) and quantifies over *all* operators on it. Ours
 > is stronger in ruling out arbitrary nonlinearities, weaker in being about one representation.
-> `RationalGaborFeatures/Validate_i1D.jl` tests our A₁ against Zetzsche's criterion directly.
+> `P0-8_RationalGaborFeatures/Validate_i1D.jl` tests our A₁ against Zetzsche's criterion directly.
 
 ```
 L-corner   vs T-junction : 0.9031
@@ -87,7 +87,7 @@ T-junction vs X-crossing : 0.9234
 ```
 
 L, T and X are effectively the same vector. No amount of downstream learning recovers what the
-representation never encoded — which is why `Dense_Gabors/` needed its ring probe, and why the
+representation never encoded — which is why `P00_Dense_Gabors/` needed its ring probe, and why the
 **ray transform** replaced it:
 
 ```
@@ -106,7 +106,7 @@ lobe per branch, and its circular harmonics are the type signature:
 | **T-junction (3 rays)** | **3** | **0.333** | **0.333** |
 | X-crossing (4 rays) | 4 | 0.000 | 0.000 |
 
-`c₀` ≈ ray count, `|c₁|/c₀` ≈ asymmetry. This is `RationalGaborFeatures/RayHarmonics.module.jl`
+`c₀` ≈ ray count, `|c₁|/c₀` ≈ asymmetry. This is `P0-8_RationalGaborFeatures/RayHarmonics.module.jl`
 today, and its gates are in `Validate_RayHarmonics.jl`.
 
 ---
@@ -120,7 +120,7 @@ The distinction matters: **opening a module in Pluto rewrites the file** and lea
 `<name> backup 1.jl` beside it, which is easy to do by accident.
 
 Notebooks come in two flavours. `Test_*.jl` sanity-check a component interactively;
-`Validate_*.jl` in `RationalGaborFeatures/` do the same but also run **headless as gates**,
+`Validate_*.jl` in `P0-8_RationalGaborFeatures/` do the same but also run **headless as gates**,
 printing `ALL GATES PASSED` or naming what failed. Run those after touching the front end.
 
 Two shared names to avoid: `Plots` exports `bar` and `with`, and when two modules export the
@@ -143,7 +143,7 @@ Datasets go under `~/Julia/DATABASES/`:
 - **EMNIST** (balanced, IDX format) in `EMNIST/` — from
   <https://www.nist.gov/itl/products-and-services/emnist-dataset>. The default path is
   `DEFAULT_DATA_DIR` in `LoadEMNIST.module.jl`.
-- **Fashion-MNIST** in `FashionMNIST/` — see `FashionMNIST/README.md` for the download.
+- **Fashion-MNIST** in `FashionMNIST/` — see `P10_FashionMNIST/README.md` for the download.
 
 ## Running things
 
@@ -160,15 +160,15 @@ A plain script — note `--project=..` from inside a subdirectory, and `-t` for 
 feature extraction is parallel across images:
 
 ```bash
-cd SimpleStrokeTests && julia --project=.. -t 16 Phase9_Readouts.jl
+cd P9+12_SimpleStrokeTests && julia --project=.. -t 16 Phase9_Readouts.jl
 ```
 
-`SimpleStrokeTests/run.sh` wraps the common cases. Experiment scripts take their settings from
+`P9+12_SimpleStrokeTests/run.sh` wraps the common cases. Experiment scripts take their settings from
 environment variables (`P9_*`, `F_*`) so a run can be resized without editing code.
 
 ---
 
-## The original work — `EarlyGaborLifting/`
+## The original work — `P00_EarlyGaborLifting/`
 
 The first attempt, and the ancestor of everything above: a **Gabor lifting** and a hand-built
 T-junction detector reading stem/crossbar pairs scored by phase compatibility. It has its own
@@ -177,6 +177,6 @@ does not scale, and the π-periodicity result above says no scoring rule on the 
 fibre alone can separate L from T from X.
 
 **Only `LoadEMNIST.module.jl` remains in this root directory**, because every phase uses it.
-Everything else from that period moved into `EarlyGaborLifting/` on 2026-07-30; the move was
+Everything else from that period moved into `P00_EarlyGaborLifting/` on 2026-07-30; the move was
 safe because nothing outside those notebooks ever included them — earlier greps suggesting
 otherwise were matching the module names in prose.

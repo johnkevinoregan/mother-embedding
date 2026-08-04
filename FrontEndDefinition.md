@@ -1,10 +1,10 @@
 # The front end, defined
 
 Every feature the front end produces, with the arithmetic written out. Companion to the
-plain-language version in `SimpleStrokeTests/RESULTS.md`.
+plain-language version in `P9+12_SimpleStrokeTests/RESULTS.md`.
 
-Source of truth: `RationalGaborFeatures/{GaborStack,AndLayer,RayHarmonics,Pooling}.module.jl`
-and `SimpleStrokeTests/Frontend.module.jl`.
+Source of truth: `P0-8_RationalGaborFeatures/{GaborStack,AndLayer,RayHarmonics,Pooling}.module.jl`
+and `P9+12_SimpleStrokeTests/Frontend.module.jl`.
 
 ---
 
@@ -620,7 +620,7 @@ the channel $90°$ from the line — that sits $3\sigma_\varphi$ away and contri
 $e^{-9} \approx 1.2\times10^{-4}$ — but the **pair straddling the line at $\pm 45°$**, each
 $1.5\sigma_\varphi$ away with $e^{-2.25} = 0.105$ of the energy and exactly $90°$ apart, so their
 product is $0.105^2 = 1.1\times10^{-2}$, two orders larger. The closed form matches measurement to
-within 2 % at every scale (`RationalGaborFeatures/Validate_i1D.jl`).
+within 2 % at every scale (`P0-8_RationalGaborFeatures/Validate_i1D.jl`).
 
 ---
 

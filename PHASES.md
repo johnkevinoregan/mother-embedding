@@ -4,20 +4,20 @@ A map of the phased work. Phases **0–4** are design and validation, carried ou
 validator notebooks rather than as experiment scripts; **5 onward** are experiments, one
 script each.
 
-**What came before Phase 0.** The numbering starts with `RationalGaborFeatures/`, so it does
-not cover the earlier lines of work: the dense-Gabor keypoint detector (`Dense_Gabors/`,
-superseded), junction type by linear projection (`New_Gabor_FPE/`), the Fourier grid
-(`ExptsWithGlobalFourier/`), Zernike moments (`ExptsWithZernike/`), and the MLP re-evaluation
-in `TestFeaturesWithMLP/` that overturned the leave-one-out nearest-class-mean conclusions
+**What came before Phase 0.** The numbering starts with `P0-8_RationalGaborFeatures/`, so it does
+not cover the earlier lines of work: the dense-Gabor keypoint detector (`P00_Dense_Gabors/`,
+superseded), junction type by linear projection (`P00_New_Gabor_FPE/`), the Fourier grid
+(`P00_ExptsWithGlobalFourier/`), Zernike moments (`P00_ExptsWithZernike/`), and the MLP re-evaluation
+in `P00_TestFeaturesWithMLP/` that overturned the leave-one-out nearest-class-mean conclusions
 used throughout the earlier work. Those are documented in the root `README.md` and the
 `PROGRESS_*.md` journal. Two results from that period matter for reading what follows: the
 leave-one-out protocol **understated features by ~24 points** and in one case manufactured a
 qualitative conclusion a stronger classifier does not reproduce; and §7.11 of
-`TestFeaturesWithMLP/README_MLP_FPE_Experiment.md` is the few-shot comparison whose missing
+`P00_TestFeaturesWithMLP/README_MLP_FPE_Experiment.md` is the few-shot comparison whose missing
 control became Phase 6.
 
-Directories: `RationalGaborFeatures/` (the front end and the EMNIST phases),
-`SimpleStrokeTests/` (Phase 9), `FashionMNIST/` (Phase 10). Each has its own `README.md` for
+Directories: `P0-8_RationalGaborFeatures/` (the front end and the EMNIST phases),
+`P9+12_SimpleStrokeTests/` (Phase 9), `P10_FashionMNIST/` (Phase 10). Each has its own `README.md` for
 how to run it and `RESULTS.md` for the tables; this file is the map across all of them.
 
 ---
@@ -26,7 +26,7 @@ how to run it and `RESULTS.md` for the tables; this file is the map across all o
 
 | | question | verdict | where |
 |:--|:--|:--|:--|
-| **0** | Can every parameter be fixed by *measurement* rather than convention? | Yes. Scale ladder from EMNIST's measured spectrum — ρ = 2.00 / 3.74 / 7.00, so λ = 56 / 30 / 16 px at 112. Stroke width measured at 12.67 px. Angular tuning from the along-contour extent. | `RationalGaborFeatures/README.md` §4.1 |
+| **0** | Can every parameter be fixed by *measurement* rather than convention? | Yes. Scale ladder from EMNIST's measured spectrum — ρ = 2.00 / 3.74 / 7.00, so λ = 56 / 30 / 16 px at 112. Stroke width measured at 12.67 px. Angular tuning from the along-contour extent. | `P0-8_RationalGaborFeatures/README.md` §4.1 |
 | **1–2** | Does the bank do what a bank should? | Exact quadrature, zero DC by construction, RMS normalisation so scales are comparable, polarity invariance, correct EMNIST counts. | `Validate_GaborStack.jl` |
 | **3** | Does the conjunction layer detect co-location rather than co-occurrence? | Yes on synthetic ground truth. A₁ separates a corner from two disjoint strokes with the same orientation content, and orders junctions straight < L < T < X. | `Validate_AndLayer.jl` |
 | **4** | Does pooling preserve it, and is there a control? | Soft 3×3 Gaussian pooling, with `shuffle_block!` — same columns, same marginals, correspondence destroyed — built in from the start. | `Validate_Pooling.jl` |
@@ -105,7 +105,7 @@ a trained classifier cannot separate them.
 
 ## 9 — changing the question
 
-`SimpleStrokeTests/`. Phases 5–8 asked *can a classifier separate these*, and on synthetic
+`P9+12_SimpleStrokeTests/`. Phases 5–8 asked *can a classifier separate these*, and on synthetic
 stimuli the answer is nearly always yes, which is why Phase 8 produced no information.
 
 Phase 9 asks instead: **fit a linear readout and see how much of each property it recovers** —
@@ -190,7 +190,7 @@ design choice that depends on image statistics.
 
 ## 10 — something that is not characters
 
-`FashionMNIST/`. Silhouettes with texture rather than line drawings, and **published
+`P10_FashionMNIST/`. Silhouettes with texture rather than line drawings, and **published
 baselines** to calibrate against instead of only our own arms.
 
 **The front end works off line drawings: 89.70 % from 198 numbers**, above an MLP on 12,544
@@ -240,7 +240,7 @@ BSDS boundary detection is the intended target.
 
 ## 11 — is the front end doing anything scale has not already done?
 
-`ConVNextTest/`. The standing objection to Phase 9 was that its CNN lost because it had only
+`P11_ConVNextTest/`. The standing objection to Phase 9 was that its CNN lost because it had only
 12,000 stroke images. A **frozen ImageNet ConvNeXt** answers that directly: 28.6 M / 88.6 M
 parameters fitted to 1.28 M photographs, never trained on a stroke, scored by an *identical*
 readout on *byte-identical* images.
@@ -277,12 +277,12 @@ a thickness/fuzziness confound ConvNeXt does not have.
 
 ## 12 — turning the front end's own dials
 
-`SimpleStrokeTests/`, on the Phase 9 stimuli. Everything before this tests the front end **as
+`P9+12_SimpleStrokeTests/`, on the Phase 9 stimuli. Everything before this tests the front end **as
 built**; this asks whether it improves when given more to work with. The pooling grid had been
 swept; the number of scales, the number of orientations, the order of the orientation harmonics
 and the number of ray probe distances had not.
 
-**Plain-language account: [`SimpleStrokeTests/FINDINGS.md`](SimpleStrokeTests/FINDINGS.md).**
+**Plain-language account: [`P9+12_SimpleStrokeTests/FINDINGS.md`](P9+12_SimpleStrokeTests/FINDINGS.md).**
 Detail in `SWEEP.md` (reduced-n, partly retracted), `SWEEP_FULLN.md` (the confirmation) and
 `XSCALE.md` (cross-scale, retracted and corrected).
 
@@ -315,7 +315,7 @@ operator that already existed for this, makes it worse.
 
 ## 13 — how much of the fit is memorised, and does the representation change that?
 
-`CurriculumEMNIST/`. EMNIST's training set cut into **4 disjoint subsets of 28,200**, with training
+`P13_CurriculumEMNIST/`. EMNIST's training set cut into **4 disjoint subsets of 28,200**, with training
 switched to the next subset every 15 epochs and the optimiser never reset. The partition is i.i.d.,
 so a learner that had extracted the task rather than memorised examples should not be able to tell
 the data changed — every discontinuity measures how much of the fit was example-specific, taken
