@@ -7,6 +7,40 @@ Nothing here imports EMNIST. The scale ladder is *derived from the data* by
 `radial_spectrum` + `scale_ladder`, so retargeting to another dataset means re-running two
 functions, not editing constants.
 
+## Where phases 0–4 are
+
+The only files named for a phase are `Phase5a_EMNIST.jl` … `Phase8_JunctionBenchmark.jl`, which
+makes the directory look as though it holds phases 5–8 alone. It does not. **Phases 0–4 did not
+produce experiments — they produced the front end itself**, so their output is the modules and the
+gates rather than a script with a number in its name.
+
+| phase | question | where it lives |
+|:--|:--|:--|
+| **0** | Can every parameter be fixed by *measurement* rather than convention? | §"Design, and the measurements behind it" below, and the ladder derived by `radial_spectrum` + `scale_ladder` in `GaborStack.module.jl` |
+| **1–2** | Does the bank do what a bank should? | `Validate_GaborStack.jl` |
+| **3** | Does the conjunction layer detect co-location rather than co-occurrence? | `Validate_AndLayer.jl` |
+| **4** | Does pooling preserve it, and is there a control? | `Validate_Pooling.jl` |
+| **5–8** | Does any of it *help* on EMNIST? | `Phase5a_EMNIST.jl` … `Phase8_JunctionBenchmark.jl` |
+
+The asymmetry reflects a difference in kind. Phases 0–4 build a component and prove it computes
+what it claims, so what survives is a module plus a gate that **re-runs forever** — run
+`Validate_AndLayer.jl` today and you are re-checking phase 3's result. Phases 5–8 ask a question of
+a dataset, so what survives is a one-off script and a row in `RESULTS.md`; nobody re-runs
+`Phase5a_EMNIST.jl` to check the code still works.
+
+**Not every gate belongs to phases 1–4.** They are a standing apparatus that phases 0–4 established
+and later phases kept extending:
+
+| gate | added | for |
+|:--|:--|:--|
+| `Validate_GaborStack`, `Validate_AndLayer`, `Validate_Pooling`, `Validate_ScaleFree` | 2026-07-28 | phases 1–4 |
+| `Validate_RayHarmonics`, `Validate_Convention` | 2026-07-29 | the ray transform |
+| `Validate_i1D` | 2026-07-30 | A₁ against Zetzsche's criterion (Phase 12 era) |
+| `Validate_GPU` | 2026-07-30 | the CUDA front end against the CPU reference |
+
+That continuity is arguably a better reason for the directory to be `P0-8_` than the phase
+numbering on its own: it is where the front end is *built and kept honest*, across every phase.
+
 ## Which files open in Pluto
 
 | file | kind | |
