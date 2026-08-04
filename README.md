@@ -27,6 +27,14 @@ in `P9_P12_SimpleStrokeTests/figures_predictions/`.
 
 ## Where everything is
 
+**Directory names carry the phase number**, and the separator is meaningful:
+
+* **`P0-8_`** — a hyphen is a *contiguous range*: this directory holds phases 0 through 8.
+* **`P9_P12_`** — underscores list *separate* phases: this one holds phases 9 and 12, and
+  deliberately not 10 and 11, which live in `P10_FashionMNIST/` and `P11_ConVNextTest/`.
+  `P9-12_` would therefore be wrong.
+* **`P00_`** — predates the phase numbering; `PHASES.md` assigns these no number.
+
 **Current work.** Four directories, numbered as phases, each with its own `README.md` for
 how to run it and `RESULTS.md` for the tables.
 
