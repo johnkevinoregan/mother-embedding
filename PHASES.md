@@ -395,19 +395,123 @@ Nyquist limit and largely measures interpolation here.
 
 ## The shape of it
 
-**0–4** establish that the operators do what they claim on synthetic ground truth. **5–7** ask
-whether that helps on EMNIST; it does not, and Phase 7 explains why. **8** tries to construct a
-task where it should help, and fails. **9** changes the question from separability to
-explicitness and gets the first positive result. **10** asks whether any of it survives off
-line drawings.
+*This section is self-contained: every term it uses is defined here, so it can be read without
+the rest of the document.*
 
-Two threads run throughout.
+**0–4 — the operators compute what they claim, on stimuli whose answer is known in advance.**
+Not "work well" — specific properties, asserted and then gated. The bank is in exact quadrature
+with its DC term zeroed, so inverting the image leaves every feature bit-identical (measured
+change: exactly 0). And A₁, the conjunction operator, separates a **corner** from **two disjoint
+strokes carrying the same orientation content** — the distinction that matters, because the two
+have identical orientation histograms and differ only in whether the orientations *meet* at a
+point. These are proofs on synthetic figures, not accuracy on a dataset.
 
-**Every phase carries a control that could have killed it** — the shuffled twin, the grid
-control, the trivial baseline, the energy-matched stimulus. Three apparent results *were*
-killed by them: total ink faking a ray-count ordering, unmatched orientation energy faking a
-T-versus-X result, and 279 columns beating 135 partly on capacity.
+**5–7 — none of it helps on EMNIST, and Phase 7 says why.** "Helps" has a precise meaning here:
+added to the 144 orientation-and-lowpass columns, do the 54 conjunction columns raise 40-way
+character classification? They add **+0.06 points, then −0.06** — nothing. Not because they
+compute nothing: the 54 conjunction columns **alone** reach 88.45 %, against 93.59 % for the 135
+orientation columns alone. The reason is measured in Phase 7: fit each conjunction column on the
+orientation columns by least squares, and **93 % of it is linearly recoverable** (median R² 0.933;
+42 of 54 columns above 0.9, all 54 above 0.75). The right word is **correlated, not redundant** —
+they measure something real, and almost all of it was already present in a cheaper form.
 
-**And the negative results are the substance.** 5b, 5c, 7 and 8 are all failures to find an
-effect, and it was those failures — particularly Phase 8's — that forced the change of
-question which made Phase 9 work.
+**8 — a task built specifically to need co-location, and its own control killed it.** Junction
+figures were classified with and without a small gap at the meeting point, so that only "do the
+strokes meet" varies. The conjunction layer won — but so did total ink, because **any
+co-location difference necessarily changes local ink density**: a gap removes ink next to the
+junction, and with 37 px pooling cells that is a measurable energy change a classifier will find.
+There may be no stimulus pair that differs in *meeting* without differing in density. Verdict at
+the time: **no task existed on which the conjunction layer beat plain orientation statistics** —
+not EMNIST, not the F/f probe, not a benchmark built to require it.
+
+**9 — changing the question, and the first positive result.** Every phase up to here asked *can a
+classifier separate these classes*. Phase 9 asks instead: *how much of a **graded** property is
+**linearly** available in the representation* — fit a readout to predict curvedness, brokenness,
+V-angle, arm count, stroke thickness and edge fuzziness on synthetic contours, and report R²
+(1.0 = perfect, 0 = no better than always guessing the average, negative = worse than that).
+Under that question the conjunction and ray blocks finally earn their columns.
+
+**10 — off line drawings for the first time.** Fashion-MNIST: silhouettes with weave, ribbing and
+sole tread rather than strokes on an empty background, and with published baselines so the result
+is calibrated against something outside this project. The conjunction layer **pays on someone
+else's data** — +0.67 points at a 3×3 grid, against a control of the same columns shuffled, which
+*costs* 0.95. And a 3×3 grid beats a single global pool by 8 points, the reverse of Phase 9,
+because objects here are centred while Phase 9's strokes were randomly placed.
+
+**11 — the comparison that retired a central claim.** A **frozen** ImageNet ConvNeXt — 88.6 M
+parameters, trained on 1.28 M photographs, never shown a stroke, weights never updated — read out
+by an identical head on byte-identical images. It beat our 31 features on every property, and beat
+them *more linearly*, which retires "our designed features make geometry explicit in a way learned
+representations do not". What survived is narrower and real: an **exact polarity invariance** that
+1.28 M photographs cannot buy, and better transfer when edges are blurred.
+
+**12 — turning the front end's own dials.** Everything before this tested the front end *as built*;
+this asks whether it improves when given more — more scales, more orientations, higher orientation
+harmonics, more ray probe distances. Two changes closed most of the ConvNeXt gap: a **fine scale at
+λ = 8 px** (the finest filter had been wider than the strokes it was measuring, so it could not
+resolve a stroke's own edge) and a **spatial maximum** alongside the existing spatial averages (an
+average of an energy map is *signal × ink coverage*, so every pooled feature silently multiplied
+"how strong is the structure" by "how much ink is in the frame"). Together: 31 features → 53, and
+the deficit on thickness and fuzziness from 0.24 to 0.04.
+
+**13 — is the accuracy memorisation?** EMNIST's training set cut into four disjoint subsets, with
+training switched to the next one every 15 epochs and the optimiser never reset. The subsets are a
+random partition, so a learner that had extracted the task rather than memorised examples should
+not detect the change. Held-out accuracy indeed walks through the switches untouched — while
+accuracy on the subset being trained on **collapses ~7 points at each one**, which measures
+memorisation directly rather than inferring it from a train/test gap. A second test settles the
+harder question: hold out 10 of the 47 character classes entirely, train on the other 37, and
+classify the withheld ones from one example each. A network trained end to end on EMNIST scores
+**74.5 %** against 60.2 % (frozen ImageNet), 57.9 % (ours) and 48.0 % (raw pixels) — on characters
+it has never seen, where remembered training images cannot help. So its advantage is extracted
+structure, not stored examples.
+
+---
+
+Three threads run throughout.
+
+**Every phase carries a control that could have killed it.** The four used most often:
+
+* **The shuffled twin.** Take the block under test and permute it *across images*, so the number
+  of columns and each column's distribution survive and only the correspondence with the image is
+  destroyed. Whatever the real block scores above its shuffled twin is what it contributes as
+  **information**; the rest was capacity. Extra columns are not free in either direction — on
+  EMNIST at a 3×3 grid, real conjunction columns cost +0.01 while the same count shuffled costs
+  −0.81.
+* **The grid control.** Whenever a block is re-pooled at a finer resolution, the baseline is
+  re-pooled at the same resolutions too, so a gain that comes from finer pooling is not credited
+  to the operator. This is what settled Phase 5b: the baseline gives 93.71 → 93.73 → 93.10 across
+  3×3, 6×6 and 11×11, so **the task is saturated at 3×3** — a fact about EMNIST, not about
+  conjunctions.
+* **The trivial baseline.** Predict the training-set average for every image. It scores R² = 0 by
+  construction, so any arm scoring below it is doing worse than a constant — which several
+  otherwise respectable arms do under changed conditions.
+* **The energy-matched stimulus.** Figures drawn so total oriented energy is held constant, so a
+  difference between a T and an X cannot be a difference in how much ink is present.
+
+**Three apparent results were killed by exactly these controls.**
+
+1. **A₁ appeared to order junctions by ray count** — straight 6.3e4 < L 9.5e4 < T 1.15e5 < X 1.58e5
+   — and this went into the README and a commit message. It was tracking **total ink**
+   (980 / 1052 / 1359 / 1708 px). With ink held constant a T and an X give 1.15e5 against 1.16e5,
+   and normalised by energy the ordering *inverts*: an L-corner (0.0415) outranks a T (0.0391).
+   Theory says it must be so — A₁ reads the orientation profile, which is **π-periodic**, while ray
+   count is a **2π** property, and a T and an X have identical orientation content.
+2. **A T-versus-X separation** that came from unmatched orientation energy rather than from
+   junction type.
+3. **Blocks appearing to win on merit when part of the win was capacity** — visible only once the
+   shuffled twin was run alongside.
+
+**And the negative results are the substance.** Phases 5b, 5c, 7 and 8 are all failures to find an
+effect, and it was those failures — Phase 8's above all — that forced the change of question which
+made Phase 9 work. Phase 11 is a fourth: it retired a claim this project had been making for
+months. The pattern is consistent enough to be worth stating plainly — **the results that moved
+this work forward were mostly the ones that went the wrong way.**
+
+**Several published numbers here have been retracted**, and the retractions are kept in place
+rather than deleted, because the reason each was wrong is reusable. The largest: a cross-scale
+operator reported as moving the thickness/fuzziness confound by ~+0.16 in both directions turned
+out to be an inline reimplementation missing a square root that the real pooling path applies —
+the true effect is +0.019 and −0.270. And a reduced-sample selection pass **inflated every gain
+2–5× and reversed one sign**, which is why selection is now done on reduced samples but effect
+sizes never are.
