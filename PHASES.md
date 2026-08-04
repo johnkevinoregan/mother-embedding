@@ -16,6 +16,11 @@ qualitative conclusion a stronger classifier does not reproduce; and §7.11 of
 `P0.6_TestFeaturesWithMLP/README_MLP_FPE_Experiment.md` is the few-shot comparison whose missing
 control became Phase 6.
 
+**Every section below opens with a *Source* line** naming the script that produced its numbers and
+the figure, table or log they landed in. Paths are relative to the phase's own directory. Where a
+phase has an accuracy- or R²-per-epoch curve, that is named first: a final number cannot distinguish
+a converged run from a sample of a trajectory, and this project has been caught by that.
+
 Directories: `P0-8_RationalGaborFeatures/` (the front end and the EMNIST phases),
 `P9_P12_SimpleStrokeTests/` (Phase 9), `P10_FashionMNIST/` (Phase 10). Each has its own `README.md` for
 how to run it and `RESULTS.md` for the tables; this file is the map across all of them.
@@ -23,6 +28,8 @@ how to run it and `RESULTS.md` for the tables; this file is the map across all o
 ---
 
 ## 0–4 — building the front end and proving it computes what it claims
+
+*Source — `P0-8_RationalGaborFeatures/`: the `Validate_*.jl` gates, which run headless and print `ALL GATES PASSED` or name what failed. Captured output: `validate_i1d.log`, `validate_gpu.log`. No figures — these phases assert properties, not measurements.*
 
 | | question | verdict | where |
 |:--|:--|:--|:--|
@@ -42,6 +49,8 @@ scales out of three).
 
 ### Phase 5a — does the new front end reach a number we already have?
 
+*Source — `P0-8_RationalGaborFeatures/`: `Phase5a_EMNIST.jl` → accuracy curves `figures/phase5a_curves.png`; table in `RESULTS.md` §Phase 5a; the 2026-07-29 re-verification in `phase5a_recheck.log` and `phase5a_recheck2.log`.*
+
 Reference arm reproduces the previously published **92.31 %** exactly. The new bank gives
 **93.66 %**, so **+1.35 points** from the ladder, the orientation count and correct padding
 alone. **The AND layer adds +0.06, then −0.06.**
@@ -53,17 +62,23 @@ alone. **The AND layer adds +0.06, then −0.06.**
 
 ### Phase 5b — is 3×3 pooling destroying a point property?
 
+*Source: `Phase5b_FinerGrid.jl` → `figures/phase5b_curves.png`; table in `RESULTS.md` §Phase 5b.*
+
 Partly yes and it does not matter. A₁+A₂ alone gain **+3.1 points** at a 6×6 grid, so signal
 *was* being discarded — but the baseline does not improve either, so **the task is saturated
 at 3×3**. That is a fact about EMNIST, not about conjunctions.
 
 ### Phase 5c — does the AND layer pay when data is scarce?
 
+*Source: `Phase5c_FewShot.jl` → `figures/phase5c_fewshot.png`; table in `RESULTS.md` §Phase 5c.*
+
 No. **Flat and indistinguishable from zero at every sample size from 200 to 112,800 images.**
 The shuffled twin earns its place here: at 200 images, adding 54 *shuffled* columns costs
 −10.10 points, so `+A` costing only −0.44 is itself evidence those columns are informative.
 
 ### Phase 6 — does augmentation help the pixels but not the features?
+
+*Source: `Phase6_Augmentation.jl` → `figures/phase6_augmentation.png`; table in `RESULTS.md` §Phase 6.*
 
 **The cleanest positive result in the project.** Rotation, scale and translation augmentation
 buys a small CNN **+3.9 to +12.8 points** and buys the features **−1.2 to +0.4**. The designed
@@ -72,6 +87,8 @@ features already carry the invariances augmentation supplies — a much stronger
 
 ### Phase 7 — the `F`/`f` probe, and how correlated A really is
 
+*Source: `Phase7_FfProbe.jl` → tables in `RESULTS.md` §Phase 7 and its four subsections (the R²(A ← orient) numbers are in §"R²(A ← orient) puts a number on the correlation"). No figure.*
+
 `F`/`f` is **near-undecidable**: pixels 66.4 %, CNN 67.5 %, CNN with augmentation 69.9 %, our
 features 69.9 %. Two unrelated routes converging says ceiling, not failure.
 
@@ -79,6 +96,8 @@ And the explanation for 5a–5c: **`R²(A ← orient) = 0.933`** median across 4
 operators, near-collinear *on handwriting*.
 
 ### Phase 8 — a task where co-location is decisive
+
+*Source: `Phase8_JunctionBenchmark.jl` → the stimuli `figures/phase8_stimuli.png` and the gap sweep `figures/phase8_gapsweep.png`; table in `RESULTS.md` §Phase 8.*
 
 **The stimuli.** Three designs, each built so that the *only* difference between classes is
 whether two orientations meet **at a point** or merely fall in the same pooling window — which
@@ -104,6 +123,8 @@ a trained classifier cannot separate them.
 ---
 
 ## 9 — changing the question
+
+*Source — `P9_P12_SimpleStrokeTests/`: `Phase9_Readouts.jl` runs the arms; `Plot_Phase9.jl` draws `phase9_arms.png` (per-property R²), `phase9_blocks.png` (block attribution), `phase9_learning.png`, `phase9_learning_detail.png` and `phase9_learning_splits.png` (R²-per-epoch curves), `phase9_grid.png` and `phase9_samples.png`. Predicted-vs-true scatters with binned medians: `Plot_Predictions.jl` / `Replot_Predictions.jl` → `figures_predictions/pred_*.png`, redrawable from `figures_predictions/predictions.jls` without retraining. Tables in `RESULTS.md` Part 1.*
 
 `P9_P12_SimpleStrokeTests/`. Phases 5–8 asked *can a classifier separate these*, and on synthetic
 stimuli the answer is nearly always yes, which is why Phase 8 produced no information.
@@ -190,6 +211,8 @@ design choice that depends on image statistics.
 
 ## 10 — something that is not characters
 
+*Source — `P10_FashionMNIST/`: `Phase10_FashionMNIST.jl` and `Phase10b_Collinearity.jl` → tables in `RESULTS.md`; captured runs `phase10_full.log`, `collinearity2.log`. **This phase kept no accuracy curves** — the only per-epoch record anywhere is four sampled lines for the CNN arm in `phase10_full.log`, and nothing at all for the feature arms. It predates the standing rule and is the one phase whose numbers cannot be checked for convergence.*
+
 `P10_FashionMNIST/`. Silhouettes with texture rather than line drawings, and **published
 baselines** to calibrate against instead of only our own arms.
 
@@ -240,6 +263,8 @@ BSDS boundary detection is the intended target.
 
 ## 11 — is the front end doing anything scale has not already done?
 
+*Source — `P11_ConVNextTest/`: `ConvNextStimuli.jl` → `extract_convnext.py` → `ConvNextReadout.jl` (three steps, in that order). `Plot_Curves.jl` → `figures/curves_iid.png`, the R²-per-epoch curves that show these are ceilings rather than a sampled trajectory. `Deltas.jl` → `deltas.log`; `PartialOut.jl` → `partialout.log`; the stage probe → `stageprobe.log`; the random-init control → `run_random.log`. Tables in `RESULTS.md`.*
+
 `P11_ConVNextTest/`. The standing objection to Phase 9 was that its CNN lost because it had only
 12,000 stroke images. A **frozen ImageNet ConvNeXt** answers that directly: 28.6 M / 88.6 M
 parameters fitted to 1.28 M photographs, never trained on a stroke, scored by an *identical*
@@ -277,14 +302,18 @@ a thickness/fuzziness confound ConvNeXt does not have.
 
 ## 12 — turning the front end's own dials
 
+*Source — `P9_P12_SimpleStrokeTests/`: `Sweep_Capacity.jl` (the dials) and `Add_DeepHead.jl` (readout architectures, and the `fine`/`smax`/`both` arms) → tables in `RESULTS.md` Part 2, with the authoritative full-n numbers in §"Full-n confirmation" and the retracted reduced-n pass kept in the appendix below it. Plain-language account in `RESULTS.md` Part 2 §"Plain-language account". The λ=8 and spatial-max scatters are `figures_predictions/pred_*.png`, from `Replot_Predictions.jl`.*
+
 `P9_P12_SimpleStrokeTests/`, on the Phase 9 stimuli. Everything before this tests the front end **as
 built**; this asks whether it improves when given more to work with. The pooling grid had been
 swept; the number of scales, the number of orientations, the order of the orientation harmonics
 and the number of ray probe distances had not.
 
-**Plain-language account: [`P9_P12_SimpleStrokeTests/FINDINGS.md`](P9_P12_SimpleStrokeTests/FINDINGS.md).**
-Detail in `SWEEP.md` (reduced-n, partly retracted), `SWEEP_FULLN.md` (the confirmation) and
-`XSCALE.md` (cross-scale, retracted and corrected).
+**Plain-language account: [`RESULTS.md` Part 2](P9_P12_SimpleStrokeTests/RESULTS.md).**
+Detail in `RESULTS.md` Part 2, which absorbed the four files this was originally spread over:
+§"Full-n confirmation" (the authoritative numbers), §"Cross-scale — proposed, published, and
+retracted", and the reduced-n selection pass kept as an appendix because it inflated every gain
+2–5× and reversed one sign.
 
 **Adopted: `harmonics + offsets`, 54 features.** Higher orientation harmonics (C₆/C₈) buy
 curvedness for five extra numbers; the crossed `d × λ` ray offsets — the off-diagonal that was
@@ -314,6 +343,8 @@ operator that already existed for this, makes it worse.
 ---
 
 ## 13 — how much of the fit is memorised, and does the representation change that?
+
+*Source — `P13_CurriculumEMNIST/`: features from `Extract_Ours.jl` and `extract_convnext_emnist.py`; frozen arms from `Curriculum.jl`, end-to-end arms from `train_convnext_scratch.py`. `Plot_Curriculum.jl` → `figures/curriculum_compare.png` (all four arms) and one panel per arm, `figures/curriculum_{ours,convnext,scratch_tiny,scratch_base}.png`. The lookup baseline is `KNN_Baseline.jl` → `knn.log`; the few-shot test is `fewshot_train.py` → `FewShot_Eval.jl` → `Plot_FewShot.jl` → `figures/fewshot.png`, with the per-class check in `PerClass_FewShot.jl`. Tables in `RESULTS.md`.*
 
 `P13_CurriculumEMNIST/`. EMNIST's training set cut into **4 disjoint subsets of 28,200**, with training
 switched to the next subset every 15 epochs and the optimiser never reset. The partition is i.i.d.,
