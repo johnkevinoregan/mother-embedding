@@ -4,8 +4,8 @@
 High-Information Contour Features", Neural Computation 38:1–22 (2026),
 [doi:10.1162/NECO.a.1563](https://doi.org/10.1162/NECO.a.1563). Code at
 [github.com/mosorio/shape-matters](https://github.com/mosorio/shape-matters). Local copy:
-`OsarioSpaceMatters.pdf` in the repo root — the filename transposes the title, and the author is
-Osório — excluded from the repo via `.git/info/exclude`.*
+`OsarioShapeMatters.pdf` in the repo root — the filename drops the accents; the author is Osório —
+excluded from the repo via `.git/info/exclude`.*
 
 *Nothing here is a new experiment. It is a comparison, one experiment it suggests, and two things
 worth stealing.*
