@@ -107,6 +107,79 @@ not size, not few-shot — and never the AND in isolation, because it is always 
 network. They cannot say what the AND buys by itself. We can, and do: Phase 8's junction benchmark,
 Phase 13's kNN baseline and few-shot arms.
 
+## The route they do not consider: no AND at all
+
+Their thesis is that i2D selectivity **requires** an AND of two filters. Our **ray transform**
+(`P0-8_RationalGaborFeatures/RayHarmonics.module.jl`) is a counterexample to a narrower but more
+interesting version of it.
+
+```math
+R(p, \varphi) \;=\; E\big(p + d\,u(\varphi),\; \theta = \varphi \bmod \pi\big), \qquad u(\varphi) = (\cos\varphi, \sin\varphi)
+```
+
+*"Is there a contour at distance `d` in direction `φ`, oriented along `φ`?"* `R` has one lobe per
+branch and its circular harmonics are the junction-type signature — `c₀` counts rays, `|c₁|/c₀`
+measures asymmetry:
+
+| configuration | c₀ | \|c₁\|/c₀ | \|c₂\|/c₀ |
+|:--|--:|--:|--:|
+| endpoint (1 ray) | 1 | 1.000 | 1.000 |
+| straight (2 opposite) | 2 | 0.000 | 1.000 |
+| L-corner (2 at 90°) | 2 | 0.707 | 0.000 |
+| T-junction (3 rays) | 3 | 0.333 | 0.333 |
+| X-crossing (4 rays) | 4 | 0.000 | 0.000 |
+
+**This operator is linear in the energy field** — a weighted sum of rigidly shifted orientation
+channels — where A₁ and their min are both bilinear. The discriminating work is done by the
+**geometry of the sampling**, not by a product.
+
+No contradiction with Zetzsche & Barth: `E` is already quadratic in the image, so `R` is too. But
+it sharpens the Min-Net claim considerably. **The AND buys you the energy field. It does not buy
+you junction type.** A second AND stacked on top adds nothing there; a spatial offset does. Nothing
+in their framing anticipates this, because they treat "AND of two filters" as the whole mechanism
+rather than as one step of two.
+
+### And it exposes a limitation of ours that they do not share
+
+The orientation fibre `E(x, y, θ)` is **π-periodic**; ray count is a **2π** property — it is about
+which rays *leave* a point, and mod-π orientation cannot tell east from west. A₁ takes a product
+across orientation channels *at a single point*, discarding spatial layout, so it **provably cannot
+count rays**. Measured cosine similarity of `E(θ)` at figure centres:
+
+```
+L-corner   vs T-junction : 0.9031
+L-corner   vs X-crossing : 0.8868
+T-junction vs X-crossing : 0.9234
+```
+
+Effectively the same vector. No downstream learning recovers what the representation never encoded.
+The ray transform exists because of this, and the fix was offset sampling rather than a bigger
+nonlinearity.
+
+**Their min does not have this limitation.** Each of `v`, `g` reads a 3×3 *spatial patch* of a
+feature map, so spatial layout survives the product and the operator is in principle 2π-capable.
+That is a genuine advantage of their formulation over A₁ — and they never test it, because Cifar-10
+has no junction taxonomy and the paper never asks what the learned pairs discriminate.
+
+One reservation, stated as a hypothesis rather than a measurement: a single 3×3 depthwise kernel
+spans ±1 map pixel, which at their coarsest Cifar stack (8×8) is ±4 input pixels, and at the first
+stack ±1. Our ray offset is on the order of one stroke width. So an offset large enough to separate
+branches is reachable only at the stacks where the spatial resolution to distinguish T from X has
+already been thrown away. Whether depth composes around this is exactly the question their
+evaluation cannot answer.
+
+### What the ray block actually costs us
+
+Stated plainly, because it is the weakest part of our own position. The ray harmonics are
+**expensive relative to their return, and the return is dataset-dependent**. On Fashion-MNIST:
++0.54 points over the base alone, and **−0.04 when added on top of A₁+A₂** — eighty-one features
+for nothing. Expected on silhouettes, which have no junctions to count, but it is a real cost. The
+block earns its columns only under Phase 9's question — how much of a *graded* property is
+*linearly* available — not under classification accuracy.
+
+So: we have a route they do not consider, it answers a question their operator class cannot, and it
+has not yet paid for itself on a classification benchmark.
+
 ## How big their effect is
 
 Cifar-10, final epoch, no early stopping (they report min-over-epochs separately in the appendix,
@@ -162,7 +235,12 @@ of the stimulus set we happened to choose.
 
 ## What we could tell them that they do not know
 
-The fixed 90° pairing is a control they never ran. If a hand-built orthogonal pairing on a fixed
+**The fixed 90° pairing is a control they never ran.** If a hand-built orthogonal pairing on a fixed
 Gabor bank recovers most of the Min-block's gain, the "learning finds the right pairs" story is
 unnecessary — and if it does not, that is the first evidence that the learned pairs are doing
 something other than end-stopping.
+
+**And the AND is not the only way to get i2D.** Their argument stops at "you need a product". The
+ray transform shows that once the quadrature energy field exists, junction *type* comes from offset
+sampling — an operator that is linear in that field. If the Min-block's gain survives replacing the
+min with a fixed pair of offset taps, the paper's mechanism is misattributed.
