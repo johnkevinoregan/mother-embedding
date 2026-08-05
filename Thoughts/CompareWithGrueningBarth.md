@@ -2,8 +2,7 @@
 
 *On Grüning & Barth, "Bio-inspired Min-Nets Improve the Performance and Robustness of Deep
 Networks", SVRHM 2021 workshop @ NeurIPS ([arXiv:2201.02149](https://arxiv.org/abs/2201.02149)).
-Local copy: `BrueningBarth.pdf` in the repo root — filename says Bruening, the author is Grüning.
-Not committed.*
+Local copy: `GrueningBarth.pdf` in the repo root, excluded from the repo via `.git/info/exclude`.*
 
 *Nothing here is a new experiment. It is a comparison, plus two things worth stealing.*
 
