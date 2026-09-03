@@ -68,6 +68,8 @@ By epoch 60, the end-to-end trained CNNs have moved ahead:
 | Proposed front end, frozen | 85.97% | 87.18% |
 | ImageNet ConvNeXt-base, frozen | 85.70% | 86.78% |
 
+**Figure:** [Comparison of held-out accuracy for all four representations](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/curriculum_compare.png).
+
 So the defensible conclusion is **not** that the hand-designed front end is better than a trainable CNN. Rather:
 
 **A 381-dimensional, completely untrained representation gets within roughly two percentage points of large CNNs trained end-to-end on EMNIST, and performs about as well as a 1024-dimensional representation learned by ConvNeXt-base from roughly 1.28 million ImageNet photographs.**
@@ -86,11 +88,24 @@ A particularly interesting qualitative difference appears when a fresh subset is
 
 The experiment also shows that forgetting previously trained examples is remarkably similar for the two frozen representations. Once training leaves subset 1, most of its special training-set advantage disappears within the next 15 epochs. This suggests that, when the representation is fixed, this form of forgetting is primarily a property of the **readout and optimizer**, not of whether the fixed representation came from hand-designed filters or an ImageNet CNN.
 
+The switch dynamics can be seen directly in the repository figures. The per-arm plots show held-out accuracy together with accuracy on the currently trained subset and the no-switch control:
+
+- [Proposed 381-feature front end](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/curriculum_ours.png)
+- [Frozen ImageNet ConvNeXt-base](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/curriculum_convnext.png)
+- [ConvNeXt-tiny trained from scratch](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/curriculum_scratch_tiny.png)
+- [ConvNeXt-base trained from scratch](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/curriculum_scratch_base.png)
+
 ## A stronger test: entirely unseen character classes
 
-The subproject also asks whether the CNN advantage is merely superior memorization. Ten of the 47 character classes are completely withheld while a ConvNeXt-tiny is trained on the other 37. Representations are then evaluated on few-shot classification of those **never-before-seen classes**.
+The subproject also asks whether the CNN advantage is merely superior memorization. Ten of the 47 character classes (`2, 3, M, O, Q, T, W, Z, e, r`) are completely withheld while a ConvNeXt-tiny is trained from scratch on the other 37.
+
+The subsequent few-shot test is important to understand precisely. **The CNN is not retrained on all 47 classes, or even trained by gradient descent on the 10 withheld classes.** After its 37-class training, its classifier is discarded and its penultimate layer is used as a **frozen feature extractor**. For each of the 10 new classes, only \(k = 1, 2, 5, 10,\) or \(20\) labelled examples from the EMNIST training split are supplied. Their feature vectors are averaged to form one **prototype** for each class. Every image from those 10 classes in the independent EMNIST test split is then classified **among the 10 new classes only**, according to which prototype has the greatest cosine similarity. This is repeated for 200 random selections of the support examples.
+
+The identical prototype procedure is applied to the proposed 381-dimensional front end, frozen ImageNet ConvNeXt features, and raw pixels. Thus the comparison asks whether experience with the **other 37 character classes** has taught the trainable ConvNeXt generic properties of handwritten-character structure that transfer to character classes it has never encountered.
 
 Here the trained ConvNeXt is clearly superior. At 1-shot classification it scores about **74.5%**, compared with **57.9%** for the proposed front end and **60.2%** for frozen ImageNet ConvNeXt. At 20 shots the scores are approximately **90.2%, 85.8%, and 85.6%**, respectively. Raw pixels are substantially worse.
+
+**Figure:** [Few-shot classification of the 10 entirely withheld character classes](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/fewshot.png).
 
 This is important because memorizing individual training characters cannot directly explain success on classes never encountered during training. The end-to-end CNN has learned transferable regularities of handwritten character construction. Its advantage is therefore genuine representation learning, not simply memorization.
 
@@ -114,3 +129,14 @@ In short, Phase 13 shows that much of what a CNN needs for this line-drawing pro
 - [P13_CurriculumEMNIST RESULTS](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/RESULTS.md)
 - [Extract_Ours.jl — exact Phase 13 front-end configuration](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/Extract_Ours.jl)
 - [Frontend.module.jl — implementation and description of feature blocks](https://github.com/johnkevinoregan/mother-embedding/blob/main/P9_P12_SimpleStrokeTests/Frontend.module.jl)
+- [fewshot_train.py — train ConvNeXt-tiny on only 37 classes and extract features for the 10 unseen classes](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/fewshot_train.py)
+- [FewShot_Eval.jl — prototype-based few-shot evaluation, with no CNN retraining](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/FewShot_Eval.jl)
+
+### Repository figures
+
+- [All four held-out accuracy curves](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/curriculum_compare.png)
+- [Proposed front end: curriculum and no-switch control](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/curriculum_ours.png)
+- [Frozen ImageNet ConvNeXt: curriculum and control](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/curriculum_convnext.png)
+- [ConvNeXt-tiny from scratch: curriculum and control](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/curriculum_scratch_tiny.png)
+- [ConvNeXt-base from scratch: curriculum and control](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/curriculum_scratch_base.png)
+- [Few-shot transfer to 10 unseen classes](https://github.com/johnkevinoregan/mother-embedding/blob/main/P13_CurriculumEMNIST/figures/fewshot.png)
